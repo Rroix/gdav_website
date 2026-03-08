@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Geometry Dash Avenue — Level Idea Generator" />
+  <meta name="theme-color" content="#0b0b0c" />
+  <link rel="icon" href="favicon.ico" />
+  <link rel="stylesheet" href="styles.css" />
+  <title>Geometry Dash Avenue — Idea Generator</title>
+</head>
+<body>
+  <header>
+    <div class="logo">Geometry Dash Avenue</div>
+    <nav>
+      <a href="index.html">Rules</a>
+      <a href="generator.html" class="active">Idea Generator</a>
+      <a href="about.html">About Us</a>
+      <a href="submit.html">Submit</a>
+    </nav>
+  </header>
+
+  <main>
+    <h1>Geometry Dash Idea Generator</h1>
+    <p class="intro">Use random mode for quick inspiration, or personalized mode to build a style prompt from your favorite reference levels.</p>
+
+    <div class="generator-layout">
+      <section class="generator-toolbar">
+        <div class="tab-group" role="tablist" aria-label="Generator modes">
+          <button class="tab-btn active" id="tab-random" type="button" data-mode="random" role="tab" aria-selected="true">Random</button>
+          <button class="tab-btn" id="tab-personalized" type="button" data-mode="personalized" role="tab" aria-selected="false">Personalized</button>
+        </div>
+        <div class="mode-actions">
+          <button class="secondary-btn" id="resetAllBtn" type="button">Reset</button>
+        </div>
+      </section>
+
+      <section id="randomMode" class="generator-panel">
+        <h2 class="panel-title">Random mode</h2>
+        <p class="panel-copy">This mode builds a level concept by picking one random prompt from each category.</p>
+        <div class="action-row">
+          <button class="primary-btn" id="generateRandomBtn" type="button">Generate random idea</button>
+        </div>
+        <div class="random-grid" id="randomGrid"></div>
+        <div class="prompt-block hidden" id="randomPrompt"></div>
+      </section>
+
+      <section id="personalizedMode" class="generator-panel hidden">
+        <h2 class="panel-title">Personalized mode</h2>
+        <p class="panel-copy">Choose the image you prefer in each pair. The generator aggregates tags from <code>levels.json</code> and turns them into a level direction.</p>
+
+        <div class="action-row">
+          <button class="primary-btn" id="startQuizBtn" type="button">Start personalized quiz</button>
+          <button class="secondary-btn hidden" id="restartQuizBtn" type="button">Restart quiz</button>
+        </div>
+
+        <div class="small-note" id="datasetNote">Waiting to load <code>levels.json</code>…</div>
+        <div class="error-box hidden" id="errorBox"></div>
+
+        <div class="status-bar hidden" id="statusBar">
+          <div class="status-text" id="roundText">Round 0 / 0</div>
+          <div class="progress-track" aria-hidden="true">
+            <div class="progress-fill" id="progressFill"></div>
+          </div>
+        </div>
+
+        <div class="choices-grid hidden" id="choicesGrid">
+          <article class="choice-card">
+            <div class="choice-media"><img id="leftImage" alt="Left choice preview" /></div>
+            <div class="choice-body">
+              <h3 class="choice-title" id="leftTitle">Left</h3>
+              <p class="choice-subtitle" id="leftSubtitle">Choose this style</p>
+              <button class="choice-btn" id="leftChoiceBtn" type="button">Choose left</button>
+            </div>
+          </article>
+
+          <article class="choice-card">
+            <div class="choice-media"><img id="rightImage" alt="Right choice preview" /></div>
+            <div class="choice-body">
+              <h3 class="choice-title" id="rightTitle">Right</h3>
+              <p class="choice-subtitle" id="rightSubtitle">Choose this style</p>
+              <button class="choice-btn" id="rightChoiceBtn" type="button">Choose right</button>
+            </div>
+          </article>
+        </div>
+
+        <section class="result-card hidden" id="personalizedResult">
+          <h2 class="panel-title">Your personalized direction</h2>
+          <p class="muted">This summary is built from your picks and the aggregated tag scores.</p>
+          <div class="result-grid" id="resultGrid"></div>
+          <div class="tag-list" id="topTags"></div>
+          <div class="prompt-block" id="personalizedPrompt"></div>
+        </section>
+      </section>
+    </div>
+
+    <div class="divider"></div>
+  </main>
+
+  <footer>Geometry Dash Avenue — ©2026</footer>
+
+  <script src="tagaggregation.js"></script>
+  <script>
+    document.addEventListener("DOMContentLoaded", function () {
+      var mode = "random";
+      var images = [];
+      var state = null;
+      var quizConfig = { maxRounds: 8, loserPenalty: 0.3 };
+
+      var randomPools = {
+        theme: ["tech megastructure", "ruined fantasy temple", "nature-overgrown facility", "retro arcade core", "abstract cosmic machine", "industrial skyline", "minimal modern chamber"],
+        atmosphere: ["calm and mysterious", "intense and overwhelming", "cold and clinical", "dreamy and elegant", "hostile and unstable", "playful and energetic"],
+        palette: ["cyan + white", "orange + gold", "purple + magenta", "green + lime", "blue + black", "white + red", "rainbow accents on dark base"],
+        gameplay: ["sync cube and robot flow", "tight ship corridors", "memory-based transitions", "swing-heavy pacing", "fast wave bursts", "mixed gamemode route"],
+        structure: ["layered foreground/background depth", "symmetrical centerpiece layout", "freeform open shapes", "dense detail blocks", "clean macro structures", "split-path progression"],
+        gimmick: ["reactive pulse flashes", "moving machinery", "fake routes and redirects", "collapsing structures", "portal fakeouts", "speed changes around drops"],
+        ending: ["soft atmospheric finish", "huge final drop", "quiet fadeout corridor", "boss-style climax", "mirror callback to the intro", "sudden blackout outro"]
+      };
+
+      var els = {
+        tabButtons: Array.prototype.slice.call(document.querySelectorAll(".tab-btn")),
+        randomMode: document.getElementById("randomMode"),
+        personalizedMode: document.getElementById("personalizedMode"),
+        randomGrid: document.getElementById("randomGrid"),
+        randomPrompt: document.getElementById("randomPrompt"),
+        generateRandomBtn: document.getElementById("generateRandomBtn"),
+        resetAllBtn: document.getElementById("resetAllBtn"),
+        startQuizBtn: document.getElementById("startQuizBtn"),
+        restartQuizBtn: document.getElementById("restartQuizBtn"),
+        datasetNote: document.getElementById("datasetNote"),
+        errorBox: document.getElementById("errorBox"),
+        statusBar: document.getElementById("statusBar"),
+        roundText: document.getElementById("roundText"),
+        progressFill: document.getElementById("progressFill"),
+        choicesGrid: document.getElementById("choicesGrid"),
+        leftImage: document.getElementById("leftImage"),
+        rightImage: document.getElementById("rightImage"),
+        leftTitle: document.getElementById("leftTitle"),
+        rightTitle: document.getElementById("rightTitle"),
+        leftSubtitle: document.getElementById("leftSubtitle"),
+        rightSubtitle: document.getElementById("rightSubtitle"),
+        leftChoiceBtn: document.getElementById("leftChoiceBtn"),
+        rightChoiceBtn: document.getElementById("rightChoiceBtn"),
+        personalizedResult: document.getElementById("personalizedResult"),
+        resultGrid: document.getElementById("resultGrid"),
+        topTags: document.getElementById("topTags"),
+        personalizedPrompt: document.getElementById("personalizedPrompt")
+      };
+
+      function pick(arr) {
+        return arr[Math.floor(Math.random() * arr.length)];
+      }
+
+      function titleCase(str) {
+        return String(str || "")
+          .split(/[_\s-]+/)
+          .filter(Boolean)
+          .map(function (part) {
+            return part.charAt(0).toUpperCase() + part.slice(1);
+          })
+          .join(" ");
+      }
+
+      function setMode(nextMode) {
+        mode = nextMode;
+        els.randomMode.classList.toggle("hidden", mode !== "random");
+        els.personalizedMode.classList.toggle("hidden", mode !== "personalized");
+        els.tabButtons.forEach(function (btn) {
+          var active = btn.getAttribute("data-mode") === mode;
+          btn.classList.toggle("active", active);
+          btn.setAttribute("aria-selected", active ? "true" : "false");
+        });
+      }
+
+      function generateRandomIdea() {
+        var data = {
+          theme: pick(randomPools.theme),
+          atmosphere: pick(randomPools.atmosphere),
+          palette: pick(randomPools.palette),
+          gameplay: pick(randomPools.gameplay),
+          structure: pick(randomPools.structure),
+          gimmick: pick(randomPools.gimmick),
+          ending: pick(randomPools.ending)
+        };
+
+        var order = ["theme", "atmosphere", "palette", "gameplay", "structure", "gimmick", "ending"];
+        els.randomGrid.innerHTML = order.map(function (key) {
+          return '<article class="mini-card"><h3>' + titleCase(key) + '</h3><p>' + data[key] + '</p></article>';
+        }).join("");
+
+        var prompt = [
+          "Build a Geometry Dash level with a " + data.theme + " style.",
+          "Make the atmosphere feel " + data.atmosphere + ".",
+          "Use a " + data.palette + " palette.",
+          "Focus on " + data.gameplay + ".",
+          "The structure should use " + data.structure + ".",
+          "Add a gimmick based on " + data.gimmick + ".",
+          "Finish with a " + data.ending + "."
+        ].join("\n");
+
+        els.randomPrompt.textContent = prompt;
+        els.randomPrompt.classList.remove("hidden");
+      }
+
+      function showError(message) {
+        els.errorBox.textContent = message;
+        els.errorBox.classList.remove("hidden");
+      }
+
+      function clearError() {
+        els.errorBox.textContent = "";
+        els.errorBox.classList.add("hidden");
+      }
+
+      function updateProgress() {
+        if (!state) return;
+        els.statusBar.classList.remove("hidden");
+        els.roundText.textContent = "Round " + (state.round + 1) + " / " + state.maxRounds;
+        var percent = state.maxRounds ? (state.round / state.maxRounds) * 100 : 0;
+        els.progressFill.style.width = Math.max(0, Math.min(100, percent)) + "%";
+      }
+
+      function renderPair(pair) {
+        els.choicesGrid.classList.remove("hidden");
+        els.personalizedResult.classList.add("hidden");
+
+        els.leftImage.src = pair.left.src;
+        els.leftImage.alt = pair.left.title ? pair.left.title : pair.left.id;
+        els.rightImage.src = pair.right.src;
+        els.rightImage.alt = pair.right.title ? pair.right.title : pair.right.id;
+
+        els.leftTitle.textContent = pair.left.title || titleCase(pair.left.id);
+        els.rightTitle.textContent = pair.right.title || titleCase(pair.right.id);
+        els.leftSubtitle.textContent = "Choose this level style";
+        els.rightSubtitle.textContent = "Choose this level style";
+
+        els.leftChoiceBtn.dataset.id = pair.left.id;
+        els.rightChoiceBtn.dataset.id = pair.right.id;
+
+        updateProgress();
+      }
+
+      function buildPrompt(result) {
+        var d = result.descriptors;
+        return [
+          "Create a Geometry Dash level direction with a " + result.style + " style.",
+          "Overall mood: " + d.vibe + ", " + d.energy + ", " + d.contrast + ", " + d.glow + ".",
+          "Decoration target: " + d.detail + ", " + d.polish + ", " + d.depth + ", " + d.symmetry + ".",
+          "Palette target: " + d.temp + " base with " + result.accents + " accents.",
+          "Use this as the main creative prompt, then adapt gameplay and sync around it."
+        ].join("\n");
+      }
+
+      function renderResult(result) {
+        els.choicesGrid.classList.add("hidden");
+        els.personalizedResult.classList.remove("hidden");
+        els.restartQuizBtn.classList.remove("hidden");
+        els.progressFill.style.width = "100%";
+        els.roundText.textContent = "Completed";
+
+        var d = result.descriptors;
+        var cards = [
+          { label: "Style", value: titleCase(result.style) },
+          { label: "Accents", value: titleCase(result.accents) },
+          { label: "Mood", value: [d.vibe, d.energy, d.contrast, d.glow].join(", ") },
+          { label: "Build", value: [d.detail, d.polish, d.depth, d.symmetry].join(", ") }
+        ];
+
+        els.resultGrid.innerHTML = cards.map(function (card) {
+          return '<div class="stat-card"><div class="stat-label">' + card.label + '</div><div class="stat-value">' + card.value + '</div></div>';
+        }).join("");
+
+        var tags = [];
+        result.topThemes.forEach(function (item) { tags.push(titleCase(item.tag)); });
+        result.topAccents.forEach(function (item) { tags.push(titleCase(item.tag.replace("accent_", ""))); });
+        els.topTags.innerHTML = tags.map(function (tag) {
+          return '<span class="tag">' + tag + '</span>';
+        }).join("");
+
+        els.personalizedPrompt.textContent = buildPrompt(result) + "\n\n" + result.briefText;
+      }
+
+      function startQuiz() {
+        clearError();
+        if (!images.length) {
+          showError("levels.json is empty or could not be loaded.");
+          return;
+        }
+
+        var started = window.QuizEngine.start(images, quizConfig);
+        if (!started.ok) {
+          showError(started.error || "Could not start personalized mode.");
+          return;
+        }
+
+        state = started.state;
+        els.restartQuizBtn.classList.add("hidden");
+        renderPair(started.pair);
+      }
+
+      function choose(choiceId) {
+        if (!state || !choiceId) return;
+        clearError();
+
+        var outcome = window.QuizEngine.choose(images, state, choiceId);
+        if (!outcome.ok) {
+          showError(outcome.error || "Could not apply this choice.");
+          return;
+        }
+
+        state = outcome.state;
+        if (outcome.done) {
+          renderResult(outcome.result);
+        } else {
+          renderPair(outcome.pair);
+        }
+      }
+
+      function resetAll() {
+        state = null;
+        clearError();
+        els.randomGrid.innerHTML = "";
+        els.randomPrompt.textContent = "";
+        els.randomPrompt.classList.add("hidden");
+        els.choicesGrid.classList.add("hidden");
+        els.personalizedResult.classList.add("hidden");
+        els.statusBar.classList.add("hidden");
+        els.progressFill.style.width = "0%";
+        els.roundText.textContent = "Round 0 / 0";
+        els.restartQuizBtn.classList.add("hidden");
+      }
+
+      function loadLevels() {
+        fetch("levels.json", { cache: "no-store" })
+          .then(function (response) {
+            if (!response.ok) throw new Error("Could not fetch levels.json");
+            return response.json();
+          })
+          .then(function (data) {
+            images = Array.isArray(data) ? data : [];
+            var check = window.QuizEngine.validateImages(images);
+            if (!check.ok) throw new Error(check.error);
+            els.datasetNote.innerHTML = "Loaded <strong>levels.json</strong> with " + images.length + " reference levels.";
+          })
+          .catch(function (error) {
+            images = [];
+            els.datasetNote.innerHTML = "Could not load <code>levels.json</code>. Add the file next to this page and serve the site from a local or remote server.";
+            showError(error.message || "Unknown dataset error");
+          });
+      }
+
+      els.tabButtons.forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          setMode(btn.getAttribute("data-mode"));
+        });
+      });
+
+      els.generateRandomBtn.addEventListener("click", generateRandomIdea);
+      els.resetAllBtn.addEventListener("click", resetAll);
+      els.startQuizBtn.addEventListener("click", function () {
+        setMode("personalized");
+        startQuiz();
+      });
+      els.restartQuizBtn.addEventListener("click", startQuiz);
+      els.leftChoiceBtn.addEventListener("click", function () { choose(this.dataset.id); });
+      els.rightChoiceBtn.addEventListener("click", function () { choose(this.dataset.id); });
+
+      setMode("random");
+      generateRandomIdea();
+      loadLevels();
+    });
+  </script>
+</body>
+</html>
