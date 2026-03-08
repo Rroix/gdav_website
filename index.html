@@ -4,486 +4,13 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="description" content="Extended Server Rules — Geometry Dash Avenue" />
-  <meta name="theme-color" content="#4a79c6" />
+  <meta name="theme-color" content="#111111" />
   <link rel="icon" href="favicon.ico" />
+  <link rel="stylesheet" href="styles.css" />
   <title>Geometry Dash Avenue</title>
-
-  <style>
-    @import url("https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap");
-
-    :root{
-      --font: "Poppins", sans-serif;
-
-      --bg-top: #0b1020;
-      --bg-bottom: #0a1324;
-      --paper: rgba(255,255,255,0.06);
-
-      --text: #e9eef8;
-      --muted: rgba(233,238,248,0.76);
-
-      --accent: #4a79c6;
-      --border: rgba(74,121,198,0.30);
-
-      --radius: 16px;
-      --maxw: 920px;
-
-      --shadow: 0 10px 22px rgba(0,0,0,0.28);
-
-      /* Motion (smoother + subtle) */
-      --ease: cubic-bezier(.2,.8,.2,1);
-      --ease-soft: cubic-bezier(.22,1,.36,1);
-      --t-fast: 160ms;
-      --t-med: 240ms;
-      --t-slow: 360ms;
-    }
-
-    *{ box-sizing: border-box; }
-
-    html{ scroll-behavior: smooth; }
-
-    body{
-      margin: 0;
-      font-family: var(--font);
-      color: var(--text);
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-      overflow-x: hidden;
-      text-rendering: optimizeLegibility;
-      -webkit-font-smoothing: antialiased;
-      -moz-osx-font-smoothing: grayscale;
-
-      /* IMPORTANT: background moved to fixed pseudo-element so it never shifts with content height */
-      background: none;
-    }
-
-    /* Fixed gradient background (won’t change with expand/collapse) */
-    body::before{
-      content: "";
-      position: fixed;
-      inset: 0;
-      z-index: -3;
-      pointer-events: none;
-      background:
-        radial-gradient(900px 520px at 15% 10%, rgba(74,121,198,0.14), transparent 62%),
-        radial-gradient(720px 520px at 80% 25%, rgba(120,170,220,0.10), transparent 60%),
-        linear-gradient(180deg, var(--bg-top), var(--bg-bottom));
-      transform: translateZ(0);
-    }
-
-    /* Calm particle canvas layer */
-    #bgParticles{
-      position: fixed;
-      inset: 0;
-      z-index: -2;
-      pointer-events: none;
-      opacity: 0.9;
-      transform: translateZ(0);
-    }
-
-    header{
-      position: sticky;
-      top: 0;
-      z-index: 1000;
-
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 18px;
-
-      padding: 14px 22px;
-      background: rgba(11,16,32,0.78);
-      border-bottom: 2px solid var(--border);
-
-      backdrop-filter: blur(10px);
-      -webkit-backdrop-filter: blur(10px);
-    }
-
-    .logo{
-      font-weight: 800;
-      font-size: 1.1rem;
-      letter-spacing: 0.2px;
-      color: var(--text);
-      white-space: nowrap;
-      user-select: none;
-    }
-
-    nav{
-      display:flex;
-      gap: 18px;
-      align-items:center;
-      justify-content:center;
-      flex: 1;
-      flex-wrap: wrap;
-    }
-
-    nav a{
-      color: rgba(233,238,248,0.88);
-      text-decoration: none;
-      font-weight: 650;
-      padding: 6px 10px;
-      border-radius: 10px;
-      transition: background var(--t-med) var(--ease), color var(--t-med) var(--ease);
-      position: relative;
-      outline: none;
-    }
-
-    /* subtle underline animation */
-    nav a::after{
-      content: "";
-      position: absolute;
-      left: 10px;
-      right: 10px;
-      bottom: 4px;
-      height: 2px;
-      background: rgba(74,121,198,0.70);
-      transform: scaleX(0);
-      transform-origin: center;
-      transition: transform var(--t-med) var(--ease);
-      border-radius: 999px;
-      opacity: 0.9;
-    }
-
-    @media (hover: hover) and (pointer: fine){
-      nav a:hover{
-        background: rgba(255,255,255,0.05);
-        color: var(--text);
-      }
-      nav a:hover::after{ transform: scaleX(1); }
-    }
-
-    main{
-      width: 100%;
-      max-width: var(--maxw);
-      margin: 34px auto 62px;
-      padding: 0 18px;
-      flex: 1;
-    }
-
-    h1{
-      margin: 0 0 8px;
-      text-align: center;
-      font-size: clamp(1.6rem, 2.2vw + 1rem, 2.3rem);
-      letter-spacing: 0.2px;
-      color: var(--text);
-    }
-
-    p.intro{
-      margin: 0 auto 28px;
-      max-width: 780px;
-      text-align: center;
-      color: var(--muted);
-      line-height: 1.7;
-      font-size: clamp(0.98rem, 0.5vw + 0.9rem, 1.08rem);
-    }
-
-    .rules{
-      display: flex;
-      flex-direction: column;
-      gap: 14px;
-    }
-
-    .rule{
-      background: var(--paper);
-      border: 1px solid rgba(255,255,255,0.10);
-      border-left: 4px solid var(--border);
-      border-radius: var(--radius);
-      box-shadow: var(--shadow);
-      overflow: hidden;
-
-      transition:
-        transform var(--t-slow) var(--ease-soft),
-        border-color var(--t-slow) var(--ease-soft),
-        background var(--t-slow) var(--ease-soft),
-        box-shadow var(--t-slow) var(--ease-soft);
-      will-change: transform;
-    }
-
-    /* subtle hover only on real hover devices */
-    @media (hover: hover) and (pointer: fine){
-      .rule:hover{
-        transform: translateY(-1px);
-        border-color: rgba(74,121,198,0.38);
-        background: rgba(255,255,255,0.065);
-      }
-    }
-
-    .rule.open{
-      border-left-color: var(--accent);
-      box-shadow: 0 14px 30px rgba(0,0,0,0.34);
-      background: rgba(255,255,255,0.07);
-    }
-
-    .rule__toggle{
-      width: 100%;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 14px;
-
-      padding: 18px 18px;
-      border: 0;
-      background: transparent;
-      color: var(--text);
-      cursor: pointer;
-      text-align: left;
-      outline: none;
-      touch-action: manipulation;
-      -webkit-tap-highlight-color: transparent;
-
-      transition: background var(--t-med) var(--ease);
-    }
-
-    @media (hover: hover) and (pointer: fine){
-      .rule__toggle:hover{
-        background: rgba(255,255,255,0.03);
-      }
-    }
-
-    .rule__toggle:active{
-      transform: translateY(1px);
-    }
-
-    .rule__title{
-      font-size: clamp(1.08rem, 0.9vw + 0.95rem, 1.32rem);
-      font-weight: 800;
-      letter-spacing: 0.2px;
-      margin: 0;
-    }
-
-    .rule__hint{
-      margin: 6px 0 0;
-      color: var(--muted);
-      font-weight: 600;
-      font-size: 0.95rem;
-      line-height: 1.5;
-    }
-
-    /* More fitting chevron */
-    .rule__chev{
-      flex: 0 0 auto;
-      width: 38px;
-      height: 38px;
-      border-radius: 12px;
-      border: 1px solid rgba(255,255,255,0.10);
-      display: grid;
-      place-items: center;
-      background: rgba(255,255,255,0.04);
-      transition:
-        transform var(--t-slow) var(--ease-soft),
-        background var(--t-slow) var(--ease-soft),
-        border-color var(--t-slow) var(--ease-soft);
-      user-select: none;
-    }
-
-    .rule__chev svg{
-      width: 18px;
-      height: 18px;
-      display: block;
-      stroke: rgba(233,238,248,0.86);
-      stroke-width: 2.25;
-      fill: none;
-      stroke-linecap: round;
-      stroke-linejoin: round;
-    }
-
-    @media (hover: hover) and (pointer: fine){
-      .rule__toggle:hover .rule__chev{
-        background: rgba(74,121,198,0.10);
-        border-color: rgba(74,121,198,0.25);
-      }
-    }
-
-    .rule.open .rule__chev{
-      transform: rotate(180deg);
-      background: rgba(74,121,198,0.10);
-      border-color: rgba(74,121,198,0.25);
-    }
-
-    .rule__panel{
-      height: 0;
-      overflow: hidden;
-      transition: height var(--t-slow) var(--ease-soft);
-      border-top: 1px solid rgba(255,255,255,0.08);
-      background: rgba(0,0,0,0.08);
-      will-change: height;
-    }
-
-    .rule__content{
-      padding: 16px 18px 18px;
-      color: rgba(233,238,248,0.92);
-      font-size: 1rem;
-      line-height: 1.75;
-
-      /* readability */
-      max-width: 78ch;
-
-      /* smooth entrance */
-      opacity: 0;
-      transform: translateY(-6px);
-      transition: opacity var(--t-med) var(--ease), transform var(--t-med) var(--ease);
-      will-change: opacity, transform;
-    }
-
-    .rule.open .rule__content{
-      opacity: 1;
-      transform: translateY(0);
-    }
-
-    /* Smooth close (content fades without snapping) */
-    .rule.closing .rule__content{
-      opacity: 0;
-      transform: translateY(-6px);
-    }
-
-    .rule__content p{ margin: 10px 0; }
-
-    /* Markdown-like blocks */
-    .md-quote{
-      margin: 12px 0 14px;
-      padding: 10px 12px;
-      border-left: 4px solid var(--accent);
-      background: rgba(74,121,198,0.10);
-      border-radius: 12px;
-      color: rgba(233,238,248,0.92);
-      white-space: pre-wrap;
-    }
-
-    .md-dash{
-      list-style: none;
-      padding-left: 0;
-      margin: 12px 0 14px;
-      line-height: 1.75;
-    }
-    .md-dash li{
-      position: relative;
-      padding-left: 18px;
-      margin: 8px 0;
-      color: rgba(233,238,248,0.92);
-    }
-    .md-dash li::before{
-      content: "—";
-      position: absolute;
-      left: 0;
-      color: rgba(233,238,248,0.88);
-    }
-
-    .md-label{
-      margin: 14px 0 6px;
-      font-weight: 800;
-      color: rgba(233,238,248,0.92);
-    }
-
-    a.inline{
-      color: rgba(160,200,255,0.95);
-      text-decoration: none;
-      font-weight: 700;
-    }
-    a.inline:hover{ text-decoration: underline; }
-
-    .divider{
-      width: 100%;
-      height: 2px;
-      background: linear-gradient(90deg, transparent, rgba(74,121,198,0.55), transparent);
-      margin: 26px 0 6px;
-      opacity: 0.85;
-    }
-
-    footer{
-      text-align:center;
-      padding: 22px 0;
-      color: rgba(233,238,248,0.72);
-      font-size: 0.9rem;
-      background: rgba(11,16,32,0.92);
-      border-top: 2px solid var(--border);
-    }
-
-    /* Focus rings (keyboard) */
-    .rule__toggle:focus-visible,
-    nav a:focus-visible{
-      outline: 3px solid rgba(74,121,198,0.75);
-      outline-offset: 3px;
-      border-radius: 12px;
-    }
-    nav a:focus-visible::after{ transform: scaleX(1); }
-
-    /* Better mobile + tablet layout */
-    @media (max-width: 900px){
-      main{ margin: 28px auto 52px; }
-    }
-
-    @media (max-width: 700px){
-      header{ padding: 12px 14px; }
-      nav{
-        justify-content: flex-start;
-        flex-wrap: nowrap;
-        overflow-x: auto;
-        -webkit-overflow-scrolling: touch;
-        scrollbar-width: thin;
-        padding-bottom: 2px;
-      }
-      nav::-webkit-scrollbar{ height: 8px; }
-      nav::-webkit-scrollbar-thumb{
-        background: rgba(255,255,255,0.10);
-        border-radius: 999px;
-      }
-      nav a{
-        flex: 0 0 auto;
-        white-space: nowrap;
-      }
-    }
-
-    @media (max-width: 600px){
-      header{
-        flex-direction: column;
-        align-items: stretch;
-        gap: 10px;
-      }
-      .logo{ text-align: center; }
-      nav{ justify-content: center; overflow-x: auto; }
-      main{
-        margin: 22px auto 44px;
-        padding: 0 14px;
-      }
-      .rule__toggle{
-        padding: 16px 14px;
-        gap: 12px;
-      }
-      .rule__content{
-        padding: 14px 14px 16px;
-        font-size: 0.98rem;
-      }
-      .rule__chev{
-        width: 36px;
-        height: 36px;
-      }
-      .rule__chev svg{
-        width: 17px;
-        height: 17px;
-      }
-    }
-
-    @media (max-width: 420px){
-      .rules{ gap: 12px; }
-      .rule__hint{ font-size: 0.92rem; }
-    }
-
-    /* Reduced motion: disables particles + transitions */
-    @media (prefers-reduced-motion: reduce){
-      #bgParticles{ display: none !important; }
-      *{
-        transition: none !important;
-        animation: none !important;
-        scroll-behavior: auto !important;
-      }
-    }
-  </style>
 </head>
 
 <body>
-  <!-- Fixed particle layer -->
-  <canvas id="bgParticles" aria-hidden="true"></canvas>
-
   <header>
     <div class="logo">Geometry Dash Avenue</div>
     <nav>
@@ -491,7 +18,6 @@
       <a href="generator.html">Idea Generator</a>
       <a href="about.html">About Us</a>
       <a href="submit.html">Submit</a>
-      <!-- Later: translation links -->
     </nav>
   </header>
 
@@ -507,9 +33,6 @@
 
   <footer>Geometry Dash Avenue — ©2026</footer>
 
-  <!-- =========================================================
-       SECTION 2 — RULES TEXT (UNCHANGED)
-       ========================================================= -->
   <script id="rulesText" type="text/plain">
 === Voice Channels and Calls (VC) ===
 ~ Voice channels are just like text channels if it was a call.
@@ -855,158 +378,10 @@ Rules can’t cover every scenario. Staff may act on behavior that is clearly di
 Punishments may include warnings, mutes, kicks, bans, and content removal in any shape or form.
 Severity depends on intent, impact, history, and cooperation.
 Trying to dodge consequences (alts, manipulation, deleting messages...) can increase severity.
-
   </script>
 
-  <!-- =========================================================
-       SECTION 1 — LOGIC + BACKGROUND (fixed syntax + smoother behavior)
-       ========================================================= -->
   <script>
     document.addEventListener("DOMContentLoaded", function () {
-      /* ---------------------------
-         Calm particles background
-         --------------------------- */
-      (function initParticles(){
-        var canvas = document.getElementById("bgParticles");
-        if (!canvas || !canvas.getContext) return;
-
-        var reduceMotion = false;
-        try {
-          reduceMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-        } catch (e) {}
-
-        if (reduceMotion) return;
-
-        var ctx = canvas.getContext("2d", { alpha: true });
-        var dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
-        var w = 0, h = 0;
-        var particles = [];
-        var rafId = 0;
-        var lastT = 0;
-        var running = true;
-
-        function rand(min, max){ return min + Math.random() * (max - min); }
-
-        function resize(){
-          var cw = window.innerWidth;
-          var ch = window.innerHeight;
-          w = cw;
-          h = ch;
-
-          canvas.width = Math.floor(cw * dpr);
-          canvas.height = Math.floor(ch * dpr);
-          canvas.style.width = cw + "px";
-          canvas.style.height = ch + "px";
-          ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-
-          // Adjust count gently with screen size (keeps it light on mobile)
-          var target = Math.round((cw * ch) / 36000);
-          target = Math.max(22, Math.min(110, target));
-
-          // Rebuild only if too far off
-          if (Math.abs(particles.length - target) > 8) {
-            particles = [];
-            for (var i = 0; i < target; i++) particles.push(makeParticle(true));
-          }
-        }
-
-        function makeParticle(spawnAnywhere){
-          var x = spawnAnywhere ? rand(0, w) : rand(0, w);
-          var y = spawnAnywhere ? rand(0, h) : (h + rand(10, 120));
-          var r = rand(0.7, 2.2);
-          var vx = rand(-0.06, 0.06);
-          var vy = rand(-0.14, -0.03); // slow upward drift
-          var a = rand(0.08, 0.22);
-          var tw = rand(0.6, 1.4);     // twinkle speed
-          var ph = rand(0, Math.PI * 2);
-          // blend between cool accent + soft white
-          var mode = Math.random() < 0.45 ? 0 : 1;
-          return { x:x, y:y, r:r, vx:vx, vy:vy, a:a, tw:tw, ph:ph, mode: mode };
-        }
-
-        function draw(t){
-          ctx.clearRect(0, 0, w, h);
-
-          // very subtle vignette for depth
-          ctx.save();
-          ctx.globalAlpha = 0.20;
-          var g = ctx.createRadialGradient(w*0.5, h*0.35, 0, w*0.5, h*0.35, Math.max(w,h)*0.75);
-          g.addColorStop(0, "rgba(0,0,0,0)");
-          g.addColorStop(1, "rgba(0,0,0,0.55)");
-          ctx.fillStyle = g;
-          ctx.fillRect(0,0,w,h);
-          ctx.restore();
-
-          for (var i = 0; i < particles.length; i++){
-            var p = particles[i];
-            var twk = 0.5 + 0.5 * Math.sin(t * 0.001 * p.tw + p.ph);
-            var alpha = p.a * (0.65 + 0.35 * twk);
-
-            ctx.beginPath();
-            ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-
-            if (p.mode === 0) {
-              ctx.fillStyle = "rgba(74,121,198," + alpha.toFixed(3) + ")";
-            } else {
-              ctx.fillStyle = "rgba(233,238,248," + (alpha * 0.85).toFixed(3) + ")";
-            }
-            ctx.fill();
-          }
-        }
-
-        function step(now){
-          if (!running) return;
-          if (!lastT) lastT = now;
-          var dt = Math.min(0.05, (now - lastT) / 1000);
-          lastT = now;
-
-          for (var i = 0; i < particles.length; i++){
-            var p = particles[i];
-            p.x += p.vx * (60 * dt);
-            p.y += p.vy * (60 * dt);
-
-            // gentle horizontal wrap
-            if (p.x < -20) p.x = w + 20;
-            if (p.x > w + 20) p.x = -20;
-
-            // respawn at bottom once it floats out
-            if (p.y < -40) {
-              particles[i] = makeParticle(false);
-            }
-          }
-
-          draw(now);
-          rafId = requestAnimationFrame(step);
-        }
-
-        function onVis(){
-          if (document.hidden) {
-            running = false;
-            if (rafId) cancelAnimationFrame(rafId);
-            rafId = 0;
-          } else {
-            if (!running) {
-              running = true;
-              lastT = 0;
-              rafId = requestAnimationFrame(step);
-            }
-          }
-        }
-
-        window.addEventListener("resize", resize, { passive: true });
-        document.addEventListener("visibilitychange", onVis);
-
-        resize();
-        // Ensure at least some particles exist
-        if (particles.length === 0) {
-          for (var i = 0; i < 36; i++) particles.push(makeParticle(true));
-        }
-        rafId = requestAnimationFrame(step);
-      })();
-
-      /* ---------------------------
-         Rules parsing + accordion
-         --------------------------- */
       var rulesContainer = document.getElementById("rules");
       var rulesTextEl = document.getElementById("rulesText");
 
@@ -1038,15 +413,11 @@ Trying to dodge consequences (alts, manipulation, deleting messages...) can incr
       function renderInline(text){
         var t = escapeHtml(text);
 
-        // Links: [text](url)
         t = t.replace(/\[([^\]]+)\]\(([^)]+)\)/g, function (m, label, url) {
           return '<a class="inline" href="' + escapeHtml(url) + '">' + escapeHtml(label) + '</a>';
         });
 
-        // Bold: **text**
         t = t.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
-
-        // Italic: *text*
         t = t.replace(/\*([^*]+)\*/g, "<em>$1</em>");
 
         return t;
@@ -1197,11 +568,7 @@ Trying to dodge consequences (alts, manipulation, deleting messages...) can incr
           +       '<div class="rule__title">' + escapeHtml(rule.title) + '</div>'
           +       (rule.hint ? '<div class="rule__hint">' + renderInline(rule.hint) + "</div>" : "")
           +     "</div>"
-          +     '<div class="rule__chev" aria-hidden="true">'
-          +       '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">'
-          +         '<path d="M6 9l6 6 6-6"></path>'
-          +       '</svg>'
-          +     "</div>"
+          +     '<div class="rule__chev" aria-hidden="true">⌄</div>'
           +   "</button>"
           +   '<div class="rule__panel" role="region" aria-label="' + escapeHtml(rule.title) + ' details">'
           +     '<div class="rule__content">' + contentHtml + "</div>"
@@ -1230,13 +597,11 @@ Trying to dodge consequences (alts, manipulation, deleting messages...) can incr
         rule.classList.add("open");
         btn.setAttribute("aria-expanded", "true");
 
-        // lock to 0 then animate to height
         panel.style.height = "0px";
         requestAnimationFrame(function(){
           panel.style.height = content.scrollHeight + "px";
         });
 
-        // after open transition, set auto for responsiveness
         var onEnd = function(e){
           if (e.propertyName !== "height") return;
           if (!rule.classList.contains("open")) return;
@@ -1255,12 +620,10 @@ Trying to dodge consequences (alts, manipulation, deleting messages...) can incr
         rule.classList.add("closing");
         btn.setAttribute("aria-expanded", "false");
 
-        // If open height is auto, set current px so it can animate to 0
         if (panel.style.height === "" || panel.style.height === "auto") {
           panel.style.height = content.scrollHeight + "px";
         }
 
-        // next frame: animate to 0
         requestAnimationFrame(function(){
           panel.style.height = "0px";
         });
@@ -1268,7 +631,6 @@ Trying to dodge consequences (alts, manipulation, deleting messages...) can incr
         var onEnd = function(e){
           if (e.propertyName !== "height") return;
 
-          // finishing close
           rule.classList.remove("open");
           rule.classList.remove("closing");
           panel.removeEventListener("transitionend", onEnd);
