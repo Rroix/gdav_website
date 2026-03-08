@@ -4,17 +4,16 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="description" content="Extended Server Rules — Geometry Dash Avenue" />
-  <meta name="theme-color" content="#111111" />
+  <meta name="theme-color" content="#0b0b0c" />
   <link rel="icon" href="favicon.ico" />
   <link rel="stylesheet" href="styles.css" />
   <title>Geometry Dash Avenue</title>
 </head>
-
 <body>
   <header>
     <div class="logo">Geometry Dash Avenue</div>
     <nav>
-      <a href="index.html">Rules</a>
+      <a href="index.html" class="active">Rules</a>
       <a href="generator.html">Idea Generator</a>
       <a href="about.html">About Us</a>
       <a href="submit.html">Submit</a>
@@ -23,10 +22,7 @@
 
   <main>
     <h1>Extended Rules</h1>
-    <p class="intro">
-      These are the extended rules for the server. If you still have doubts, please contact our staff.
-    </p>
-
+    <p class="intro">These are the extended rules for the server. If you still have doubts, please contact our staff.</p>
     <div class="rules" id="rules"></div>
     <div class="divider"></div>
   </main>
@@ -394,14 +390,14 @@ Trying to dodge consequences (alts, manipulation, deleting messages...) can incr
         return;
       }
 
-      function slugify(s){
+      function slugify(s) {
         return s.toLowerCase().trim()
           .replace(/[^\w\s-]/g, "")
           .replace(/\s+/g, "-")
           .replace(/-+/g, "-");
       }
 
-      function escapeHtml(str){
+      function escapeHtml(str) {
         return String(str)
           .replace(/&/g, "&amp;")
           .replace(/</g, "&lt;")
@@ -410,7 +406,7 @@ Trying to dodge consequences (alts, manipulation, deleting messages...) can incr
           .replace(/'/g, "&#039;");
       }
 
-      function renderInline(text){
+      function renderInline(text) {
         var t = escapeHtml(text);
 
         t = t.replace(/\[([^\]]+)\]\(([^)]+)\)/g, function (m, label, url) {
@@ -423,11 +419,11 @@ Trying to dodge consequences (alts, manipulation, deleting messages...) can incr
         return t;
       }
 
-      function isTitleLine(line){
+      function isTitleLine(line) {
         return /^===\s*.+\s*===\s*$/.test(line.trim());
       }
 
-      function parseTitle(line){
+      function parseTitle(line) {
         var inside = line.trim().replace(/^===\s*/, "").replace(/\s*===\s*$/, "");
         var m = inside.match(/^(.*?)(?:\s*\(([^)]+)\)\s*)?$/);
         var title = (m && m[1] ? m[1] : inside).trim();
@@ -435,7 +431,7 @@ Trying to dodge consequences (alts, manipulation, deleting messages...) can incr
         return { title: title, id: id };
       }
 
-      function parseRules(text){
+      function parseRules(text) {
         var lines = text.split("\n");
         var out = [];
         var i = 0;
@@ -473,7 +469,7 @@ Trying to dodge consequences (alts, manipulation, deleting messages...) can incr
         return out;
       }
 
-      function bodyToBlocks(body){
+      function bodyToBlocks(body) {
         var lines = body.split("\n");
         var blocks = [];
 
@@ -481,21 +477,23 @@ Trying to dodge consequences (alts, manipulation, deleting messages...) can incr
         var quote = [];
         var dash = [];
 
-        function flushPara(){
+        function flushPara() {
           if (para.length) {
             var text = para.join(" ").trim();
             if (text) blocks.push({ type: "p", text: text });
             para = [];
           }
         }
-        function flushQuote(){
+
+        function flushQuote() {
           if (quote.length) {
             var text = quote.join("\n").trim();
             if (text) blocks.push({ type: "quote", text: text });
             quote = [];
           }
         }
-        function flushDash(){
+
+        function flushDash() {
           if (dash.length) {
             blocks.push({ type: "dash", items: dash.slice() });
             dash = [];
@@ -506,37 +504,46 @@ Trying to dodge consequences (alts, manipulation, deleting messages...) can incr
           var line = lines[idx];
 
           if (line.trim() === "") {
-            flushQuote(); flushDash(); flushPara();
+            flushQuote();
+            flushDash();
+            flushPara();
             continue;
           }
 
           if (line.trim().indexOf("## ") === 0) {
-            flushQuote(); flushDash(); flushPara();
+            flushQuote();
+            flushDash();
+            flushPara();
             blocks.push({ type: "label", text: line.trim().replace(/^##\s+/, "") });
             continue;
           }
 
           if (line.trim().indexOf(">") === 0) {
-            flushDash(); flushPara();
+            flushDash();
+            flushPara();
             quote.push(line.trim().replace(/^>\s?/, ""));
             continue;
           }
 
           if (line.trim().indexOf("-") === 0) {
-            flushQuote(); flushPara();
+            flushQuote();
+            flushPara();
             dash.push(line.trim().replace(/^-+\s?/, ""));
             continue;
           }
 
-          flushQuote(); flushDash();
+          flushQuote();
+          flushDash();
           para.push(line.trim());
         }
 
-        flushQuote(); flushDash(); flushPara();
+        flushQuote();
+        flushDash();
+        flushPara();
         return blocks;
       }
 
-      function blocksToHtml(blocks){
+      function blocksToHtml(blocks) {
         var html = "";
         for (var i = 0; i < blocks.length; i++) {
           var b = blocks[i];
@@ -557,7 +564,7 @@ Trying to dodge consequences (alts, manipulation, deleting messages...) can incr
         return html;
       }
 
-      function buildRuleHtml(rule){
+      function buildRuleHtml(rule) {
         var blocks = bodyToBlocks(rule.body);
         var contentHtml = blocksToHtml(blocks);
 
@@ -566,14 +573,14 @@ Trying to dodge consequences (alts, manipulation, deleting messages...) can incr
           +   '<button class="rule__toggle" type="button" aria-expanded="false">'
           +     '<div>'
           +       '<div class="rule__title">' + escapeHtml(rule.title) + '</div>'
-          +       (rule.hint ? '<div class="rule__hint">' + renderInline(rule.hint) + "</div>" : "")
-          +     "</div>"
+          +       (rule.hint ? '<div class="rule__hint">' + renderInline(rule.hint) + '</div>' : '')
+          +     '</div>'
           +     '<div class="rule__chev" aria-hidden="true">⌄</div>'
-          +   "</button>"
+          +   '</button>'
           +   '<div class="rule__panel" role="region" aria-label="' + escapeHtml(rule.title) + ' details">'
-          +     '<div class="rule__content">' + contentHtml + "</div>"
-          +   "</div>"
-          + "</article>";
+          +     '<div class="rule__content">' + contentHtml + '</div>'
+          +   '</div>'
+          + '</article>';
       }
 
       var parsed = parseRules(raw);
@@ -581,7 +588,7 @@ Trying to dodge consequences (alts, manipulation, deleting messages...) can incr
 
       var ruleEls = Array.prototype.slice.call(document.querySelectorAll(".rule"));
 
-      function getParts(rule){
+      function getParts(rule) {
         return {
           panel: rule.querySelector(".rule__panel"),
           content: rule.querySelector(".rule__content"),
@@ -589,7 +596,7 @@ Trying to dodge consequences (alts, manipulation, deleting messages...) can incr
         };
       }
 
-      function openRule(rule){
+      function openRule(rule) {
         var parts = getParts(rule);
         var panel = parts.panel, content = parts.content, btn = parts.btn;
 
@@ -598,11 +605,11 @@ Trying to dodge consequences (alts, manipulation, deleting messages...) can incr
         btn.setAttribute("aria-expanded", "true");
 
         panel.style.height = "0px";
-        requestAnimationFrame(function(){
+        requestAnimationFrame(function () {
           panel.style.height = content.scrollHeight + "px";
         });
 
-        var onEnd = function(e){
+        var onEnd = function (e) {
           if (e.propertyName !== "height") return;
           if (!rule.classList.contains("open")) return;
           panel.style.height = "auto";
@@ -611,7 +618,7 @@ Trying to dodge consequences (alts, manipulation, deleting messages...) can incr
         panel.addEventListener("transitionend", onEnd);
       }
 
-      function closeRule(rule){
+      function closeRule(rule) {
         var parts = getParts(rule);
         var panel = parts.panel, content = parts.content, btn = parts.btn;
 
@@ -624,13 +631,12 @@ Trying to dodge consequences (alts, manipulation, deleting messages...) can incr
           panel.style.height = content.scrollHeight + "px";
         }
 
-        requestAnimationFrame(function(){
+        requestAnimationFrame(function () {
           panel.style.height = "0px";
         });
 
-        var onEnd = function(e){
+        var onEnd = function (e) {
           if (e.propertyName !== "height") return;
-
           rule.classList.remove("open");
           rule.classList.remove("closing");
           panel.removeEventListener("transitionend", onEnd);
@@ -638,20 +644,20 @@ Trying to dodge consequences (alts, manipulation, deleting messages...) can incr
         panel.addEventListener("transitionend", onEnd);
       }
 
-      function toggleRule(rule){
+      function toggleRule(rule) {
         var isOpen = rule.classList.contains("open") && !rule.classList.contains("closing");
         if (isOpen) closeRule(rule);
         else openRule(rule);
       }
 
       for (var r = 0; r < ruleEls.length; r++) {
-        (function(rule){
+        (function (rule) {
           var btn = rule.querySelector(".rule__toggle");
-          btn.addEventListener("click", function(){
+          btn.addEventListener("click", function () {
             toggleRule(rule);
           });
 
-          window.addEventListener("resize", function(){
+          window.addEventListener("resize", function () {
             if (!rule.classList.contains("open") || rule.classList.contains("closing")) return;
             var parts = getParts(rule);
             var panel = parts.panel, content = parts.content;
