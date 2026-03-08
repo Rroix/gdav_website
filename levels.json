@@ -1,272 +1,665 @@
-[
-  {
-    "id": "morning-vibe-01",
-    "title": "morning vibe by LupoDZN & more",
-    "src": "https://cdn.discordapp.com/attachments/1471947817260941476/1471947932465893622/image.png?ex=69af1c56&is=69adcad6&hm=f1800268572c8a3229fa4c0591cec0c93e2ca7c79e774371cb69ac21294bac2a&animated=true",
-    "features": {
-      "tech": 0,
-      "industrial": 0,
-      "fantasy": 3,
-      "nature": 4,
-      "abstract": 2,
-      "retro": 0,
-      "modern": 2,
-      "brightness": 2,
-      "contrast": 1,
-      "glow": 4,
-      "warmth": 2,
-      "density": 2,
-      "clean": 4,
-      "depth": 3,
-      "energy": 2,
-      "symmetry": 2,
-      "accent_pink": 5,
-      "accent_green": 4,
-      "accent_white": 3,
-      "accent_yellow": 2,
-      "accent_orange": 1
-    }
-  },
-  {
-    "id": "spin-right-01",
-    "title": "Spin Right Round by Blueskiii & more",
-    "src": "https://cdn.discordapp.com/attachments/1471947817260941476/1471948767149166633/image.png?ex=69af1d1d&is=69adcb9d&hm=183b7712f991498c9e41c7dceb41e194ec222e823e9ff5008824743345afc80a&animated=true",
-    "features": {
-      "tech": 4,
-      "industrial": 1,
-      "fantasy": 1,
-      "nature": 0,
-      "abstract": 3,
-      "retro": 2,
-      "modern": 4,
-      "brightness": -1,
-      "contrast": 4,
-      "glow": 5,
-      "warmth": 1,
-      "density": 4,
-      "clean": 3,
-      "depth": 4,
-      "energy": 4,
-      "symmetry": 3,
-      "accent_purple": 5,
-      "accent_pink": 5,
-      "accent_orange": 2,
-      "accent_blue": 2
-    }
-  },
-  {
-    "id": "change-of-scene-01",
-    "title": "Change of Scene by Bli",
-    "src": "https://cdn.discordapp.com/attachments/1471947817260941476/1471949170062655568/image.png?ex=69af1d7d&is=69adcbfd&hm=1bd7aad7adf49c447b533ed7050cd6633d022168b52f8e3467a9668680f45bf7&animated=true",
-    "features": {
-      "tech": 0,
-      "industrial": 2,
-      "fantasy": 1,
-      "nature": 1,
-      "abstract": 1,
-      "retro": 5,
-      "modern": 0,
-      "brightness": -1,
-      "contrast": 2,
-      "glow": 1,
-      "warmth": 2,
-      "density": 3,
-      "clean": 2,
-      "depth": 4,
-      "energy": 2,
-      "symmetry": 2,
-      "accent_orange": 4,
-      "accent_yellow": 2,
-      "accent_black": 2
-    }
-  },
-  {
-    "id": "my-new-map-01",
-    "title": "my new map by MM0NK",
-    "src": "https://cdn.discordapp.com/attachments/1471947817260941476/1471949696682557441/image.png?ex=69af1dfb&is=69adcc7b&hm=652f2700f844c477539e01334cb828ef33fc937cd63923e199c642a039e7a570&animated=true",
-    "features": {
-      "tech": 1,
-      "industrial": 1,
-      "fantasy": 4,
-      "nature": 4,
-      "abstract": 2,
-      "retro": 1,
-      "modern": 1,
-      "brightness": -1,
-      "contrast": 3,
-      "glow": 3,
-      "warmth": 0,
-      "density": 3,
-      "clean": 2,
-      "depth": 3,
-      "energy": 3,
-      "symmetry": 1,
-      "accent_green": 5,
-      "accent_yellow": 3,
-      "accent_purple": 2,
-      "accent_pink": 1
-    }
-  },
-  {
-    "id": "ocular-miracle-01",
-    "title": "Ocular Miracle by Davphla & more",
-    "src": "https://cdn.discordapp.com/attachments/1471947817260941476/1471950126577750240/image.png?ex=69af1e61&is=69adcce1&hm=986f69eaf24caf65bc5dffc8e333b86260eb301fa76850fed00c1bf0e1330121&animated=true",
-    "features": {
-      "tech": 5,
-      "industrial": 1,
-      "fantasy": 0,
-      "nature": 0,
-      "abstract": 3,
-      "retro": 1,
-      "modern": 3,
-      "brightness": -2,
-      "contrast": 5,
-      "glow": 5,
-      "warmth": -2,
-      "density": 5,
-      "clean": 3,
-      "depth": 4,
-      "energy": 5,
-      "symmetry": 3,
-      "accent_blue": 5,
-      "accent_cyan": 5,
-      "accent_white": 4,
-      "accent_black": 2
-    }
-  },
-  {
-    "id": "undergound-01",
-    "title": "Undergound by Metalface221",
-    "src": "https://cdn.discordapp.com/attachments/1471947817260941476/1471950871784063238/image.png?ex=69af1f13&is=69adcd93&hm=3adf7041d1e8fecf6dc6de037dae05a92c4526ddeb78f87b9969416cdb37da3a&animated=true",
-    "features": {
-      "tech": 3,
-      "industrial": 3,
-      "fantasy": 0,
-      "nature": 0,
-      "abstract": 2,
-      "retro": 1,
-      "modern": 3,
-      "brightness": 1,
-      "contrast": 3,
-      "glow": 2,
-      "warmth": 1,
-      "density": 3,
-      "clean": 4,
-      "depth": 2,
-      "energy": 3,
-      "symmetry": 4,
-      "accent_pink": 5,
-      "accent_white": 4,
-      "accent_black": 3,
-      "accent_purple": 2
-    }
-  },
-  {
-    "id": "black-betty-01",
-    "title": "BLACK BETTY by FallingStarGD",
-    "src": "https://cdn.discordapp.com/attachments/1471947817260941476/1471951098083541186/image.png?ex=69af1f49&is=69adcdc9&hm=08edfcab75eb83178f4ced18f93c9cabb291921be82b02d6bc3b5cf92c3d10b6&animated=true",
-    "features": {
-      "tech": 1,
-      "industrial": 0,
-      "fantasy": 0,
-      "nature": 0,
-      "abstract": 5,
-      "retro": 2,
-      "modern": 4,
-      "brightness": 2,
-      "contrast": 5,
-      "glow": 0,
-      "warmth": 1,
-      "density": 1,
-      "clean": 5,
-      "depth": 1,
-      "energy": 1,
-      "symmetry": 2,
-      "accent_black": 5,
-      "accent_white": 4,
-      "accent_orange": 4,
-      "accent_purple": 1
-    }
-  },
-  {
-    "id": "world-war-01",
-    "title": "World War by 2003devin",
-    "src": "https://cdn.discordapp.com/attachments/1471947817260941476/1471951586484813855/image.png?ex=69af1fbd&is=69adce3d&hm=3f12fdc1f4e736744765a6b3296a54f3fe6c67cad04fff9cd843f5c744406c26&animated=true",
-    "features": {
-      "tech": 4,
-      "industrial": 5,
-      "fantasy": 0,
-      "nature": 0,
-      "abstract": 2,
-      "retro": 0,
-      "modern": 3,
-      "brightness": -1,
-      "contrast": 4,
-      "glow": 1,
-      "warmth": -1,
-      "density": 4,
-      "clean": 4,
-      "depth": 4,
-      "energy": 3,
-      "symmetry": 3,
-      "accent_black": 5,
-      "accent_white": 4,
-      "accent_green": 3
-    }
-  },
-  {
-    "id": "turbo-killer-01",
-    "title": "TURBO KILLER by Revv & more",
-    "src": "https://cdn.discordapp.com/attachments/1471947817260941476/1471952811276107817/image.png?ex=69af20e1&is=69adcf61&hm=6435cd884bd4b5bcc5241eae27edea96c17d5dc7109bd92feb8480dc4870bc03&animated=true",
-    "features": {
-      "tech": 2,
-      "industrial": 0,
-      "fantasy": 0,
-      "nature": 0,
-      "abstract": 4,
-      "retro": 2,
-      "modern": 3,
-      "brightness": 0,
-      "contrast": 4,
-      "glow": 4,
-      "warmth": 2,
-      "density": 2,
-      "clean": 3,
-      "depth": 2,
-      "energy": 5,
-      "symmetry": 1,
-      "accent_pink": 5,
-      "accent_red": 5,
-      "accent_green": 2,
-      "accent_yellow": 2
-    }
-  },
-  {
-    "id": "just-a-bunch-of-ideas-01",
-    "title": "Just A Bunch Of Ideas by ovexra",
-    "src": "https://cdn.discordapp.com/attachments/1471947817260941476/1471954105281806387/image.png?ex=69af2216&is=69add096&hm=1b8c14b9c51d6a1926d3b1e99b1622a8aeaa6831b83c8d9d151c6a20db06e3b7&animated=true",
-    "features": {
-      "tech": 1,
-      "industrial": 0,
-      "fantasy": 0,
-      "nature": 0,
-      "abstract": 5,
-      "retro": 1,
-      "modern": 5,
-      "brightness": 2,
-      "contrast": 4,
-      "glow": 1,
-      "warmth": 0,
-      "density": 1,
-      "clean": 5,
-      "depth": 1,
-      "energy": 2,
-      "symmetry": 2,
-      "accent_white": 5,
-      "accent_black": 5,
-      "accent_rainbow": 4,
-      "accent_blue": 1,
-      "accent_orange": 1
-    }
+:root {
+  --bg: #0b0b0c;
+  --bg-elev: #111214;
+  --bg-soft: #17181b;
+  --bg-hover: #1d1f23;
+  --text: #f2f2f3;
+  --muted: #b3b7bf;
+  --line: #2a2d33;
+  --line-strong: #3a3e46;
+  --accent: #f2f2f3;
+  --maxw: 920px;
+  --radius: 14px;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.28);
+  --shadow-soft: 0 8px 22px rgba(0, 0, 0, 0.22);
+  --t-fast: 140ms;
+  --t-med: 220ms;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--text);
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  line-height: 1.62;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+a {
+  color: inherit;
+}
+
+img {
+  max-width: 100%;
+  display: block;
+}
+
+button,
+input,
+select {
+  font: inherit;
+}
+
+header {
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 20px;
+  background: rgba(11, 11, 12, 0.92);
+  border-bottom: 1px solid var(--line);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.logo {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text);
+  white-space: nowrap;
+  user-select: none;
+}
+
+nav {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  flex-wrap: wrap;
+}
+
+nav a {
+  color: var(--muted);
+  text-decoration: none;
+  font-size: 0.95rem;
+  font-weight: 600;
+  padding: 8px 10px;
+  border-radius: 10px;
+  transition: background var(--t-fast), color var(--t-fast), border-color var(--t-fast);
+  border: 1px solid transparent;
+}
+
+nav a:hover,
+nav a:focus-visible,
+nav a.active {
+  background: var(--bg-soft);
+  color: var(--text);
+  border-color: var(--line);
+  outline: none;
+}
+
+main {
+  width: 100%;
+  max-width: var(--maxw);
+  margin: 34px auto 60px;
+  padding: 0 18px;
+}
+
+h1 {
+  margin: 0 0 10px;
+  text-align: center;
+  font-size: clamp(1.8rem, 1vw + 1.45rem, 2.35rem);
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+}
+
+.intro,
+p.intro {
+  margin: 0 auto 26px;
+  max-width: 760px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 1rem;
+}
+
+.section {
+  margin-top: 18px;
+}
+
+.surface {
+  background: var(--bg-elev);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+
+.divider {
+  width: 100%;
+  height: 1px;
+  background: var(--line);
+  margin: 28px 0 0;
+}
+
+footer {
+  text-align: center;
+  padding: 22px 16px;
+  color: var(--muted);
+  font-size: 0.92rem;
+  border-top: 1px solid var(--line);
+  background: var(--bg);
+}
+
+/* Rules page */
+.rules {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.rule {
+  background: var(--bg-elev);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+  transition: border-color var(--t-med), background var(--t-med), box-shadow var(--t-med);
+}
+
+.rule.open {
+  border-color: var(--line-strong);
+  box-shadow: var(--shadow-soft);
+}
+
+.rule__toggle {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+  text-align: left;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 18px;
+  transition: background var(--t-fast);
+}
+
+.rule__toggle:hover,
+.rule__toggle:focus-visible {
+  background: var(--bg-hover);
+  outline: none;
+}
+
+.rule__title {
+  margin: 0;
+  font-size: 1.06rem;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.rule__hint {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 0.95rem;
+  font-weight: 400;
+  line-height: 1.5;
+}
+
+.rule__chev {
+  flex: 0 0 auto;
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  font-size: 1rem;
+  line-height: 1;
+  color: var(--muted);
+  transition: transform var(--t-med), color var(--t-med);
+}
+
+.rule.open .rule__chev {
+  transform: rotate(180deg);
+  color: var(--text);
+}
+
+.rule__panel {
+  height: 0;
+  overflow: hidden;
+  transition: height var(--t-med) ease;
+  border-top: 1px solid var(--line);
+  background: var(--bg-elev);
+}
+
+.rule__content {
+  padding: 16px 18px 18px;
+  max-width: 76ch;
+  opacity: 0;
+  transform: translateY(-4px);
+  transition: opacity var(--t-fast), transform var(--t-fast);
+}
+
+.rule.open .rule__content {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.rule.closing .rule__content {
+  opacity: 0;
+  transform: translateY(-4px);
+}
+
+.rule__content p {
+  margin: 10px 0;
+}
+
+.md-quote {
+  margin: 12px 0 14px;
+  padding: 10px 14px;
+  border-left: 3px solid var(--text);
+  background: var(--bg-soft);
+  border-radius: 8px;
+  white-space: pre-wrap;
+}
+
+.md-dash {
+  list-style: disc;
+  padding-left: 22px;
+  margin: 12px 0 14px;
+}
+
+.md-dash li {
+  margin: 8px 0;
+  padding-left: 0;
+}
+
+.md-dash li::marker {
+  color: var(--muted);
+}
+
+.md-label {
+  margin: 14px 0 6px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+a.inline {
+  color: var(--text);
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* Generator */
+.generator-layout {
+  display: grid;
+  gap: 18px;
+}
+
+.generator-toolbar,
+.generator-panel,
+.result-card,
+.choice-card,
+.status-bar,
+.prompt-block {
+  background: var(--bg-elev);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+
+.generator-toolbar {
+  padding: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.tab-group,
+.action-row,
+.mode-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.tab-btn,
+.primary-btn,
+.secondary-btn,
+.choice-btn {
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  padding: 10px 14px;
+  cursor: pointer;
+  transition: background var(--t-fast), border-color var(--t-fast), color var(--t-fast), transform var(--t-fast);
+}
+
+.tab-btn,
+.secondary-btn,
+.choice-btn {
+  background: var(--bg-elev);
+  color: var(--text);
+}
+
+.primary-btn {
+  background: var(--text);
+  color: var(--bg);
+  border-color: var(--text);
+  font-weight: 700;
+}
+
+.tab-btn:hover,
+.secondary-btn:hover,
+.choice-btn:hover,
+.primary-btn:hover,
+.tab-btn:focus-visible,
+.secondary-btn:focus-visible,
+.choice-btn:focus-visible,
+.primary-btn:focus-visible {
+  background: var(--bg-hover);
+  color: var(--text);
+  outline: none;
+}
+
+.primary-btn:hover,
+.primary-btn:focus-visible {
+  border-color: var(--line-strong);
+}
+
+.tab-btn.active {
+  background: var(--text);
+  color: var(--bg);
+  border-color: var(--text);
+}
+
+.generator-panel,
+.result-card,
+.prompt-block {
+  padding: 18px;
+}
+
+.panel-title {
+  margin: 0 0 8px;
+  font-size: 1.15rem;
+}
+
+.panel-copy,
+.small-note,
+.muted,
+.status-text,
+.meta-text {
+  color: var(--muted);
+}
+
+.hidden {
+  display: none !important;
+}
+
+.random-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  margin-top: 16px;
+}
+
+.mini-card {
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--bg-soft);
+}
+
+.mini-card h3 {
+  margin: 0 0 6px;
+  font-size: 0.94rem;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.mini-card p {
+  margin: 0;
+  font-size: 0.98rem;
+}
+
+.prompt-block {
+  white-space: pre-wrap;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.95rem;
+}
+
+.status-bar {
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.progress-track {
+  height: 8px;
+  background: var(--bg-soft);
+  border-radius: 999px;
+  overflow: hidden;
+  flex: 1;
+  min-width: 120px;
+}
+
+.progress-fill {
+  height: 100%;
+  width: 0%;
+  background: var(--text);
+  transition: width var(--t-med);
+}
+
+.choices-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.choice-card {
+  overflow: hidden;
+}
+
+.choice-media {
+  aspect-ratio: 16 / 9;
+  background: var(--bg-soft);
+  border-bottom: 1px solid var(--line);
+}
+
+.choice-media img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.choice-body {
+  padding: 14px;
+}
+
+.choice-title {
+  margin: 0 0 4px;
+  font-size: 1rem;
+}
+
+.choice-subtitle {
+  margin: 0 0 12px;
+  color: var(--muted);
+  font-size: 0.94rem;
+}
+
+.choice-btn {
+  width: 100%;
+}
+
+.result-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.stat-card {
+  background: var(--bg-soft);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 12px;
+}
+
+.stat-label {
+  color: var(--muted);
+  font-size: 0.9rem;
+  margin-bottom: 4px;
+}
+
+.stat-value {
+  font-weight: 700;
+}
+
+.tag-list {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+
+.tag {
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--bg-soft);
+  color: var(--text);
+  font-size: 0.92rem;
+}
+
+.error-box {
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid #5c2c33;
+  background: #221417;
+  color: #ffced5;
+}
+
+@media (max-width: 760px) {
+  .choices-grid {
+    grid-template-columns: 1fr;
   }
-]
+}
+
+@media (max-width: 640px) {
+  header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+    padding: 12px 14px;
+  }
+
+  .logo {
+    text-align: center;
+  }
+
+  nav {
+    justify-content: center;
+  }
+
+  main {
+    margin: 22px auto 42px;
+    padding: 0 14px;
+  }
+
+  .rule__toggle,
+  .generator-panel,
+  .result-card,
+  .prompt-block {
+    padding-left: 14px;
+    padding-right: 14px;
+  }
+
+  .generator-toolbar {
+    padding: 10px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+    animation: none !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+
+/* About page */
+.about-hero {
+  padding: 22px;
+}
+
+.about-copy {
+  margin: 0;
+  color: var(--muted);
+  max-width: 78ch;
+}
+
+.about-copy + .about-copy {
+  margin-top: 12px;
+}
+
+.team-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 16px;
+}
+
+.profile-card {
+  overflow: hidden;
+  transition: border-color var(--t-fast), transform var(--t-fast), box-shadow var(--t-fast);
+}
+
+.profile-card:hover {
+  border-color: var(--line-strong);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-soft);
+}
+
+.profile-media {
+  padding: 22px 22px 0;
+}
+
+.profile-avatar {
+  width: 88px;
+  height: 88px;
+  border-radius: 999px;
+  object-fit: cover;
+  border: 1px solid var(--line);
+  background: var(--bg-soft);
+}
+
+.profile-body {
+  padding: 18px 22px 22px;
+}
+
+.profile-name {
+  margin: 0;
+  font-size: 1.05rem;
+  line-height: 1.2;
+}
+
+.profile-role {
+  margin: 6px 0 10px;
+  color: var(--muted);
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.profile-desc {
+  margin: 0;
+  color: var(--text);
+  font-size: 0.96rem;
+}
