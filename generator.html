@@ -37,9 +37,9 @@
 
       <section id="randomMode" class="generator-panel">
         <h2 class="panel-title">Random mode</h2>
-        <p class="panel-copy">This mode builds a level concept by picking one random prompt from each category.</p>
+        <p class="panel-copy">This mode builds a level concept by picking one random prompt for each category.</p>
         <div class="action-row">
-          <button class="primary-btn" id="generateRandomBtn" type="button">Generate random idea</button>
+          <button class="primary-btn" id="generateRandomBtn" type="button">Generate</button>
         </div>
         <div class="random-grid" id="randomGrid"></div>
         <div class="prompt-block hidden" id="randomPrompt"></div>
@@ -47,11 +47,11 @@
 
       <section id="personalizedMode" class="generator-panel hidden">
         <h2 class="panel-title">Personalized mode</h2>
-        <p class="panel-copy">Choose the image you prefer in each pair. The generator aggregates tags from <code>levels.json</code> and turns them into a level direction.</p>
+        <p class="panel-copy">Choose the image you prefer in each pair. The generator learns on what you are feeling like doing.</p>
 
         <div class="action-row">
-          <button class="primary-btn" id="startQuizBtn" type="button">Start personalized quiz</button>
-          <button class="secondary-btn hidden" id="restartQuizBtn" type="button">Restart quiz</button>
+          <button class="primary-btn" id="startQuizBtn" type="button">Start</button>
+          <button class="secondary-btn hidden" id="restartQuizBtn" type="button">Restart</button>
         </div>
 
         <div class="small-note" id="datasetNote">Waiting to load <code>levels.json</code>…</div>
@@ -78,15 +78,15 @@
             <div class="choice-media"><img id="rightImage" alt="Right choice preview" /></div>
             <div class="choice-body">
               <h3 class="choice-title" id="rightTitle">Right</h3>
-              <p class="choice-subtitle" id="rightSubtitle">Choose this style</p>
+              <p class="choice-subtitle" id="rightSubtitle">Choose this level</p>
               <button class="choice-btn" id="rightChoiceBtn" type="button">Choose right</button>
             </div>
           </article>
         </div>
 
         <section class="result-card hidden" id="personalizedResult">
-          <h2 class="panel-title">Your personalized direction</h2>
-          <p class="muted">This summary is built from your picks and the aggregated tag scores.</p>
+          <h2 class="panel-title">Build...</h2>
+          <p class="muted">Something along these lines.</p>
           <div class="result-grid" id="resultGrid"></div>
           <div class="tag-list" id="topTags"></div>
           <div class="prompt-block" id="personalizedPrompt"></div>
@@ -108,13 +108,13 @@
       var quizConfig = { maxRounds: 8, loserPenalty: 0.3 };
 
       var randomPools = {
-        theme: ["tech megastructure", "ruined fantasy temple", "nature-overgrown facility", "retro arcade core", "abstract cosmic machine", "industrial skyline", "minimal modern chamber"],
-        atmosphere: ["calm and mysterious", "intense and overwhelming", "cold and clinical", "dreamy and elegant", "hostile and unstable", "playful and energetic"],
-        palette: ["cyan + white", "orange + gold", "purple + magenta", "green + lime", "blue + black", "white + red", "rainbow accents on dark base"],
-        gameplay: ["sync cube and robot flow", "tight ship corridors", "memory-based transitions", "swing-heavy pacing", "fast wave bursts", "mixed gamemode route"],
-        structure: ["layered foreground/background depth", "symmetrical centerpiece layout", "freeform open shapes", "dense detail blocks", "clean macro structures", "split-path progression"],
-        gimmick: ["reactive pulse flashes", "moving machinery", "fake routes and redirects", "collapsing structures", "portal fakeouts", "speed changes around drops"],
-        ending: ["soft atmospheric finish", "huge final drop", "quiet fadeout corridor", "boss-style climax", "mirror callback to the intro", "sudden blackout outro"]
+        theme: ["tech", "nature", "arcade", "space", "industrial", "minimalism", "abstract", "surrealism", "noir", "fever dream", "urban", "rural"],
+        atmosphere: ["calm & mysterious", "intense & overwhelming", "cold & clinical", "dreamy & elegant", "hostile & unstable", "playful & energetic", "chill & dreamful"],
+        palette: ["cyan + white", "orange + gold", "purple + magenta", "green + lime", "blue + black", "white + red", "rainbow", "purple + orange", "brown + ocre", "white + black", "your fav color + your least fav color", "the color of your eyes + your fav color", "your icon colors"],
+        gameplay: ["sync", "shittyness", "memory", "one specific gamemode", "it being 3 star difficulty", "flow", "speedcoreness", "constant change", "staticness"],
+        structure: ["layered depth", "symmetry", "freeform shapes", "a lot of details", "clean brutalism", "interference", "almost symmetrical elements"],
+        gimmick: ["flashyness", "moving structures", "fake orbs, spikes...", "collapsing elements", "stuff that follows you around", "same speed throughout the level", "a side-scroller platformer", "an actual story", "a deep philosophical quote", "no shaders", "one click throughout the entire level"],
+        ending: ["fake ending", "peaceful and silent ending", "climatic ending", "complete style change", "resemblance to the intro", "sudden and unclimatic ending"]
       };
 
       var els = {
@@ -247,7 +247,6 @@
           "Overall mood: " + d.vibe + ", " + d.energy + ", " + d.contrast + ", " + d.glow + ".",
           "Decoration target: " + d.detail + ", " + d.polish + ", " + d.depth + ", " + d.symmetry + ".",
           "Palette target: " + d.temp + " base with " + result.accents + " accents.",
-          "Use this as the main creative prompt, then adapt gameplay and sync around it."
         ].join("\n");
       }
 
