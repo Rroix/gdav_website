@@ -282,7 +282,7 @@
       function startQuiz() {
         clearError();
         if (!images.length) {
-          showError("levels.json is empty or could not be loaded.");
+          showError("Could not load images");
           return;
         }
 
@@ -339,7 +339,7 @@
             images = Array.isArray(data) ? data : [];
             var check = window.QuizEngine.validateImages(images);
             if (!check.ok) throw new Error(check.error);
-            els.datasetNote.innerHTML = "Loaded <strong>levels.json</strong> with " + images.length + " reference levels.";
+            els.datasetNote.innerHTML = "";
           })
           .catch(function (error) {
             images = [];
