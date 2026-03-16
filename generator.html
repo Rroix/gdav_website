@@ -111,7 +111,6 @@
         theme: ["tech", "nature", "arcade", "space", "industrial", "minimalism", "abstract", "surrealism", "noir", "fever dream", "urban", "rural"],
         atmosphere: ["calm & mysterious", "intense & overwhelming", "cold & clinical", "dreamy & elegant", "hostile & unstable", "playful & energetic", "chill & dreamful"],
         palette: ["cyan + white", "orange + gold", "purple + magenta", "green + lime", "blue + black", "white + red", "rainbow", "purple + orange", "brown + ocre", "white + black", "your fav color + your least fav color", "the color of your eyes + your fav color", "your icon colors"],
-        gameplay: ["sync", "memory", "one gamemode", "one gamemode per part", "flow", "one gimmick", "one gimmick per part", "fully dual", "move trigger abuse", "complexity", "simplicity"],
         structure: ["layered depth", "symmetry", "freeform shapes", "a lot of details", "clean brutalism", "interference", "almost symmetrical elements"],
         gimmick: ["flashyness", "moving structures", "fake orbs, spikes...", "collapsing elements", "stuff that follows you around", "same speed throughout the level", "a side-scroller platformer", "an actual story", "a deep philosophical quote", "no shaders", "one click throughout the entire level"],
         ending: ["fake ending", "peaceful and silent ending", "climatic ending", "complete style change", "resemblance to the intro", "sudden and unclimatic ending"]
@@ -177,13 +176,12 @@
           theme: pick(randomPools.theme),
           atmosphere: pick(randomPools.atmosphere),
           palette: pick(randomPools.palette),
-          gameplay: pick(randomPools.gameplay),
           structure: pick(randomPools.structure),
           gimmick: pick(randomPools.gimmick),
           ending: pick(randomPools.ending)
         };
 
-        var order = ["theme", "atmosphere", "palette", "gameplay", "structure", "gimmick", "ending"];
+        var order = ["theme", "atmosphere", "palette", "structure", "gimmick", "ending"];
         els.randomGrid.innerHTML = order.map(function (key) {
           return '<article class="mini-card"><h3>' + titleCase(key) + '</h3><p>' + data[key] + '</p></article>';
         }).join("");
@@ -192,7 +190,6 @@
           "Build a Geometry Dash level with a " + data.theme + " style.",
           "Make the atmosphere feel " + data.atmosphere + ".",
           "Use a " + data.palette + " palette.",
-          "Focus on " + data.gameplay + ".",
           "The structure should use " + data.structure + ".",
           "Add a gimmick based on " + data.gimmick + ".",
           "Finish with a " + data.ending + "."
