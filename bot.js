@@ -33,7 +33,10 @@
   }
 
   function formatDuration(totalSeconds) {
-    var seconds = Math.max(0, Math.floor(Number(totalSeconds) || 0));
+    if (totalSeconds === null || totalSeconds === undefined || totalSeconds === "") return "--";
+    var parsedSeconds = Number(totalSeconds);
+    if (!Number.isFinite(parsedSeconds)) return "--";
+    var seconds = Math.max(0, Math.floor(parsedSeconds));
     var days = Math.floor(seconds / 86400);
     var hours = Math.floor((seconds % 86400) / 3600);
     var minutes = Math.floor((seconds % 3600) / 60);
@@ -42,6 +45,24 @@
     if (hours > 0) return hours + "h " + minutes + "m";
     if (minutes > 0) return minutes + "m";
     return seconds + "s";
+  }
+
+  function serviceUptimeSeconds(data) {
+    var canonical = Number(data.service_uptime_seconds);
+    if (Number.isFinite(canonical) && canonical >= 0) return canonical;
+
+    var legacy = Number(data.process_uptime_seconds);
+    if (Number.isFinite(legacy) && legacy >= 0) return legacy;
+    return null;
+  }
+
+  function serviceStartedTimestamp(data) {
+    var canonical = Number(data.service_started_ts);
+    if (Number.isFinite(canonical) && canonical > 0) return canonical;
+
+    var legacy = Number(data.process_started_ts);
+    if (Number.isFinite(legacy) && legacy > 0) return legacy;
+    return null;
   }
 
   function formatPercentage(value) {
@@ -90,13 +111,13 @@
     elements.version.textContent = /^\d+\.\d+\.\d+/.test(version)
       ? "v" + version
       : version;
-    elements.uptime.textContent = formatDuration(
-      online ? data.online_uptime_seconds : data.process_uptime_seconds
-    );
+    var serviceUptime = serviceUptimeSeconds(data);
+    var serviceStarted = serviceStartedTimestamp(data);
+    elements.uptime.textContent = formatDuration(serviceUptime);
     elements.uptimePercent.textContent = formatPercentage(data.uptime_percentage);
-    elements.uptimeDetail.textContent = online
-      ? "Connected to Discord since " + formatDate(data.online_since_ts, true)
-      : "Render process uptime; Discord is not connected";
+    elements.uptimeDetail.textContent = serviceStarted
+      ? "Service running since " + formatDate(serviceStarted, true)
+      : "Current Avenue Guard service process";
     elements.latency.textContent = data.latency_ms !== null
       && data.latency_ms !== undefined
       && Number.isFinite(Number(data.latency_ms))
