@@ -26,40 +26,60 @@
       <div class="level-thumbnail" id="thumbnailPanel" aria-hidden="true">
         <img id="levelThumbnail" alt="" />
       </div>
-      <div class="level-hero__content">
-        <a class="level-back" href="/bot.html">Avenue Guard</a>
-        <div class="level-tier" id="tierBadge">
-          <img id="tierIcon" src="/assets/send-types/pps_rate.png" alt="" width="58" height="58" />
-          <div>
-            <span>Recommended for</span>
-            <strong id="recommendationLabel">Loading</strong>
+      <div class="level-hero__dark" aria-hidden="true"></div>
+      <div class="level-hero__safe">
+        <div class="level-hero__content">
+          <a class="level-back" href="/bot.html">Avenue Guard</a>
+          <div class="level-tier" id="tierBadge">
+            <img id="tierIcon" src="/assets/send-types/pps_rate.png" alt="" width="72" height="72" />
+            <div>
+              <span>Recommended for</span>
+              <strong id="recommendationLabel">Loading</strong>
+            </div>
           </div>
-        </div>
-        <p class="level-eyebrow">GD Avenue recommendation</p>
-        <h1 id="levelName">Loading level</h1>
-        <p class="level-id">Level ID <code id="levelId">--</code></p>
+          <h1 id="levelName">Loading level</h1>
+          <p class="level-creator" id="levelCreator" hidden></p>
+          <div class="level-id-row">
+            <button class="level-id-copy" id="levelIdCopy" type="button" aria-label="Copy level ID">
+              <span>Level ID</span>
+              <code id="levelId">--</code>
+            </button>
+            <span class="level-copy-feedback" id="levelCopyFeedback" role="status" aria-live="polite"></span>
+          </div>
 
-        <div class="level-facts" aria-live="polite">
-          <div class="level-fact">
-            <span>Recommended</span>
-            <strong id="recommendedDate">Loading</strong>
+          <div class="level-status-panel" id="levelStatusPanel" aria-live="polite">
+            <div class="level-status-item">
+              <span>Loading</span>
+              <strong>Recommendation details</strong>
+            </div>
           </div>
-          <div class="level-fact">
-            <span>Outreach status</span>
-            <strong id="queueStatus">Loading</strong>
-          </div>
-          <div class="level-fact">
-            <span>Queue order</span>
-            <strong id="queuePosition">Loading</strong>
-          </div>
-        </div>
 
-        <p class="level-notice" id="levelNotice" role="status"></p>
-        <button class="level-retry" id="levelRetry" type="button" hidden>Try again</button>
+          <p class="level-notice" id="levelNotice" role="status"></p>
+          <button class="level-retry" id="levelRetry" type="button" hidden>Try again</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="level-progress" aria-labelledby="progressTitle">
+      <div class="level-section-inner">
+        <p class="level-section-kicker">Current journey</p>
+        <h2 id="progressTitle">Recommendation progress</h2>
+        <ol class="level-timeline" id="levelTimeline" aria-live="polite"></ol>
+      </div>
+    </section>
+
+    <section class="level-actions" aria-label="Recommendation page actions">
+      <div class="level-section-inner level-actions__inner">
+        <p class="level-updated" id="levelUpdated"></p>
+        <div class="level-share-group">
+          <button class="level-share" id="levelShare" type="button">Share this recommendation</button>
+          <span class="level-share-feedback" id="levelShareFeedback" role="status" aria-live="polite"></span>
+        </div>
       </div>
     </section>
   </main>
 
+  <script src="/level-core.js"></script>
   <script src="/level.js" defer></script>
 </body>
 </html>
