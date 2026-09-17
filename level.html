@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Public recommendation and outreach queue information for a GD Avenue level" />
+  <meta name="theme-color" content="#050506" />
+  <link rel="icon" href="/favicon.ico" />
+  <link rel="stylesheet" href="/styles.css" />
+  <title>GD Avenue Level</title>
+</head>
+<body class="level-page">
+  <header>
+    <div class="logo">Geometry Dash Avenue</div>
+    <nav>
+      <a href="/index.html">Rules</a>
+      <a href="/generator.html">Idea Generator</a>
+      <a href="/about.html">About Us</a>
+      <a href="/bot.html">Avenue Guard</a>
+      <a href="https://discord.com/invite/matVTsj">Join Us!</a>
+    </nav>
+  </header>
+
+  <main class="level-main">
+    <section class="level-hero" id="levelHero" aria-labelledby="levelName">
+      <div class="level-thumbnail" id="thumbnailPanel" aria-hidden="true">
+        <img id="levelThumbnail" alt="" />
+      </div>
+      <div class="level-hero__content">
+        <a class="level-back" href="/bot.html">Avenue Guard</a>
+        <div class="level-tier" id="tierBadge">
+          <img id="tierIcon" src="/assets/send-types/pps_rate.png" alt="" width="58" height="58" />
+          <div>
+            <span>Recommended for</span>
+            <strong id="recommendationLabel">Loading</strong>
+          </div>
+        </div>
+        <p class="level-eyebrow">GD Avenue recommendation</p>
+        <h1 id="levelName">Loading level</h1>
+        <p class="level-id">Level ID <code id="levelId">--</code></p>
+
+        <div class="level-facts" aria-live="polite">
+          <div class="level-fact">
+            <span>Recommended</span>
+            <strong id="recommendedDate">Loading</strong>
+          </div>
+          <div class="level-fact">
+            <span>Outreach status</span>
+            <strong id="queueStatus">Loading</strong>
+          </div>
+          <div class="level-fact">
+            <span>Queue order</span>
+            <strong id="queuePosition">Loading</strong>
+          </div>
+        </div>
+
+        <p class="level-notice" id="levelNotice" role="status"></p>
+        <button class="level-retry" id="levelRetry" type="button" hidden>Try again</button>
+      </div>
+    </section>
+  </main>
+
+  <script src="/level.js" defer></script>
+</body>
+</html>

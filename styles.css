@@ -1097,3 +1097,268 @@ a.inline {
     white-space: normal;
   }
 }
+
+/* Public level recommendation page */
+.level-page {
+  background: #050506;
+}
+
+.level-page header {
+  background: rgba(5, 5, 6, 0.94);
+}
+
+.level-main {
+  width: 100%;
+  max-width: none;
+  min-height: calc(100svh - 65px);
+  margin: 0;
+  padding: 0;
+}
+
+.level-hero {
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  align-items: center;
+  min-height: calc(100svh - 65px);
+  overflow: hidden;
+  background: #050506;
+}
+
+.level-thumbnail {
+  position: absolute;
+  z-index: -2;
+  inset: 0 0 0 34%;
+  clip-path: polygon(28% 0, 100% 0, 100% 100%, 0 100%);
+  background: #050506;
+  opacity: 0;
+  transition: opacity 220ms ease;
+}
+
+.level-thumbnail--available {
+  opacity: 1;
+}
+
+.level-thumbnail img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+}
+
+.level-hero::after {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  pointer-events: none;
+  background: rgba(0, 0, 0, 0.18);
+}
+
+.level-hero__content {
+  width: min(680px, 54%);
+  padding: 54px max(28px, calc((100vw - 1180px) / 2));
+}
+
+.level-back {
+  display: inline-block;
+  margin-bottom: 34px;
+  color: var(--muted);
+  font-size: 0.9rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.level-back::before {
+  content: "\2190";
+  margin-right: 9px;
+}
+
+.level-back:hover,
+.level-back:focus-visible {
+  color: var(--text);
+  outline: none;
+}
+
+.level-tier {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 20px;
+}
+
+.level-tier img {
+  flex: 0 0 auto;
+  width: 58px;
+  height: 58px;
+  object-fit: contain;
+}
+
+.level-tier span,
+.level-tier strong {
+  display: block;
+  line-height: 1.25;
+}
+
+.level-tier span {
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 650;
+}
+
+.level-tier strong {
+  margin-top: 2px;
+  font-size: 1.05rem;
+}
+
+.level-eyebrow {
+  margin: 0 0 8px;
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.level-hero h1 {
+  max-width: 12ch;
+  margin: 0;
+  overflow-wrap: anywhere;
+  text-align: left;
+  font-size: 3.6rem;
+  line-height: 1.04;
+  letter-spacing: 0;
+}
+
+.level-id {
+  margin: 15px 0 0;
+  color: var(--muted);
+  font-size: 0.96rem;
+}
+
+.level-id code {
+  color: var(--text);
+  font-size: 0.95em;
+}
+
+.level-facts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0;
+  margin-top: 42px;
+  border-top: 1px solid var(--line-strong);
+  border-bottom: 1px solid var(--line-strong);
+}
+
+.level-fact {
+  min-width: 0;
+  padding: 15px 16px 15px 0;
+}
+
+.level-fact + .level-fact {
+  padding-left: 16px;
+  border-left: 1px solid var(--line-strong);
+}
+
+.level-fact span,
+.level-fact strong {
+  display: block;
+}
+
+.level-fact span {
+  color: var(--muted);
+  font-size: 0.76rem;
+  font-weight: 650;
+}
+
+.level-fact strong {
+  margin-top: 5px;
+  overflow-wrap: anywhere;
+  font-size: 0.94rem;
+  line-height: 1.35;
+}
+
+.level-notice {
+  min-height: 24px;
+  margin: 18px 0 0;
+  color: #f2c14e;
+  font-size: 0.9rem;
+}
+
+.level-retry {
+  margin-top: 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  padding: 9px 14px;
+  background: var(--bg-soft);
+  color: var(--text);
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.level-retry:hover,
+.level-retry:focus-visible {
+  background: var(--bg-hover);
+  outline: 2px solid var(--text);
+  outline-offset: 2px;
+}
+
+@media (max-width: 860px) {
+  .level-hero {
+    align-items: end;
+    min-height: calc(100svh - 65px);
+  }
+
+  .level-thumbnail {
+    inset: 0 0 42% 0;
+    clip-path: polygon(0 0, 100% 0, 100% 72%, 0 100%);
+  }
+
+  .level-hero::after {
+    background: rgba(0, 0, 0, 0.3);
+  }
+
+  .level-hero__content {
+    width: 100%;
+    padding: 34px 22px 38px;
+    background: #050506;
+  }
+
+  .level-back {
+    margin-bottom: 22px;
+  }
+
+  .level-hero h1 {
+    max-width: none;
+    font-size: 2.55rem;
+  }
+}
+
+@media (max-width: 560px) {
+  .level-page header {
+    position: relative;
+  }
+
+  .level-main,
+  .level-hero {
+    min-height: calc(100svh - 116px);
+  }
+
+  .level-thumbnail {
+    bottom: 54%;
+  }
+
+  .level-facts {
+    grid-template-columns: 1fr;
+    margin-top: 28px;
+  }
+
+  .level-fact,
+  .level-fact + .level-fact {
+    padding: 13px 0;
+    border-left: 0;
+  }
+
+  .level-fact + .level-fact {
+    border-top: 1px solid var(--line);
+  }
+}
