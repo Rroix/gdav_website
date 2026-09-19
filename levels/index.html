@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Search public GD Avenue level recommendations">
+  <meta name="theme-color" content="#090b0d">
+  <title>Search Your Level | GD Avenue</title>
+  <link rel="stylesheet" href="../staff/staff.css"><link rel="stylesheet" href="public-levels.css">
+</head>
+<body class="public-levels">
+  <header class="public-nav"><a class="brand" href="/"><img src="https://cdn.discordapp.com/avatars/1454985687177887866/d268221fd7a7a5529897730d18edd5a0.webp?size=128" alt="" width="38" height="38"><span><strong>GD Avenue</strong><small>Level recommendations</small></span></a><nav><a href="/">Rules</a><a href="/about.html">About</a><a href="/staff">Staff</a></nav></header>
+  <main class="levels-main">
+    <section class="search-hero">
+      <p class="eyebrow">Public recommendation index</p>
+      <h1>Search your level</h1>
+      <p>Find a level recommended by GD Avenue and follow its public outreach status.</p>
+      <label class="search-field"><span class="sr-only">Search by level name, ID, or creator</span><input id="level-search" type="search" placeholder="Search by level name, ID or creator" autocomplete="off" autofocus></label>
+    </section>
+    <section id="level-results" class="level-results" aria-live="polite"><div class="loading-state"><span class="spinner"></span>Loading recommendations</div></section>
+  </main>
+  <footer class="public-footer">GD Avenue · Public recommended levels only</footer>
+  <script src="levels.js" defer></script>
+</body>
+</html>

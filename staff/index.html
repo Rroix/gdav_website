@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="GD Avenue staff operations portal">
+  <meta name="theme-color" content="#0a0c0f">
+  <meta name="robots" content="noindex,nofollow">
+  <title>Staff Portal | GD Avenue</title>
+  <link rel="stylesheet" href="staff.css">
+</head>
+<body>
+  <a class="skip-link" href="#workspace">Skip to workspace</a>
+  <div id="auth-gate" class="auth-gate" hidden>
+    <section class="auth-panel" aria-labelledby="auth-title">
+      <img src="https://cdn.discordapp.com/avatars/1454985687177887866/d268221fd7a7a5529897730d18edd5a0.webp?size=256" alt="Avenue Guard icon" width="72" height="72">
+      <p class="eyebrow">GD Avenue operations</p>
+      <h1 id="auth-title">Staff Portal</h1>
+      <p id="auth-message">Use Discord to verify your current server role and continue.</p>
+      <a class="button primary" href="/api/auth/login">Continue with Discord</a>
+      <a class="quiet-link" href="/">Return to GD Avenue</a>
+    </section>
+  </div>
+
+  <div id="app" class="app-shell" hidden>
+    <aside class="sidebar" id="sidebar">
+      <a class="brand" href="/staff" aria-label="GD Avenue staff portal home">
+        <img src="https://cdn.discordapp.com/avatars/1454985687177887866/d268221fd7a7a5529897730d18edd5a0.webp?size=128" alt="" width="38" height="38">
+        <span><strong>Avenue Guard</strong><small>Staff operations</small></span>
+      </a>
+      <nav id="primary-nav" aria-label="Portal modules"></nav>
+      <div class="sidebar-user">
+        <img id="user-avatar" alt="" width="34" height="34">
+        <span><strong id="user-name"></strong><small id="user-role"></small></span>
+        <button id="logout-button" class="icon-link" type="button" aria-label="Log out" title="Log out">Exit</button>
+      </div>
+    </aside>
+
+    <div class="app-column">
+      <header class="topbar">
+        <button id="menu-button" class="icon-button mobile-only" type="button" aria-controls="sidebar" aria-expanded="false" aria-label="Open navigation">Menu</button>
+        <div class="search-wrap">
+          <label class="sr-only" for="global-search">Search staff records</label>
+          <input id="global-search" type="search" placeholder="Search levels, tasks, applications" autocomplete="off">
+          <div id="search-results" class="search-results" hidden></div>
+        </div>
+        <div class="top-attention" id="top-attention" aria-live="polite"></div>
+      </header>
+
+      <main id="workspace" tabindex="-1">
+        <div class="page-heading">
+          <div>
+            <p class="eyebrow" id="module-eyebrow">Staff Portal</p>
+            <h1 id="page-title">Overview</h1>
+            <p id="page-description">Your work, attention items, and team pulse.</p>
+          </div>
+          <button id="refresh-button" class="button secondary" type="button">Refresh</button>
+        </div>
+        <nav id="section-nav" class="section-nav" aria-label="Module sections"></nav>
+        <div id="notice" class="notice" role="status" hidden></div>
+        <section id="content" class="content-surface" aria-live="polite">
+          <div class="loading-state"><span class="spinner" aria-hidden="true"></span>Loading your workspace</div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <aside id="detail-drawer" class="detail-drawer" aria-labelledby="detail-title" aria-hidden="true" inert>
+    <div class="drawer-head"><h2 id="detail-title">Level detail</h2><button id="drawer-close" class="icon-button" type="button" aria-label="Close detail">Close</button></div>
+    <div id="drawer-content"></div>
+  </aside>
+  <div id="drawer-scrim" class="drawer-scrim" hidden></div>
+
+  <dialog id="action-dialog">
+    <form method="dialog" id="action-form">
+      <div class="dialog-head"><h2 id="dialog-title">Confirm action</h2><button value="cancel" class="icon-button" aria-label="Close">Close</button></div>
+      <p id="dialog-description"></p>
+      <div id="dialog-fields" class="form-grid"></div>
+      <p id="dialog-error" class="field-error" hidden></p>
+      <div class="dialog-actions"><button value="cancel" class="button secondary">Cancel</button><button id="dialog-submit" value="default" class="button primary">Confirm</button></div>
+    </form>
+  </dialog>
+
+  <script src="staff.js" defer></script>
+</body>
+</html>

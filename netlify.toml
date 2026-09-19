@@ -1,0 +1,46 @@
+[build]
+  publish = "."
+  functions = "netlify/functions"
+
+[[redirects]]
+  from = "/api/auth/login"
+  to = "/.netlify/functions/auth-login"
+  status = 200
+
+[[redirects]]
+  from = "/api/auth/callback"
+  to = "/.netlify/functions/auth-callback"
+  status = 200
+
+[[redirects]]
+  from = "/api/auth/logout"
+  to = "/.netlify/functions/auth-logout"
+  status = 200
+
+[[redirects]]
+  from = "/api/staff/*"
+  to = "/.netlify/functions/api-proxy?scope=staff&path=:splat"
+  status = 200
+
+[[redirects]]
+  from = "/api/apply/*"
+  to = "/.netlify/functions/api-proxy?scope=apply&path=:splat"
+  status = 200
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "camera=(), microphone=(), geolocation=()"
+    X-Frame-Options = "DENY"
+
+[[headers]]
+  for = "/staff/*"
+  [headers.values]
+    Cache-Control = "no-store"
+
+[[headers]]
+  for = "/apply/*"
+  [headers.values]
+    Cache-Control = "no-store"
