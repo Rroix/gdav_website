@@ -45,7 +45,11 @@ export async function handler(event) {
       },
     });
     if (sessionResponse.status >= 400) {
-      const reason = encodeURIComponent(sessionResponse.payload?.message || "Access could not be verified");
+      const reason = encodeURIComponent(
+        sessionResponse.payload?.error?.message
+        || sessionResponse.payload?.message
+        || "Access could not be verified",
+      );
       return {
         statusCode: 302,
         headers: {

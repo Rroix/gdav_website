@@ -91,7 +91,7 @@ export async function botRequest(path, { method = "GET", body, session, csrf, id
     const text = await response.text();
     let payload;
     try { payload = text ? JSON.parse(text) : {}; }
-    catch { payload = { error: "invalid_backend_response", message: "Avenue Guard returned an invalid response" }; }
+    catch { payload = apiError("invalid_backend_response", "Avenue Guard returned an invalid response"); }
     return { status: response.status, payload };
   } finally {
     clearTimeout(timeout);
@@ -108,5 +108,16 @@ export function json(statusCode, body, extraHeaders = {}) {
       ...extraHeaders,
     },
     body: JSON.stringify(body),
+  };
+}
+
+export function apiError(code, message, correlationId = "") {
+  return {
+    ok: false,
+    error: {
+      code: String(code),
+      message: String(message),
+      ...(correlationId ? { correlation_id: String(correlationId) } : {}),
+    },
   };
 }

@@ -25,95 +25,124 @@
     <section class="privacy-hero surface">
       <h1>Privacy Policy</h1>
       <p class="privacy-copy">
-        Last updated: July 29, 2026. Geometry Dash Avenue is a static community website for server rules, staff information, Avenue Guard service status, and Geometry Dash level ideas. The site is designed to collect as little personal information as possible.
+        Last updated: September 20, 2026. This policy explains how Geometry Dash Avenue and Avenue Guard handle information across the public website, Discord bot, staff portal, applications, level requests, support tools, and operational systems.
       </p>
     </section>
 
     <section class="privacy-grid" aria-label="Privacy policy sections">
       <article class="privacy-section surface">
-        <h2>Who This Covers</h2>
+        <h2>Scope</h2>
         <p>
-          This policy covers the Geometry Dash Avenue website pages: Rules, Idea Generator, About Us, Avenue Guard, and this Privacy Policy. The Discord server itself runs on Discord, so activity inside Discord is also covered by Discord's own terms and privacy policy.
+          This policy covers the Geometry Dash Avenue website, Avenue Guard, the authenticated staff portal, staff applications, public recommendation pages, and bot-assisted activity in the GD Avenue Discord server. Discord also processes server and account activity under its own terms and privacy policy.
         </p>
       </article>
 
       <article class="privacy-section surface">
-        <h2>What This Website Collects</h2>
+        <h2>Public Website</h2>
         <p>
-          This website does not have accounts, sign-up forms, comments, payments, newsletters, analytics scripts, advertising trackers, or its own cookies. It also does not use localStorage or sessionStorage to save your generator choices.
+          Most pages are public and do not require an account. The Idea Generator runs in your browser and does not send its selections to GD Avenue. Public bot and level pages request approved service status, release information, recommendation details, and Geometry Dash metadata from Avenue Guard.
         </p>
         <p>
-          Like most websites, the hosting service may automatically receive basic technical information when pages are loaded, such as your IP address, browser type, device information, requested page, and visit time. This is used for delivery, security, debugging, and abuse prevention.
-        </p>
-      </article>
-
-      <article class="privacy-section surface">
-        <h2>Idea Generator</h2>
-        <p>
-          The Idea Generator runs in your browser. Random mode creates prompts locally. Personalized mode loads the public <code>levels.json</code> file and processes your choices in the browser to suggest a style direction.
-        </p>
-        <p>
-          Your generator choices and results are not sent to Geometry Dash Avenue, are not stored by this website, and should not include personal information.
+          We do not use advertising trackers or sell browsing profiles. Netlify and other infrastructure providers may process standard request information such as IP address, browser type, requested page, and time for delivery, security, diagnostics, and abuse prevention.
         </p>
       </article>
 
       <article class="privacy-section surface">
-        <h2>External Services</h2>
+        <h2>Discord Sign-In And Sessions</h2>
         <p>
-          Some parts of the site use third-party services:
+          The staff portal and application area use Discord OAuth with the <code>identify</code> scope. Discord supplies the signed-in user's account ID and basic profile identity. Avenue Guard then checks guild membership and current Discord roles server-side. The browser cannot assign its own role or capabilities.
+        </p>
+        <p>
+          Sign-in uses a short-lived, signed OAuth state cookie. Successful sign-in creates an opaque session cookie that is <code>HttpOnly</code>, <code>Secure</code>, and <code>SameSite=Strict</code>, plus a secure CSRF cookie used to protect changes. Staff sessions currently expire after eight hours, and permissions are refreshed against Discord so role removal can remove access. The portal stores only the last selected module and section in browser local storage as a convenience.
+        </p>
+      </article>
+
+      <article class="privacy-section surface">
+        <h2>Information Avenue Guard Stores</h2>
+        <p>
+          Depending on the features you use, Avenue Guard may store:
         </p>
         <ul>
-          <li>The Join Us link opens Discord.</li>
-          <li>The About Us page loads staff profile images from Discord image servers.</li>
-          <li>The Avenue Guard page requests public bot status and approved release information from the bot's Render web service, and may load the bot profile image from Discord.</li>
-          <li>The Idea Generator loads level preview images from ImgBB image servers.</li>
+          <li>Discord IDs, display names, role-derived permissions, and relevant channel, message, thread, or guild IDs.</li>
+          <li>Level request forms, wave and edit history, review results, reviewer records, validation snapshots, recommendation type, queue state, and outreach outcomes.</li>
+          <li>Tickets, support forms, appeals, reports, bug reports, transcripts, attachments or links you submit, staff responses, and satisfaction feedback.</li>
+          <li>Activity totals, weekly rankings and streaks, reward status, anti-farming signals, and daily or weekly aggregate summaries.</li>
+          <li>Moderation and workflow events, forum enforcement records, command actions, errors, health measurements, delivery state, impact reports, and backup or restore records.</li>
+          <li>Staff portal profiles and nicknames, applications, internal notes, tasks, queue claims, quality checks, and security audit events.</li>
         </ul>
         <p>
-          When your browser opens Discord, requests Avenue Guard status from Render, or loads images from Discord or ImgBB, those services may receive technical information from your device and may process it under their own policies. You can review Discord's policy at <a href="https://discord.com/privacy" target="_blank" rel="noopener noreferrer">discord.com/privacy</a>, Render's policy at <a href="https://render.com/privacy" target="_blank" rel="noopener noreferrer">render.com/privacy</a>, and ImgBB's policy at <a href="https://imgbb.com/privacy" target="_blank" rel="noopener noreferrer">imgbb.com/privacy</a>.
+          A failed lookup is recorded as unavailable rather than silently treated as valid data. Present-day Geometry Dash snapshots are kept separate from historical facts where the system cannot reliably know what was true at the time of a request.
         </p>
       </article>
 
       <article class="privacy-section surface">
-        <h2>Discord Server Activity</h2>
+        <h2>How We Use Information</h2>
         <p>
-          If you join the Geometry Dash Avenue Discord server, the information you share there may include your Discord username, profile details, messages, attachments, voice activity, reports, moderation history, and any information you choose to post or send to staff.
+          We use this information to operate request waves and recommendations, provide support, process staff applications, enforce server rules, prevent abuse, calculate community activity rewards, authenticate staff, maintain reliable delivery, investigate errors, restore service data, and understand the community impact of Avenue Guard.
         </p>
         <p>
-          Staff may use server information to keep the community safe, enforce the rules, respond to reports, investigate abuse, and handle appeals. Do not share private information about yourself or anyone else unless it is necessary and safe to do so.
+          Our processing supports the community services you request and GD Avenue's legitimate interests in safety, moderation, service reliability, and improvement. Where consent or another legal basis is required, we use that basis. Do not submit sensitive personal information unless it is necessary for the specific support or safety issue.
         </p>
       </article>
 
       <article class="privacy-section surface">
-        <h2>Sharing And Retention</h2>
+        <h2>Requests, Recommendations, And Automation</h2>
         <p>
-          Geometry Dash Avenue does not sell personal information. Website data is limited to technical hosting logs controlled by the host. Discord data stays within Discord unless it must be shared with appropriate staff, Discord Trust and Safety, server partners for safety reasons, or legal authorities when required.
+          Request validation may retrieve current public Geometry Dash level and creator information. The priority system can help order approved recommendations for staff outreach, but it does not guarantee moderator contact, a Geometry Dash rating, or any outcome. Human reviewers choose the review result and recommendation type.
         </p>
         <p>
-          Because this website does not run its own user database, it does not keep website account records. Discord messages, moderation records, and safety evidence may be kept as long as needed for server safety, rule enforcement, appeals, or legal compliance.
+          A public page at <code>/level/[level-id]</code> may show a recommended level's public Geometry Dash details, recommendation type, date, thumbnail, and non-sensitive queue status. It does not publish the requester ID, private reviewer notes, exact priority score or rank, creator-point details, private outreach targets, claims, or internal audit data.
+        </p>
+      </article>
+
+      <article class="privacy-section surface">
+        <h2>Service Providers And Sharing</h2>
+        <p>
+          Geometry Dash Avenue does not sell personal information. Data is available only to authorized staff where their role requires it and to service providers that operate the system. These currently include Discord for identity and community features, Netlify for the website and serverless gateway, Render for Avenue Guard, and Turso/libSQL for durable database storage.
+        </p>
+        <p>
+          Level IDs and other public Geometry Dash identifiers may be sent to metadata providers used by the validation and thumbnail systems. External images may be served by Discord, ImgBB, or the configured level thumbnail service. Information may also be disclosed to Discord Trust and Safety, safety partners, or legal authorities where reasonably necessary or legally required. Each external provider processes data under its own policy.
+        </p>
+      </article>
+
+      <article class="privacy-section surface">
+        <h2>Retention And Backups</h2>
+        <p>
+          Records are retained only while they remain useful for operations, safety, appeals, historical integrity, reporting, or legal obligations. Current automated retention settings keep health measurements for 365 days, workflow and error records for 730 days, delivery records for 90 days, cached Geometry Dash validation for 7 days, and impact snapshots for 1,095 days. Other core records, including reviews, tickets, transcripts, moderation evidence, staff audits, and recommendation history, may be retained longer when continuity or accountability requires it.
+        </p>
+        <p>
+          Turso is the durable source of truth. Encrypted transport, controlled database access, periodic backups, and restore checks reduce data-loss risk. Deletion from the live database may not immediately remove an item from limited backup copies, which expire or are replaced on their normal schedule.
+        </p>
+      </article>
+
+      <article class="privacy-section surface">
+        <h2>Security</h2>
+        <p>
+          OAuth client secrets, the Discord bot token, Turso credentials, and internal service credentials remain server-side. The portal uses signed OAuth state, hashed session tokens, CSRF protection, server-side capability checks, live role refreshes, idempotency controls, private audit logs, and restricted API responses. No online system can guarantee absolute security, but access is designed around least privilege and revocation.
         </p>
       </article>
 
       <article class="privacy-section surface">
         <h2>Your Choices And Rights</h2>
         <p>
-          You can use the website without joining Discord. You can also block third-party images in your browser if you do not want Discord or ImgBB images to load.
+          You may use public website pages without signing in. You can sign out of authenticated areas, clear local portal preferences in your browser, and avoid submitting optional form fields. You can also control your Discord account and server participation through Discord.
         </p>
         <p>
-          If privacy laws such as the GDPR apply to you, you may have rights to access, correct, delete, restrict, object to, or receive a copy of personal information connected to you. For Discord account data, use Discord's privacy controls or contact Discord. For Geometry Dash Avenue server moderation records or website questions, contact Geometry Dash Avenue staff through the Discord server.
-        </p>
-      </article>
-
-      <article class="privacy-section surface">
-        <h2>Minors</h2>
-        <p>
-          This website is not designed to collect personal information from children. Many Geometry Dash players are young, so the safest rule is simple: do not post your real name, address, school, phone number, face, private accounts, or other identifying information on the website or in the Discord server.
+          Depending on where you live, you may have rights to access, correct, delete, restrict, object to, or obtain a copy of personal information associated with you. Requests may be limited where retaining information is necessary for security, abuse prevention, another person's rights, legal duties, or the integrity of moderation and review records. Contact GD Avenue staff through the Discord server and include enough information to identify the relevant record. For data controlled by Discord, use Discord's privacy tools or contact Discord directly.
         </p>
       </article>
 
       <article class="privacy-section surface">
-        <h2>Changes</h2>
+        <h2>Young Users</h2>
         <p>
-          If Geometry Dash Avenue adds forms, accounts, cookies, analytics, payments, or other features that collect more information, this policy should be updated before those features go live. Any important changes should be reflected on this page with a new update date.
+          GD Avenue relies on Discord's age requirements and does not knowingly invite users who are not permitted to use Discord. Never submit your address, school, phone number, legal documents, private account credentials, or other unnecessary identifying information in public channels, requests, applications, or support forms.
+        </p>
+      </article>
+
+      <article class="privacy-section surface">
+        <h2>Policy Changes And Contact</h2>
+        <p>
+          We update this policy when Avenue Guard, the staff portal, or our providers materially change. The date at the top identifies the latest revision. Questions, privacy requests, and concerns can be sent to GD Avenue staff through the <a href="https://discord.com/invite/matVTsj" target="_blank" rel="noopener noreferrer">GD Avenue Discord server</a>.
         </p>
       </article>
     </section>
@@ -122,7 +151,7 @@
   </main>
 
   <footer>
-    <span>Geometry Dash Avenue &mdash; &copy;2026</span>
+    <span>Geometry Dash Avenue &middot; &copy;2026</span>
     <a href="privacy.html" aria-current="page">Privacy Policy</a>
   </footer>
 </body>

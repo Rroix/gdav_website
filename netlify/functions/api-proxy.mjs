@@ -1,5 +1,5 @@
 import crypto from "node:crypto";
-import { CSRF_COOKIE, SESSION_COOKIE, botRequest, cookies, json, secureEqual } from "./_shared/portal.mjs";
+import { CSRF_COOKIE, SESSION_COOKIE, apiError, botRequest, cookies, json, secureEqual } from "./_shared/portal.mjs";
 
 const ALLOWED_METHODS = new Set(["GET", "POST", "PATCH", "DELETE"]);
 
@@ -32,21 +32,21 @@ export function resolveProxyRoute(event) {
 
 export async function handler(event) {
   const method = String(event.httpMethod || "GET").toUpperCase();
-  if (!ALLOWED_METHODS.has(method)) return json(405, { error: "method_not_allowed", message: "Method not allowed" });
+  if (!ALLOWED_METHODS.has(method)) return json(405, apiError("method_not_allowed", "Method not allowed"));
   const route = resolveProxyRoute(event);
-  if (!route) return json(404, { error: "not_found", message: "Resource not found" });
+  if (!route) return json(404, apiError("not_found", "Resource not found"));
   const { scope, tail } = route;
   const jar = cookies(event);
-  if (!jar[SESSION_COOKIE]) return json(401, { error: "session_required", message: "Sign in with Discord to continue" });
+  if (!jar[SESSION_COOKIE]) return json(401, apiError("session_required", "Sign in with Discord to continue"));
   const mutation = method !== "GET";
   const suppliedCsrf = String(event.headers?.["x-csrf-token"] || event.headers?.["X-CSRF-Token"] || "");
   if (mutation && !secureEqual(suppliedCsrf, jar[CSRF_COOKIE])) {
-    return json(403, { error: "csrf_failed", message: "This action could not be verified; refresh and try again" });
+    return json(403, apiError("csrf_failed", "This action could not be verified; refresh and try again"));
   }
   let body;
   if (event.body) {
     try { body = JSON.parse(event.isBase64Encoded ? Buffer.from(event.body, "base64").toString("utf8") : event.body); }
-    catch { return json(400, { error: "invalid_json", message: "The request body is not valid JSON" }); }
+    catch { return json(400, apiError("invalid_json", "The request body is not valid JSON")); }
   }
   const query = new URLSearchParams(event.multiValueQueryStringParameters || event.queryStringParameters || {});
   query.delete("scope");
@@ -62,6 +62,6 @@ export async function handler(event) {
     });
     return json(result.status, result.payload);
   } catch {
-    return json(503, { error: "backend_unavailable", message: "Avenue Guard is temporarily unavailable" });
+    return json(503, apiError("backend_unavailable", "Avenue Guard is temporarily unavailable"));
   }
 }

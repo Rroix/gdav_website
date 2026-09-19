@@ -19,6 +19,7 @@
       <p id="auth-message">Use Discord to verify your current server role and continue.</p>
       <a class="button primary" href="/api/auth/login">Continue with Discord</a>
       <a class="quiet-link" href="/">Return to GD Avenue</a>
+      <a class="quiet-link" href="/privacy.html">Privacy Policy</a>
     </section>
   </div>
 
@@ -29,10 +30,18 @@
         <span><strong>Avenue Guard</strong><small>Staff operations</small></span>
       </a>
       <nav id="primary-nav" aria-label="Portal modules"></nav>
-      <div class="sidebar-user">
-        <img id="user-avatar" alt="" width="34" height="34">
-        <span><strong id="user-name"></strong><small id="user-role"></small></span>
-        <button id="logout-button" class="icon-link" type="button" aria-label="Log out" title="Log out">Exit</button>
+      <div class="sidebar-profile-wrap">
+        <button id="profile-button" class="sidebar-user" type="button" aria-haspopup="menu" aria-expanded="false">
+          <img id="user-avatar" alt="" width="34" height="34">
+          <span><strong id="user-name"></strong><small id="user-role"></small></span>
+          <span aria-hidden="true">...</span>
+        </button>
+        <div id="profile-menu" class="profile-menu" role="menu" hidden>
+          <button type="button" role="menuitem" data-profile-action="view">My profile</button>
+          <button type="button" role="menuitem" data-profile-action="nickname">Edit portal nickname</button>
+          <button type="button" role="menuitem" data-nav="team/statistics">My statistics</button>
+          <button id="logout-button" type="button" role="menuitem">Sign out</button>
+        </div>
       </div>
     </aside>
 
@@ -71,13 +80,13 @@
   </aside>
   <div id="drawer-scrim" class="drawer-scrim" hidden></div>
 
-  <dialog id="action-dialog">
-    <form method="dialog" id="action-form">
-      <div class="dialog-head"><h2 id="dialog-title">Confirm action</h2><button value="cancel" class="icon-button" aria-label="Close">Close</button></div>
+  <dialog id="action-dialog" role="dialog" aria-modal="true" aria-labelledby="dialog-title" aria-describedby="dialog-description">
+    <form id="action-form" novalidate>
+      <div class="dialog-head"><h2 id="dialog-title">Confirm action</h2><button id="dialog-close" type="button" class="icon-button" aria-label="Close dialog">Close</button></div>
       <p id="dialog-description"></p>
       <div id="dialog-fields" class="form-grid"></div>
-      <p id="dialog-error" class="field-error" hidden></p>
-      <div class="dialog-actions"><button value="cancel" class="button secondary">Cancel</button><button id="dialog-submit" value="default" class="button primary">Confirm</button></div>
+      <p id="dialog-error" class="field-error" role="alert" hidden></p>
+      <div class="dialog-actions"><button id="dialog-cancel" type="button" class="button secondary">Cancel</button><button id="dialog-submit" type="submit" class="button primary">Confirm</button></div>
     </form>
   </dialog>
 

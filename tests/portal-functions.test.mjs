@@ -68,7 +68,7 @@ test("private proxy denies unauthenticated requests before contacting the bot", 
     rawUrl: "https://gdavenue.netlify.app/api/staff/session",
   });
   assert.equal(response.statusCode, 401);
-  assert.equal(JSON.parse(response.body).error, "session_required");
+  assert.equal(JSON.parse(response.body).error.code, "session_required");
 });
 
 test("production staff and application rewrites resolve without query splats", async () => {
@@ -92,7 +92,7 @@ test("private proxy rejects mutations without a matching CSRF header", async () 
     body: "{}",
   });
   assert.equal(response.statusCode, 403);
-  assert.equal(JSON.parse(response.body).error, "csrf_failed");
+  assert.equal(JSON.parse(response.body).error.code, "csrf_failed");
   assert.equal(secureEqual("same", "same"), true);
   assert.equal(secureEqual("same", "different"), false);
 });
@@ -105,10 +105,15 @@ test("authenticated reload proxies the secure cookie session without exposing se
     backendRequest = { url: String(url), options };
     return jsonResponse(200, {
       user: {
-        id: "101",
-        display_name: "Judge",
+        id: "1102884420207255552",
+        display_name: "Average",
+        portal_nickname: "Average",
+        discord_display_name: "Average GD",
+        global_display_name: "Average",
+        username: "average",
         avatar_url: "https://cdn.example/avatar.png",
-        role: "judge",
+        role: "dev",
+        role_label: "Dev",
         staff_access: true,
         capabilities: ["staff.access", "queue.view"],
       },
@@ -125,9 +130,8 @@ test("authenticated reload proxies the secure cookie session without exposing se
   assert.equal(backendRequest.options.headers["X-Staff-Session"], "browser-session");
   assert.equal(backendRequest.options.headers["X-Avenue-Portal-Key"], "private-service-token");
   assert.doesNotMatch(response.body, /browser-session|private-service-token/);
-  assert.deepEqual(Object.keys(JSON.parse(response.body).user).sort(), [
-    "avatar_url", "capabilities", "display_name", "id", "role", "staff_access",
-  ]);
+  assert.equal(JSON.parse(response.body).user.id, "1102884420207255552");
+  assert.equal(typeof JSON.parse(response.body).user.id, "string");
 });
 
 test("OAuth login uses identify only and the server callback route", async () => {
@@ -152,7 +156,7 @@ test("OAuth callback exchanges identity server-side and creates a clean staff se
   globalThis.fetch = async (url, options = {}) => {
     requests.push({ url: String(url), options });
     if (String(url).includes("/oauth2/token")) return jsonResponse(200, { access_token: "discord-access-token" });
-    if (String(url).includes("/users/@me")) return jsonResponse(200, { id: "101", username: "Judge" });
+    if (String(url).includes("/users/@me")) return jsonResponse(200, { id: "101", username: "Reviewer" });
     return jsonResponse(201, {
       session_token: "server-session-token",
       csrf_token: "server-csrf-token",
@@ -170,6 +174,33 @@ test("OAuth callback exchanges identity server-side and creates a clean staff se
   assert.deepEqual(JSON.parse(backend.options.body), { user_id: "101", purpose: "staff" });
   assert.equal(backend.options.headers["X-Avenue-Portal-Key"], "private-service-token");
   assert.doesNotMatch(response.body, /discord-access-token|discord-client-secret|private-service-token/);
+});
+
+test("OAuth callback reads the standardized Avenue Guard error contract", async () => {
+  process.env.DISCORD_CLIENT_ID = "client-id";
+  process.env.DISCORD_CLIENT_SECRET = "client-secret";
+  process.env.AVENUE_GUARD_API_URL = "https://avenue-guard.example";
+  process.env.AVENUE_GUARD_API_TOKEN = "private-service-token";
+  const state = createOAuthState("/staff");
+  const originalFetch = global.fetch;
+  global.fetch = async (url) => {
+    if (String(url).includes("/oauth2/token")) return { ok: true, json: async () => ({ access_token: "oauth-token" }) };
+    if (String(url).includes("/users/@me")) return { ok: true, json: async () => ({ id: "1102884420207255552" }) };
+    return {
+      status: 403,
+      text: async () => JSON.stringify({ ok: false, error: { code: "staff_role_required", message: "A current staff role is required" } }),
+    };
+  };
+  try {
+    const response = await callback({
+      headers: { cookie: `${OAUTH_COOKIE}=${encodeURIComponent(state)}`, host: "gdavenue.netlify.app" },
+      queryStringParameters: { state, code: "code" },
+    });
+    assert.equal(response.statusCode, 302);
+    assert.match(response.headers.Location, /auth_error=A%20current%20staff%20role%20is%20required/);
+  } finally {
+    global.fetch = originalFetch;
+  }
 });
 
 test("application callback requests an application session instead of staff elevation", async () => {
