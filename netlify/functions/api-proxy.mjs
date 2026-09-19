@@ -3,12 +3,39 @@ import { CSRF_COOKIE, SESSION_COOKIE, botRequest, cookies, json, secureEqual } f
 
 const ALLOWED_METHODS = new Set(["GET", "POST", "PATCH", "DELETE"]);
 
+export function resolveProxyRoute(event) {
+  const queryScope = event.queryStringParameters?.scope;
+  const queryTail = String(event.queryStringParameters?.path || "").replace(/^\/+/, "");
+  if (["staff", "apply"].includes(queryScope) && queryTail && !queryTail.includes("..")) {
+    return { scope: queryScope, tail: queryTail };
+  }
+
+  const candidates = [event.rawUrl, event.rawPath, event.path]
+    .filter(Boolean)
+    .map((value) => {
+      try { return new URL(String(value), "https://local.invalid").pathname; }
+      catch { return String(value).split("?", 1)[0]; }
+    });
+  for (const path of candidates) {
+    const match = path.match(/^(?:\/api|\/\.netlify\/functions\/api-proxy)\/(staff|apply)\/(.+)$/);
+    if (!match) continue;
+    let tail;
+    try {
+      tail = decodeURIComponent(match[2]).replace(/^\/+/, "");
+    } catch {
+      continue;
+    }
+    if (tail && !tail.includes("..")) return { scope: match[1], tail };
+  }
+  return null;
+}
+
 export async function handler(event) {
   const method = String(event.httpMethod || "GET").toUpperCase();
   if (!ALLOWED_METHODS.has(method)) return json(405, { error: "method_not_allowed", message: "Method not allowed" });
-  const scope = event.queryStringParameters?.scope === "apply" ? "apply" : "staff";
-  const tail = String(event.queryStringParameters?.path || "").replace(/^\/+/, "");
-  if (!tail || tail.includes("..")) return json(404, { error: "not_found", message: "Resource not found" });
+  const route = resolveProxyRoute(event);
+  if (!route) return json(404, { error: "not_found", message: "Resource not found" });
+  const { scope, tail } = route;
   const jar = cookies(event);
   if (!jar[SESSION_COOKIE]) return json(401, { error: "session_required", message: "Sign in with Discord to continue" });
   const mutation = method !== "GET";

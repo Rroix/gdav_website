@@ -19,12 +19,12 @@
 
 [[redirects]]
   from = "/api/staff/*"
-  to = "/.netlify/functions/api-proxy?scope=staff&path=:splat"
+  to = "/.netlify/functions/api-proxy/staff/:splat"
   status = 200
 
 [[redirects]]
   from = "/api/apply/*"
-  to = "/.netlify/functions/api-proxy?scope=apply&path=:splat"
+  to = "/.netlify/functions/api-proxy/apply/:splat"
   status = 200
 
 [[headers]]

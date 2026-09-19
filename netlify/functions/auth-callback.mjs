@@ -39,11 +39,22 @@ export async function handler(event) {
     const identity = await identityResponse.json();
     const sessionResponse = await botRequest("/api/staff/auth/session", {
       method: "POST",
-      body: { user_id: identity.id },
+      body: {
+        user_id: identity.id,
+        purpose: parsedState.destination === "/apply" ? "apply" : "staff",
+      },
     });
     if (sessionResponse.status >= 400) {
       const reason = encodeURIComponent(sessionResponse.payload?.message || "Access could not be verified");
-      return { statusCode: 302, headers: { Location: `${parsedState.destination}?auth_error=${reason}` }, body: "" };
+      return {
+        statusCode: 302,
+        headers: {
+          Location: `${parsedState.destination}?auth_error=${reason}`,
+          "Set-Cookie": cookie(OAUTH_COOKIE, "", { httpOnly: true, sameSite: "Lax", maxAge: 0 }),
+          "Cache-Control": "no-store",
+        },
+        body: "",
+      };
     }
     const ttl = Math.max(60, Number(sessionResponse.payload.expires_ts || 0) - Math.floor(Date.now() / 1000));
     return {
@@ -59,6 +70,15 @@ export async function handler(event) {
       body: "",
     };
   } catch {
-    return { statusCode: 502, body: "Discord sign-in could not be completed. Please try again." };
+    const reason = encodeURIComponent("Discord sign-in could not be completed. Please try again.");
+    return {
+      statusCode: 302,
+      headers: {
+        Location: `${parsedState.destination}?auth_error=${reason}`,
+        "Set-Cookie": cookie(OAUTH_COOKIE, "", { httpOnly: true, sameSite: "Lax", maxAge: 0 }),
+        "Cache-Control": "no-store",
+      },
+      body: "",
+    };
   }
 }

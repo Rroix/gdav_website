@@ -7,6 +7,20 @@ Browser -> Netlify OAuth/functions -> private Avenue Guard API
         -> capability checks -> PPS/outbox services -> Turso
 ```
 
+The production API routes are Netlify rewrites, not browser-side aliases:
+
+```text
+/api/auth/login       -> /.netlify/functions/auth-login
+/api/auth/callback    -> /.netlify/functions/auth-callback
+/api/auth/logout      -> /.netlify/functions/auth-logout
+/api/staff/<path>     -> /.netlify/functions/api-proxy/staff/<path>
+/api/apply/<path>     -> /.netlify/functions/api-proxy/apply/<path>
+```
+
+The path-based proxy target is intentional. A query-string wildcard such as
+`?path=:splat` is not reliable in the deployed rewrite and can leave the proxy
+without the requested resource path.
+
 ## Required Netlify environment
 
 ```text
@@ -29,6 +43,18 @@ https://gdavenue.netlify.app/api/auth/callback
 
 The OAuth flow requests only `identify`. Avenue Guard resolves server membership and current role IDs for every private request, so role changes take effect without trusting browser state.
 
+After Discord returns the authorization code, the Netlify callback exchanges it
+server-side, requests `/users/@me`, and sends only that Discord user ID to Avenue
+Guard. Avenue Guard looks up the user in the configured guild with the bot and
+maps the live member roles to `judge`, `head_judge`, or `owner`. The callback then
+sets an `HttpOnly`, `Secure`, `SameSite=Strict` session cookie and redirects to the
+clean `/staff` URL. The authorization code and state are never stored in browser
+application state.
+
+The role mapping is refreshed on every authenticated bot API request. A member
+who leaves the guild or loses an authorized role receives HTTP 403 on the next
+authorization check. The browser cannot submit or select its own role.
+
 ## Deploy order
 
 1. Set `STAFF_API_TOKEN` on Render and deploy Avenue Guard first.
@@ -41,10 +67,14 @@ The OAuth flow requests only `identify`. Avenue Guard resolves server membership
 
 ## Production checks
 
-- Visit `/staff` signed out and complete OAuth.
+- Request `/api/staff/session` signed out and confirm HTTP 401, not HTTP 404.
+- Visit `/staff` signed out and complete OAuth; confirm the final URL is exactly `/staff` without `code` or `state`.
 - Verify an ordinary member can use `/apply` but cannot access staff data.
 - Verify Judge, Head Judge, and Owner navigation and mutation permissions.
 - Remove a test Judge role and confirm their next request is denied.
+- Reload `/staff` and confirm the secure cookie preserves the authorized session.
+- Inspect `/api/staff/session` and confirm it contains only the sanitized user ID,
+  display name, avatar URL, role, staff-access flag, and capability names.
 - Race two queue claims and confirm only one active owner.
 - Record an attempt, submission, same-target follow-up, and different-target submission.
 - Confirm a Head Judge cannot adjust a tier after submission while the Owner can.

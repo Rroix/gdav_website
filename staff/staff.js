@@ -395,6 +395,23 @@ function showAuth(message = "Use Discord to verify your current server role and 
   $("#auth-message").textContent = message;
 }
 
+function forwardLegacyOAuthCallback() {
+  const params = new URLSearchParams(location.search);
+  if (!params.has("code") && !params.has("state")) return false;
+  const code = params.get("code");
+  const oauthState = params.get("state");
+  history.replaceState(null, "", `${location.pathname}${location.hash}`);
+  if (!code || !oauthState) {
+    showAuth("This Discord sign-in attempt is incomplete. Please start again.");
+    return true;
+  }
+  const callback = new URL("/api/auth/callback", location.origin);
+  callback.searchParams.set("code", code);
+  callback.searchParams.set("state", oauthState);
+  location.replace(`${callback.pathname}${callback.search}`);
+  return true;
+}
+
 async function initialize() {
   try {
     const data = await api("/api/staff/session");
@@ -410,6 +427,7 @@ async function initialize() {
   } catch (error) {
     const params = new URLSearchParams(location.search);
     const authError = params.get("auth_error");
+    if (authError) history.replaceState(null, "", `${location.pathname}${location.hash}`);
     if (authError || [401, 403].includes(error.status)) showAuth(authError || error.message);
     else showAuth("The secure portal service is temporarily unavailable. Please try again shortly.");
   }
@@ -502,4 +520,4 @@ $("#global-search").addEventListener("input", (event) => {
   }, 280);
 });
 
-initialize();
+if (!forwardLegacyOAuthCallback()) initialize();

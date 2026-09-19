@@ -3,6 +3,25 @@ const $ = (s) => document.querySelector(s);
 const esc = (value) => String(value ?? "").replace(/[&<>'"]/g, (char) => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", "'":"&#39;", '"':"&quot;" })[char]);
 const cookieValue = (name) => document.cookie.split(";").map((item) => item.trim()).find((item) => item.startsWith(`${name}=`))?.slice(name.length + 1) || "";
 
+function forwardLegacyOAuthCallback() {
+  const params = new URLSearchParams(location.search);
+  if (!params.has("code") && !params.has("state")) return false;
+  const code = params.get("code");
+  const oauthState = params.get("state");
+  history.replaceState(null, "", `${location.pathname}${location.hash}`);
+  if (!code || !oauthState) {
+    $("#apply-content").hidden = true;
+    $("#apply-auth").hidden = false;
+    $("#apply-auth-message").textContent = "This Discord sign-in attempt is incomplete. Please start again.";
+    return true;
+  }
+  const callback = new URL("/api/auth/callback", location.origin);
+  callback.searchParams.set("code", code);
+  callback.searchParams.set("state", oauthState);
+  location.replace(`${callback.pathname}${callback.search}`);
+  return true;
+}
+
 async function api(path, options = {}) {
   const mutation = options.method && options.method !== "GET";
   const response = await fetch(path, { method: options.method || "GET", headers: { "Content-Type":"application/json", ...(mutation ? { "Idempotency-Key": crypto.randomUUID(), "X-CSRF-Token": decodeURIComponent(cookieValue("av_staff_csrf")) } : {}) }, body: options.body ? JSON.stringify(options.body) : undefined });
@@ -34,6 +53,9 @@ function formHtml(draft = {}) {
 }
 
 async function initialize() {
+  const params = new URLSearchParams(location.search);
+  const authError = params.get("auth_error");
+  if (authError) history.replaceState(null, "", `${location.pathname}${location.hash}`);
   try {
     await api("/api/apply/session");
     const data = await api("/api/apply/mine");
@@ -46,7 +68,7 @@ async function initialize() {
       $("#apply-content").innerHTML = formHtml(draft);
     }
   } catch (error) {
-    if ([401, 403].includes(error.status)) { $("#apply-content").hidden = true; $("#apply-auth").hidden = false; $("#apply-auth-message").textContent = error.message; }
+    if (authError || [401, 403].includes(error.status)) { $("#apply-content").hidden = true; $("#apply-auth").hidden = false; $("#apply-auth-message").textContent = authError || error.message; }
     else if (error.status === 404) { $("#apply-content").hidden = true; $("#apply-auth").hidden = false; $("#apply-auth-message").textContent = "The secure application service is unavailable in this preview."; }
     else $("#apply-content").innerHTML = `<div class="error-state"><strong>Application unavailable</strong><span>${esc(error.message)}</span></div>`;
   }
@@ -78,4 +100,4 @@ $("#apply-logout").addEventListener("click", async () => {
     location.href = "/apply";
   }
 });
-initialize();
+if (!forwardLegacyOAuthCallback()) initialize();
