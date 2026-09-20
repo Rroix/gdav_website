@@ -6,6 +6,7 @@ import {
   cookie,
   cookies,
   required,
+  secureEqual,
   siteUrl,
   verifyOAuthState,
 } from "./_shared/portal.mjs";
@@ -14,7 +15,25 @@ export async function handler(event) {
   const jar = cookies(event);
   const state = String(event.queryStringParameters?.state || "");
   const parsedState = verifyOAuthState(state);
-  if (!parsedState || jar[OAUTH_COOKIE] !== state) {
+  const stateCookie = String(jar[OAUTH_COOKIE] || "");
+  if (!parsedState) {
+    return { statusCode: 400, body: "This sign-in attempt expired. Return to the portal and try again." };
+  }
+  if (!stateCookie || !secureEqual(stateCookie, state)) {
+    // Some mobile browsers revisit the callback after the first exchange has
+    // already created the session and cleared the one-time state cookie. Send
+    // that completed login to a clean URL without exchanging the code twice.
+    if (jar[SESSION_COOKIE]) {
+      return {
+        statusCode: 302,
+        headers: {
+          Location: parsedState.destination,
+          "Set-Cookie": cookie(OAUTH_COOKIE, "", { httpOnly: true, sameSite: "Lax", maxAge: 0 }),
+          "Cache-Control": "no-store",
+        },
+        body: "",
+      };
+    }
     return { statusCode: 400, body: "This sign-in attempt expired. Return to the portal and try again." };
   }
   try {

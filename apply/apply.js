@@ -40,13 +40,29 @@ function stage(status) {
   return `<ol class="application-stages">${stages.map((item,index) => `<li class="${index <= active ? "complete" : ""}"><span>${index + 1}</span>${labels[item]}</li>`).join("")}</ol>`;
 }
 
-function formHtml(draft = {}) {
+function questionHtml(question, answers) {
+  const value = String(answers[question.key] || "");
+  const required = question.required ? " required" : "";
+  const prompt = question.review_prompt;
+  const help = prompt
+    ? `<p class="field-help">Assigned level: <a href="${esc(prompt.youtube_url)}" target="_blank" rel="noopener noreferrer">${esc(prompt.name)}</a> <code>${esc(prompt.level_id)}</code>. Review the linked showcase in your answer.</p>`
+    : question.help_url
+      ? `<p class="field-help"><a href="${esc(question.help_url)}" target="_blank" rel="noopener noreferrer">Find your timezone</a></p>`
+      : "";
+  if (question.type === "single_choice") {
+    return `<fieldset class="choice-question"><legend>${esc(question.label)}${question.required ? " *" : ""}</legend>${question.options.map((option, index) => `<label class="choice-option"><input type="radio" name="${esc(question.key)}" value="${esc(option)}" ${value === option ? "checked" : ""}${required && index === 0 ? " required" : ""}><span>${esc(option)}</span></label>`).join("")}${help}</fieldset>`;
+  }
+  if (question.type === "short_text") {
+    return `<label>${esc(question.label)}${question.required ? " *" : ""}<input name="${esc(question.key)}" value="${esc(value)}" maxlength="4000"${required}>${help}</label>`;
+  }
+  return `<label>${esc(question.label)}${question.required ? " *" : ""}${help}<textarea name="${esc(question.key)}" maxlength="4000"${required}>${esc(value)}</textarea></label>`;
+}
+
+function formHtml(formData) {
+  const draft = formData.application || {};
   const answers = draft.answers || {};
   return `${stage("draft")}<form id="judge-form" class="form-grid">
-    <label>Why do you want to become a GD Avenue Judge?<textarea name="motivation" required maxlength="4000">${esc(answers.motivation || "")}</textarea></label>
-    <label>What reviewing or Geometry Dash experience do you have?<textarea name="experience" required maxlength="4000">${esc(answers.experience || "")}</textarea></label>
-    <label>What availability can you realistically commit?<textarea name="availability" required maxlength="4000">${esc(answers.availability || "")}</textarea></label>
-    <label>How would you handle disagreement about a recommendation tier?<textarea name="judgement" maxlength="4000">${esc(answers.judgement || "")}</textarea></label>
+    ${formData.questions.map((question) => questionHtml(question, answers)).join("")}
     <div class="dialog-actions"><button class="button secondary" type="button" data-save="draft">Save draft</button><button class="button primary" type="submit">Submit application</button></div>
     <p id="apply-status" role="status"></p>
   </form>`;
@@ -60,12 +76,12 @@ async function initialize() {
     await api("/api/apply/session");
     const data = await api("/api/apply/mine");
     const active = data.items.find((item) => ["submitted","under_review","interview","hold","accepted_pending_role"].includes(item.status));
-    const draft = data.items.find((item) => item.status === "draft");
     const visibleApplication = active || data.items.find((item) => item.status !== "draft");
     if (visibleApplication) {
       $("#apply-content").innerHTML = `${stage(visibleApplication.status)}<section class="panel"><div class="panel-head"><h2>Application #${visibleApplication.id}</h2><span class="pill">${esc(visibleApplication.status.replaceAll("_"," "))}</span></div><p>Your application is saved and its current stage is shown above.</p>${visibleApplication.decision_reason ? `<p class="muted">Decision note: ${esc(visibleApplication.decision_reason)}</p>` : ""}${!["accepted","rejected","withdrawn"].includes(visibleApplication.status) ? `<button class="button secondary" data-withdraw="${visibleApplication.id}">Withdraw application</button>` : ""}</section>`;
     } else {
-      $("#apply-content").innerHTML = formHtml(draft);
+      const formData = await api("/api/apply/form");
+      $("#apply-content").innerHTML = formHtml(formData);
     }
   } catch (error) {
     if (authError || [401, 403].includes(error.status)) { $("#apply-content").hidden = true; $("#apply-auth").hidden = false; $("#apply-auth-message").textContent = authError || error.message; }

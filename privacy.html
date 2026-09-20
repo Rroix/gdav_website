@@ -53,7 +53,7 @@
           The staff portal and application area use Discord OAuth with the <code>identify</code> scope. Discord supplies the signed-in user's account ID and basic profile identity. Avenue Guard then checks guild membership and current Discord roles server-side. The browser cannot assign its own role or capabilities.
         </p>
         <p>
-          Sign-in uses a short-lived, signed OAuth state cookie. Successful sign-in creates an opaque session cookie that is <code>HttpOnly</code>, <code>Secure</code>, and <code>SameSite=Strict</code>, plus a secure CSRF cookie used to protect changes. Staff sessions currently expire after eight hours, and permissions are refreshed against Discord so role removal can remove access. The portal stores only the last selected module and section in browser local storage as a convenience.
+          Sign-in uses a short-lived, signed OAuth state cookie. Successful sign-in creates an opaque session cookie that is <code>HttpOnly</code>, <code>Secure</code>, and <code>SameSite=Strict</code>, plus a secure CSRF cookie used to protect changes. Staff sessions currently expire after eight hours, and permissions are refreshed against Discord so role removal can remove access. A Dev may preview the portal with another role's effective capabilities, but preview mode is read-only, server-enforced, and does not impersonate another user. The portal stores only interface preferences in browser local storage.
         </p>
       </article>
 
@@ -64,11 +64,11 @@
         </p>
         <ul>
           <li>Discord IDs, display names, role-derived permissions, and relevant channel, message, thread, or guild IDs.</li>
-          <li>Level request forms, wave and edit history, review results, reviewer records, validation snapshots, recommendation type, queue state, and outreach outcomes.</li>
+          <li>Level request forms, wave and edit history, review results, reviewer records, validation snapshots, recommendation type, queue state, hidden-state history, and outreach outcomes.</li>
           <li>Tickets, support forms, appeals, reports, bug reports, transcripts, attachments or links you submit, staff responses, and satisfaction feedback.</li>
           <li>Activity totals, weekly rankings and streaks, reward status, anti-farming signals, and daily or weekly aggregate summaries.</li>
           <li>Moderation and workflow events, forum enforcement records, command actions, errors, health measurements, delivery state, impact reports, and backup or restore records.</li>
-          <li>Staff portal profiles and nicknames, applications, internal notes, tasks, queue claims, quality checks, and security audit events.</li>
+          <li>Staff portal profiles and nicknames, manually managed team records, applications, age brackets, availability, timezone answers, written responses, assigned level-review prompts, internal notes, tasks, queue claims, quality checks, and security audit events.</li>
         </ul>
         <p>
           A failed lookup is recorded as unavailable rather than silently treated as valid data. Present-day Geometry Dash snapshots are kept separate from historical facts where the system cannot reliably know what was true at the time of a request.
@@ -78,10 +78,20 @@
       <article class="privacy-section surface">
         <h2>How We Use Information</h2>
         <p>
-          We use this information to operate request waves and recommendations, provide support, process staff applications, enforce server rules, prevent abuse, calculate community activity rewards, authenticate staff, maintain reliable delivery, investigate errors, restore service data, and understand the community impact of Avenue Guard.
+          We use this information to operate request waves and recommendations, provide support, process staff applications and interviews, notify staff about assigned tasks, enforce server rules, prevent abuse, calculate community activity rewards, authenticate staff, maintain reliable delivery, investigate errors, restore service data, and understand the community impact of Avenue Guard.
         </p>
         <p>
           Our processing supports the community services you request and GD Avenue's legitimate interests in safety, moderation, service reliability, and improvement. Where consent or another legal basis is required, we use that basis. Do not submit sensitive personal information unless it is necessary for the specific support or safety issue.
+        </p>
+      </article>
+
+      <article class="privacy-section surface">
+        <h2>Reviewer Applications</h2>
+        <p>
+          Reviewer applications use configurable question types such as a selected age bracket, multiple-choice availability, short answers, long answers, and a written review of one randomly assigned public YouTube showcase. Submitted answers are copied into a private Discord review thread for authorized staff. Staff may reject the application, accept it, or create a private Discord interview ticket that the applicant and authorized staff can access. Decision and delivery events are retained for accountability and retry safety.
+        </p>
+        <p>
+          Do not include precise birth dates, home addresses, school details, private credentials, or unrelated personal information. The age question asks only for a broad bracket.
         </p>
       </article>
 
@@ -108,7 +118,7 @@
       <article class="privacy-section surface">
         <h2>Retention And Backups</h2>
         <p>
-          Records are retained only while they remain useful for operations, safety, appeals, historical integrity, reporting, or legal obligations. Current automated retention settings keep health measurements for 365 days, workflow and error records for 730 days, delivery records for 90 days, cached Geometry Dash validation for 7 days, and impact snapshots for 1,095 days. Other core records, including reviews, tickets, transcripts, moderation evidence, staff audits, and recommendation history, may be retained longer when continuity or accountability requires it.
+          Records are retained only while they remain useful for operations, safety, appeals, historical integrity, reporting, or legal obligations. Current automated retention settings keep health measurements for 365 days, workflow and error records for 730 days, delivery records for 90 days, cached Geometry Dash validation for 7 days, and impact snapshots for 1,095 days. Other core records, including reviews, applications, interview tickets, transcripts, moderation evidence, staff audits, and recommendation history, may be retained longer when continuity or accountability requires it. Hiding a level removes it from normal and public workflows but retains the reversible internal record and its audit history.
         </p>
         <p>
           Turso is the durable source of truth. Encrypted transport, controlled database access, periodic backups, and restore checks reduce data-loss risk. Deletion from the live database may not immediately remove an item from limited backup copies, which expire or are replaced on their normal schedule.

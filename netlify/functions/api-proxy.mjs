@@ -59,6 +59,7 @@ export async function handler(event) {
       session: jar[SESSION_COOKIE],
       csrf: suppliedCsrf,
       idempotency: event.headers?.["idempotency-key"] || crypto.randomUUID(),
+      viewRole: event.headers?.["x-staff-view-role"] || event.headers?.["X-Staff-View-Role"] || "",
     });
     return json(result.status, result.payload);
   } catch {

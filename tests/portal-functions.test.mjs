@@ -134,6 +134,28 @@ test("authenticated reload proxies the secure cookie session without exposing se
   assert.equal(typeof JSON.parse(response.body).user.id, "string");
 });
 
+test("proxy forwards Dev view role to Avenue Guard without treating it as authority", async () => {
+  process.env.AVENUE_GUARD_API_URL = "https://avenue-guard.example";
+  process.env.AVENUE_GUARD_API_TOKEN = "private-service-token";
+  let backendRequest;
+  globalThis.fetch = async (url, options) => {
+    backendRequest = { url: String(url), options };
+    return jsonResponse(200, { user: { role: "reviewer" } });
+  };
+  const response = await proxy({
+    httpMethod: "GET",
+    headers: {
+      cookie: `${SESSION_COOKIE}=browser-session`,
+      "x-staff-view-role": "reviewer",
+    },
+    rawUrl: "https://gdavenue.netlify.app/api/staff/session",
+    queryStringParameters: {},
+  });
+  assert.equal(response.statusCode, 200);
+  assert.equal(backendRequest.options.headers["X-Staff-View-Role"], "reviewer");
+  assert.equal(backendRequest.options.headers["X-Staff-Session"], "browser-session");
+});
+
 test("proxy preserves exact snowflake strings across every staff workflow shape", async () => {
   process.env.AVENUE_GUARD_API_URL = "https://avenue-guard.example";
   process.env.AVENUE_GUARD_API_TOKEN = "private-service-token";
@@ -251,6 +273,43 @@ test("application callback requests an application session instead of staff elev
   const response = await callback(oauthEvent(state, "/apply"));
   assert.equal(response.headers.Location, "/apply");
   assert.deepEqual(backendBody, { user_id: "999", purpose: "apply" });
+});
+
+test("revisited OAuth callback redirects an existing session without reusing the code", async () => {
+  const state = createOAuthState("/staff");
+  let contacted = false;
+  globalThis.fetch = async () => { contacted = true; throw new Error("must not run"); };
+  const response = await callback({
+    headers: { cookie: `${SESSION_COOKIE}=existing-session`, host: "gdavenue.netlify.app" },
+    queryStringParameters: { state, code: "already-used-code" },
+  });
+  assert.equal(response.statusCode, 302);
+  assert.equal(response.headers.Location, "/staff");
+  assert.equal(contacted, false);
+});
+
+test("OAuth callback does not trust signed state without browser binding or a session", async () => {
+  const state = createOAuthState("/staff");
+  let contacted = false;
+  globalThis.fetch = async () => { contacted = true; throw new Error("must not run"); };
+  const response = await callback({
+    headers: { host: "gdavenue.netlify.app" },
+    queryStringParameters: { state, code: "code" },
+  });
+  assert.equal(response.statusCode, 400);
+  assert.equal(contacted, false);
+});
+
+test("OAuth callback rejects a present state cookie that does not match", async () => {
+  const state = createOAuthState("/staff");
+  let contacted = false;
+  globalThis.fetch = async () => { contacted = true; throw new Error("must not run"); };
+  const response = await callback({
+    headers: { cookie: `${OAUTH_COOKIE}=different` },
+    queryStringParameters: { state, code: "code" },
+  });
+  assert.equal(response.statusCode, 400);
+  assert.equal(contacted, false);
 });
 
 test("invalid OAuth state is rejected before Discord or Avenue Guard is contacted", async () => {

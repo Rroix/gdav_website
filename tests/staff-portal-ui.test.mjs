@@ -5,6 +5,7 @@ import test from "node:test";
 const script = readFileSync(new URL("../staff/staff.js", import.meta.url), "utf8");
 const markup = readFileSync(new URL("../staff/index.html", import.meta.url), "utf8");
 const styles = readFileSync(new URL("../staff/staff.css", import.meta.url), "utf8");
+const application = readFileSync(new URL("../apply/apply.js", import.meta.url), "utf8");
 
 test("staff UI keeps Discord snowflakes as strings", () => {
   assert.doesNotMatch(script, /Number\(body\.(?:assignee|reviewer|requester|user)_id\)/);
@@ -84,4 +85,30 @@ test("incident details are constrained instead of rendered in operation cards", 
   assert.match(script, /data-incident/);
   assert.match(styles, /\.trace-block[^}]+max-height:/s);
   assert.match(styles, /\.trace-block[^}]+overflow: auto/s);
+});
+
+test("Dev controls expose read-only role preview and reversible hidden levels", () => {
+  assert.match(markup, /id="view-mode-select"/);
+  assert.match(script, /"X-Staff-View-Role": state\.viewRole/);
+  assert.match(script, /Read-only Dev preview/);
+  assert.match(script, /\["hidden","Hidden"\]/);
+  assert.match(script, /data-queue-action="hide"/);
+  assert.match(script, /data-queue-action="restore"/);
+});
+
+test("team and application workflows expose the requested operational controls", () => {
+  assert.match(script, /data-action="add-staff"/);
+  assert.match(script, /\["remove","Remove from team"\]/);
+  assert.match(script, /Proceed to interview/);
+  assert.match(script, /Accept without interview/);
+  assert.match(script, /Open Discord thread/);
+  assert.match(script, /Open interview ticket/);
+});
+
+test("public applications render server-defined typed questions and review prompts", () => {
+  assert.match(application, /question\.type === "single_choice"/);
+  assert.match(application, /question\.type === "short_text"/);
+  assert.match(application, /question\.review_prompt/);
+  assert.match(application, /prompt\.youtube_url/);
+  assert.match(application, /\/api\/apply\/form/);
 });

@@ -69,7 +69,7 @@ export function siteUrl(event) {
   return `${proto}://${host}`;
 }
 
-export async function botRequest(path, { method = "GET", body, session, csrf, idempotency } = {}) {
+export async function botRequest(path, { method = "GET", body, session, csrf, idempotency, viewRole } = {}) {
   const base = required("AVENUE_GUARD_API_URL").replace(/\/$/, "");
   const headers = {
     Accept: "application/json",
@@ -79,6 +79,7 @@ export async function botRequest(path, { method = "GET", body, session, csrf, id
   if (session) headers["X-Staff-Session"] = session;
   if (csrf) headers["X-CSRF-Token"] = csrf;
   if (idempotency) headers["Idempotency-Key"] = idempotency;
+  if (viewRole) headers["X-Staff-View-Role"] = viewRole;
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 28_000);
   try {

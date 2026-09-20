@@ -24,6 +24,15 @@ test("privacy policy separates public recommendation data from private operation
   assert.match(policy, /Human reviewers choose the review result/);
 });
 
+test("privacy policy covers applications, hidden records, task DMs, and Dev preview", () => {
+  assert.match(policy, /age brackets/);
+  assert.match(policy, /assigned level-review prompts/);
+  assert.match(policy, /private Discord interview ticket/);
+  assert.match(policy, /Hiding a level removes it from normal and public workflows/);
+  assert.match(policy, /preview mode is read-only/);
+  assert.match(policy, /notify staff about assigned tasks/);
+});
+
 test("authenticated entry points link to the privacy policy", () => {
   assert.match(staff, /href="\/privacy\.html"/);
   assert.match(application, /href="\/privacy\.html"/);

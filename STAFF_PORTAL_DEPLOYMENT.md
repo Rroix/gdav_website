@@ -55,11 +55,16 @@ The role mapping is refreshed on every authenticated bot API request. A member
 who leaves the guild or loses an authorized role receives HTTP 403 on the next
 authorization check. The browser cannot submit or select its own role.
 
+If a mobile or embedded browser revisits a callback after the first code exchange,
+the callback recognizes the already-created secure session and redirects to the
+clean destination instead of showing an expired-attempt page. A callback without
+either the matching one-time state cookie or an existing session still fails closed.
+
 ## Deploy order
 
 1. Set `STAFF_API_TOKEN` on Render and deploy Avenue Guard first.
 2. Confirm `https://avenue-guard.onrender.com/ready` returns HTTP 200.
-3. Confirm database schema version 10 completed successfully.
+3. Confirm database schema version 11 completed successfully.
 4. Set all five Netlify variables above.
 5. Configure the Discord redirect URL.
 6. Deploy this website directory to Netlify.
@@ -71,6 +76,7 @@ authorization check. The browser cannot submit or select its own role.
 - Visit `/staff` signed out and complete OAuth; confirm the final URL is exactly `/staff` without `code` or `state`.
 - Verify an ordinary member can use `/apply` but cannot access staff data.
 - Verify Judge, Head Judge, and Owner navigation and mutation permissions.
+- As Dev, use **View as** for every role and confirm all preview requests are read-only.
 - Remove a test Judge role and confirm their next request is denied.
 - Reload `/staff` and confirm the secure cookie preserves the authorized session.
 - Inspect `/api/staff/session` and confirm it contains only the sanitized user ID,
@@ -79,7 +85,12 @@ authorization check. The browser cannot submit or select its own role.
 - Record an attempt, submission, same-target follow-up, and different-target submission.
 - Confirm a Head Judge cannot adjust a tier after submission while the Owner can.
 - Accept a test application and confirm the status stays `accepted_pending_role` until the outbox grants the role.
+- Submit an application and confirm its configured question types and assigned review showcase appear in one private Discord forum thread.
+- Proceed with an interview and confirm one private ticket and one applicant DM are delivered, including after an outbox retry.
 - Confirm the applicant sees `accepted` after role delivery even before staff reopen Applications.
+- Add and remove a test staff profile by Discord ID as Dev, then confirm the role delivery and audit history.
+- Hide and restore a test queue entry as Dev; confirm it disappears from public levels, queue counts, and normal internal filters while hidden.
+- Assign a task to another staff member and confirm Avenue Guard sends the assignment DM once.
 - Deactivate a test Judge and confirm the inactive record remains available for Restore after Discord removes the role.
 - Search `/levels` by ID, name, and creator and inspect that no exact PPS, CP, requester, reviewer, note, target, or route is exposed.
 - Check `/staff`, `/apply`, `/levels`, and `/level/[id]` at desktop and mobile widths.

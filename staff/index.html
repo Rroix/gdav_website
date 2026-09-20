@@ -58,8 +58,12 @@
           <input id="global-search" type="search" placeholder="Search or jump to..." autocomplete="off" aria-keyshortcuts="Control+K Meta+K" aria-controls="search-results" aria-expanded="false">
           <div id="search-results" class="search-results" hidden></div>
         </div>
+        <label id="view-mode-control" class="view-mode-control" hidden>View as
+          <select id="view-mode-select" aria-label="Preview portal permissions as another role"></select>
+        </label>
         <div class="top-attention" id="top-attention" aria-live="polite"></div>
       </header>
+      <div id="view-mode-banner" class="view-mode-banner" hidden></div>
 
       <main id="workspace" tabindex="-1">
         <div class="page-heading">

@@ -18,11 +18,19 @@ const user = {
   staff_access: true,
   capabilities: ["staff.access", "admin.access", "queue.view", "queue.claim", "queue.reassign", "queue.manage_state", "outreach.record", "tasks.assign", "tasks.manage_team", "notes.owner", "review.qa", "review.adjust_tier", "applications.review_judge", "staff.manage", "staff.view", "staff.manage_standard_roles", "staff.manage_all", "staff.manage_nicknames", "requests.manage", "requests.schedule", "tracking.manage", "pps.manage_cycles", "pps.override", "operations.view", "audit.view", "audit.view_full", "config.manage_safe", "developer.access"],
 };
+const viewRoles = [
+  ["reviewer", "Reviewer", ["staff.access", "queue.view", "queue.claim", "outreach.record"]],
+  ["head_reviewer", "Head Reviewer", ["staff.access", "queue.view", "queue.claim", "queue.reassign", "review.qa", "applications.review_judge"]],
+  ["admin", "Admin", ["staff.access", "admin.access", "queue.view", "applications.review_judge", "staff.view"]],
+  ["owner", "Owner", user.capabilities.filter((capability) => capability !== "developer.access")],
+  ["dev", "Dev", user.capabilities],
+];
 const queue = [
   { id: 1, rank: 1, level_id: "101935961", level_name: "Synergy", creator: "CreatorName", tier: "mythic", cp: 0, waiting_cycles: 2, components: { f: 17.9, g: 3.22, h: 4.24, p: 25.36, complete: true }, state: "queued", claim: null },
   { id: 2, rank: 2, level_id: "123456789", level_name: "Chromatic Path", creator: "Builder", tier: "epic", cp: null, waiting_cycles: 1, components: { f: 4.83, g: null, h: 1.5, p: null, complete: false }, state: "in_cycle", claim: { user_id: user.id, claimed_ts: now - 7200, stale: false } },
+  { id: 3, rank: null, level_id: "987654321", level_name: "Hidden Test", creator: "Builder", tier: "feature", cp: 2, waiting_cycles: 0, components: { f: 0.8, g: 1.2, h: 0, p: 2, complete: true }, state: "hidden", hidden_from_state: "queued", claim: null },
 ];
-const publicLevels = queue.map((item) => ({
+const publicLevels = queue.filter((item) => item.state !== "hidden").map((item) => ({
   level_id: item.level_id,
   level_name: item.level_name,
   uploader_name: item.creator,
@@ -35,7 +43,18 @@ const publicLevels = queue.map((item) => ({
 }));
 
 const payloads = {
-  "/api/staff/session": { user },
+  "/api/staff/session": { user, view_mode: { active: false, actual_role: "dev", roles: viewRoles.map(([key, label, capabilities]) => ({ key, label, capabilities })) } },
+  "/api/apply/session": { user: { ...user, role: "applicant", role_label: "Applicant", staff_access: false, capabilities: ["applications.self"] } },
+  "/api/apply/mine": { items: [] },
+  "/api/apply/form": { application: { id: 15, application_type: "judge", status: "draft", answers: {} }, questions: [
+    { key: "age", label: "How old are you?", type: "single_choice", required: true, options: ["12 or under", "13 to 15", "16 to 18", "19 or above"] },
+    { key: "motivation", label: "Why do you want to be a reviewer?", type: "long_text", required: true, options: [] },
+    { key: "experience", label: "Tell us about your experience reviewing levels across different servers", type: "long_text", required: true, options: [] },
+    { key: "improvements", label: "What could GD Avenue improve?", type: "long_text", required: true, options: [] },
+    { key: "weekly_capacity", label: "How many levels can you review per week?", type: "single_choice", required: true, options: ["1-2", "3-6", "7-9", "10 or more"] },
+    { key: "timezone", label: "What is your timezone?", type: "short_text", required: true, options: [], help_url: "https://www.checkmytimezone.com/" },
+    { key: "level_review", label: "Review Synergy (Level ID 101935961)", type: "long_text", required: true, options: [], review_prompt: { key: "synergy-101935961", name: "Synergy", level_id: "101935961", youtube_url: "https://www.youtube.com/watch?v=bfQj4ZU2nQM" } },
+  ] },
   "/api/staff/overview": { user, summary: { active_claims: 2, stale_claims: 1, tasks_remaining: 3, tasks_due: 1, followups_due: 1 }, progress: { reviews_month: 24, tasks_done: 6, tasks_total: 8, outreach_attempts: 4, confirmed_submissions: 2, active_days: 12, milestones: [{ key: "reviews_25", label: "25 reviews" }] }, pipeline: { queued: 17, in_cycle: 4, awaiting_outcome: 6, rated: 9 }, pending_applications: 2, recent_activity: [{ event: "claim_created", entity_id: "queue:1", created_ts: now - 900 }] },
   "/api/staff/outreach": { items: [{ queue_id: 2, current_level_name: "Chromatic Path", level_id: "123456789", status: "attempted", route_type: "network", private_target_label: "Private target", event_ts: now - 1800 }], pipeline: { active: 4, awaiting_outcome: 6, completed: 9 } },
   "/api/staff/tasks": { items: [{ id: 1, title: "Check outcome window", status: "in_progress", priority: "high", due_ts: now + 3600, system_key: "outcome-window:2" }], progress: { done: 6, total: 8 } },
@@ -43,7 +62,7 @@ const payloads = {
   "/api/staff/team": { review_progress: { done: 34, total: 48 }, queue: { queued: 17 }, claims: { active: 6, stale: 1 }, outreach_week: { attempts: 8, submissions: 4 }, pending_applications: 3, workload: [{ user_id: user.id, identity: user, active_claims: 2 }, { user_id: "998877665544332211", identity: { id: "998877665544332211", display_name: "9guzzy" }, active_claims: 4 }] },
   "/api/staff/statistics": { scope: "team", reviewers: [{ reviewed_by: "785212232786640966", identity: { id: "785212232786640966", display_name: "Average" }, reviews: 28, median_turnaround: 14400 }, { reviewed_by: user.id, identity: user, reviews: 24, median_turnaround: 10800 }], tiers: { rate: 9, feature: 12, epic: 18, legendary: 8, mythic: 5 }, results: { sent: 41, rejected: 9, other: 2 }, outreach: { attempts: 18, submissions: 8, followups: 4, routes: [{ route_type: "direct", attempts: 10, submissions: 5 }, { route_type: "network", attempts: 8, submissions: 3 }] }, tasks_completed: 16, active_weeks: 12, stale_claims: 1, queue: { queued: 17, in_cycle: 4, awaiting_outcome: 6, rated: 9 }, waiting_distribution: { 0: 8, 1: 5, 2: 4, "3": 2, "4+": 2 }, cp_distribution: { 0: 6, 1: 5, 2: 3, 3: 2, "4+": 2, unknown: 3 } },
   "/api/staff/qa": { items: [{ request_message_id: "1550265958688489472", level_id: "101935961", result: "sent", send_type: "mythic", reviewed_by: user.id, reviewer: user, qa_status: "unreviewed" }] },
-  "/api/staff/applications": { items: [{ id: 14, applicant_id: "998877665544332211", applicant: { id: "998877665544332211", display_name: "9guzzy" }, submitted_ts: now - 86400, status: "under_review", answers: { motivation: "I want to help creators receive clear, consistent feedback.", experience: "Two years of level reviewing and community moderation.", availability: "Four evenings each week." }, timeline: [{ event: "submitted", actor_id: "998877665544332211", actor: { id: "998877665544332211", display_name: "9guzzy" }, created_ts: now - 86400 }, { event: "claim", actor_id: user.id, actor: user, created_ts: now - 7200 }], internal_notes: [{ author_id: user.id, author: user, body: "Strong examples; discuss availability in interview.", created_ts: now - 3600 }] }] },
+  "/api/staff/applications": { items: [{ id: 14, guild_id: "717003826288394271", applicant_id: "998877665544332211", applicant: { id: "998877665544332211", display_name: "9guzzy" }, submitted_ts: now - 86400, status: "under_review", review_thread_id: "1461483580197703832", interview_ticket_channel_id: "1524293581991444510", answers: { age: "16 to 18", motivation: "I want to help creators receive clear, consistent feedback.", experience: "Two years of level reviewing and community moderation.", improvements: "More calibration sessions.", weekly_capacity: "3-6", timezone: "UTC+1", level_review: "The level has consistent decoration and readable gameplay." }, timeline: [{ event: "submitted", actor_id: "998877665544332211", actor: { id: "998877665544332211", display_name: "9guzzy" }, created_ts: now - 86400 }, { event: "claim", actor_id: user.id, actor: user, created_ts: now - 7200 }], internal_notes: [{ author_id: user.id, author: user, body: "Strong examples; discuss availability in interview.", created_ts: now - 3600 }] }] },
   "/api/staff/staff": { items: [{ id: user.id, display_name: "Rodrigo", avatar_url: user.avatar_url, role: "owner", active: true, reviews: 24, workload: 2, last_activity_ts: now - 900 }] },
   "/api/staff/operations": { service: { state: "online", detail: "All core services ready" }, runtime: { ready: true, responsive: true }, database: { connected: true }, outbox: { pending: 1 }, request_wave: { state: "open" }, incidents: [] },
   "/api/staff/requests": { state: { state: "open", wave_id: 7, review_system_version: "pps_v1", submitted_count: 38, request_limit: 50, close_ts: now + 7200, request_type: "any", request_message_id: "1550265958688489472" }, progress: { total: 38, reviewed: 24, pending: 14 }, scheduled: [{ id: 3, request_limit: 40, close_minutes: 120, open_ts: now + 86400, request_type: "only_demons", open_message: "Demons wave" }] },
@@ -61,6 +80,12 @@ function json(response, body) {
 
 http.createServer(async (request, response) => {
   const url = new URL(request.url, `http://${request.headers.host}`);
+  if (url.pathname === "/api/staff/session") {
+    const selected = viewRoles.find(([key]) => key === request.headers["x-staff-view-role"]);
+    if (!selected) return json(response, payloads["/api/staff/session"]);
+    const [role, label, capabilities] = selected;
+    return json(response, { user: { ...user, role, role_label: label, staff_access: capabilities.includes("staff.access"), capabilities }, view_mode: { active: true, actual_role: "dev", roles: viewRoles.map(([key, itemLabel, itemCapabilities]) => ({ key, label: itemLabel, capabilities: itemCapabilities })) } });
+  }
   if (url.pathname === "/api/levels") {
     const term = (url.searchParams.get("q") || "").trim().toLowerCase();
     return json(response, { levels: publicLevels.filter((item) => !term || `${item.level_id} ${item.level_name} ${item.uploader_name}`.toLowerCase().includes(term)) });
@@ -70,11 +95,15 @@ http.createServer(async (request, response) => {
     if (item) return json(response, item);
     response.writeHead(404, { "Content-Type": "application/json" }); response.end(JSON.stringify({ error: "not_found" })); return;
   }
-  if (url.pathname === "/api/staff/queue") return json(response, { items: queue, page: 1, limit: 50, total: queue.length });
-  if (url.pathname === "/api/staff/queue/1" || url.pathname === "/api/staff/queue/2") {
+  if (url.pathname === "/api/staff/queue") {
+    const items = url.searchParams.get("filter") === "hidden" ? queue.filter((item) => item.state === "hidden") : queue.filter((item) => item.state !== "hidden");
+    return json(response, { items, page: 1, limit: 50, total: items.length });
+  }
+  if (/^\/api\/staff\/queue\/[123]$/.test(url.pathname)) {
     const item = queue.find((entry) => String(entry.id) === url.pathname.split("/").pop());
     return json(response, { queue: item, outreach: payloads["/api/staff/outreach"].items, history: [{ event: "recommended", created_ts: now - 172800 }], notes: payloads["/api/staff/notes"].items });
   }
+  if (request.method !== "GET" && url.pathname.startsWith("/api/")) return json(response, { ok: true });
   if (payloads[url.pathname]) return json(response, payloads[url.pathname]);
   let pathname = decodeURIComponent(url.pathname);
   if (pathname === "/" || pathname === "/staff" || pathname === "/staff/") pathname = pathname.startsWith("/staff") ? "/staff/index.html" : "/index.html";

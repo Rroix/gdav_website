@@ -15,6 +15,8 @@ const state = {
   qaItems: [],
   tasks: [],
   dialogSubmitting: false,
+  viewMode: null,
+  viewRole: "",
 };
 
 const modules = {
@@ -71,6 +73,7 @@ async function api(path, options = {}) {
       "Content-Type": "application/json",
       ...(options.method && options.method !== "GET" ? { "Idempotency-Key": crypto.randomUUID() } : {}),
       ...(mutation ? { "X-CSRF-Token": decodeURIComponent(cookieValue("av_staff_csrf")) } : {}),
+      ...(state.viewRole ? { "X-Staff-View-Role": state.viewRole } : {}),
     },
     body: options.body === undefined ? undefined : JSON.stringify(options.body),
     credentials: "same-origin",
@@ -256,7 +259,7 @@ async function renderQueue(query = "") {
   const data = await api(`/api/staff/queue?${params}`);
   return `<div class="toolbar">
     <input id="queue-search" type="search" placeholder="Level ID, name, or creator" value="${esc(params.get("q") || "")}">
-    <select id="queue-filter" aria-label="Queue filter"><option value="all">All queue</option>${[["unclaimed","Unclaimed"],["mine","Mine"],["claimed","Claimed"],["top_priority","Top priority"],["cp_zero","CP 0"],["cp_unknown","CP unknown"],["waiting_3","W >= 3"],["outreach","In outreach"],["awaiting","Awaiting outcome"],["stale","Stale claims"]].map(([value,label]) => `<option value="${value}" ${params.get("filter") === value ? "selected" : ""}>${label}</option>`).join("")}</select>
+    <select id="queue-filter" aria-label="Queue filter"><option value="all">All queue</option>${[["unclaimed","Unclaimed"],["mine","Mine"],["claimed","Claimed"],["top_priority","Top priority"],["cp_zero","CP 0"],["cp_unknown","CP unknown"],["waiting_3","W >= 3"],["outreach","In outreach"],["awaiting","Awaiting outcome"],["stale","Stale claims"],...(can("developer.access") ? [["hidden","Hidden"]] : [])].map(([value,label]) => `<option value="${value}" ${params.get("filter") === value ? "selected" : ""}>${label}</option>`).join("")}</select>
     <select id="queue-tier" aria-label="Recommendation tier"><option value="">All tiers</option>${["rate","feature","epic","legendary","mythic"].map((value) => `<option value="${value}" ${params.get("tier") === value ? "selected" : ""}>${titleCase(value)}</option>`).join("")}</select>
     <button class="button secondary" data-action="queue-apply">Apply</button>
   </div>
@@ -279,12 +282,14 @@ async function openQueue(id) {
       <div class="detail-grid"><div class="detail-stat"><small>Tier</small><strong>${esc(titleCase(item.tier))}</strong></div><div class="detail-stat"><small>State</small><strong>${esc(titleCase(item.state))}</strong></div><div class="detail-stat"><small>Creator Points</small><strong>${item.cp ?? "Unknown"}</strong></div><div class="detail-stat"><small>Exact rank</small><strong>${item.rank ? `#${item.rank}` : "Unavailable"}</strong></div></div>
       <details class="drawer-section" open><summary>Priority breakdown</summary><div class="detail-grid"><div class="detail-stat"><small>Prestige F</small><strong>${item.components.f ?? "-"}</strong></div><div class="detail-stat"><small>Creator G</small><strong>${item.components.g ?? "-"}</strong></div><div class="detail-stat"><small>Waiting H</small><strong>${item.components.h ?? "-"}</strong></div><div class="detail-stat"><small>Total P</small><strong>${item.components.complete ? Number(item.components.p).toFixed(2) : "Incomplete"}</strong></div></div></details>
       <section class="drawer-section"><div class="panel-head"><h3>Actions</h3></div><div class="toolbar">
-        ${!item.claim && can("queue.claim") ? `<button class="button primary" data-queue-action="claim" data-id="${id}">Claim</button>` : ""}
-        ${item.claim && (item.claim.user_id === state.user.id || can("queue.reassign")) ? `<button class="button secondary" data-queue-action="release" data-id="${id}">Release</button>` : ""}
-        ${item.claim && can("queue.reassign") ? `<button class="button secondary" data-queue-action="reassign" data-id="${id}">Reassign</button>` : ""}
-        ${can("outreach.record") ? `<button class="button secondary" data-queue-action="outreach" data-id="${id}">Record outreach</button>` : ""}
-        ${can("queue.manage_state") ? `<button class="button secondary" data-queue-action="state" data-id="${id}">Change state</button><button class="button secondary" data-queue-action="requeue" data-id="${id}">New episode</button>` : ""}
-        ${can("review.adjust_tier") ? `<button class="button secondary" data-queue-action="tier" data-id="${id}">Adjust tier</button>` : ""}
+        ${item.state !== "hidden" && !item.claim && can("queue.claim") ? `<button class="button primary" data-queue-action="claim" data-id="${id}">Claim</button>` : ""}
+        ${item.state !== "hidden" && item.claim && (item.claim.user_id === state.user.id || can("queue.reassign")) ? `<button class="button secondary" data-queue-action="release" data-id="${id}">Release</button>` : ""}
+        ${item.state !== "hidden" && item.claim && can("queue.reassign") ? `<button class="button secondary" data-queue-action="reassign" data-id="${id}">Reassign</button>` : ""}
+        ${item.state !== "hidden" && can("outreach.record") ? `<button class="button secondary" data-queue-action="outreach" data-id="${id}">Record outreach</button>` : ""}
+        ${item.state !== "hidden" && can("queue.manage_state") ? `<button class="button secondary" data-queue-action="state" data-id="${id}">Change state</button><button class="button secondary" data-queue-action="requeue" data-id="${id}">New episode</button>` : ""}
+        ${item.state !== "hidden" && can("review.adjust_tier") ? `<button class="button secondary" data-queue-action="tier" data-id="${id}">Adjust tier</button>` : ""}
+        ${can("developer.access") && item.state !== "hidden" ? `<button class="button danger" data-queue-action="hide" data-id="${id}">Hide level</button>` : ""}
+        ${can("developer.access") && item.state === "hidden" ? `<button class="button primary" data-queue-action="restore" data-id="${id}">Restore level</button>` : ""}
       </div></section>
       <details class="drawer-section"><summary>Outreach (${data.outreach.length})</summary>${data.outreach.length ? data.outreach.map((event) => `<div class="list-row"><div><strong>${esc(titleCase(event.status))}</strong><small>${esc(event.route_type)} · ${esc(event.private_target_label || "No target")}</small></div><small>${ago(event.event_ts)}</small></div>`).join("") : '<p class="muted">No outreach recorded.</p>'}</details>
       <details class="drawer-section"><summary>History (${data.history.length})</summary><ol class="timeline">${data.history.map((event) => `<li><strong>${esc(titleCase(event.event))}</strong><br><small class="muted">${fmtTime(event.created_ts)}</small></li>`).join("") || '<li>No history recorded.</li>'}</ol></details>
@@ -366,7 +371,7 @@ async function renderApplications() {
 async function renderStaff() {
   const data = await api("/api/staff/staff");
   state.staffItems = data.items;
-  return `<div class="panel-head"><div><h2>Staff access</h2><p class="muted">Discord roles remain authoritative. Portal names are separate and every access change is audited.</p></div></div>${data.items.length ? `<div class="record-list">${data.items.map((member) => `<button class="record-row staff-record" type="button" data-open-staff="${esc(exactId(member.id))}"><span class="identity-row">${member.avatar_url ? `<img src="${esc(member.avatar_url)}" alt="" width="36" height="36">` : ""}<span><strong>${esc(member.display_name)}</strong><small>${esc(member.role_label || roleLabel(member.role))} · ${member.reviews} reviews · ${member.workload} active claims</small></span></span>${pill(member.active ? "active" : "inactive")}<span class="row-chevron" aria-hidden="true">View</span></button>`).join("")}</div>` : empty("No configured staff roles found")}`;
+  return `<div class="panel-head"><div><h2>Staff access</h2><p class="muted">Discord roles remain authoritative. Portal names are separate and every access change is audited.</p></div>${can("developer.access") ? '<button class="button primary" data-action="add-staff">Add staff</button>' : ""}</div>${data.items.length ? `<div class="record-list">${data.items.map((member) => `<button class="record-row staff-record" type="button" data-open-staff="${esc(exactId(member.id))}"><span class="identity-row">${member.avatar_url ? `<img src="${esc(member.avatar_url)}" alt="" width="36" height="36">` : ""}<span><strong>${esc(member.display_name)}</strong><small>${esc(member.role_label || roleLabel(member.role))} · ${member.reviews} reviews · ${member.workload} active claims</small></span></span>${pill(member.active ? "active" : "inactive")}<span class="row-chevron" aria-hidden="true">View</span></button>`).join("")}</div>` : empty("No configured staff roles found")}`;
 }
 
 function openApplication(id) {
@@ -375,11 +380,11 @@ function openApplication(id) {
   const terminal = ["accepted", "rejected", "withdrawn"].includes(item.status);
   openDrawer("Application inspector", `Application #${item.id}`, `
     <div class="drawer-identity"><div><span>Applicant</span><strong>${esc(identityLabel(item.applicant, item.applicant_id))}</strong><small class="secondary-id">${esc(exactId(item.applicant_id))}</small></div>${copyButton(item.applicant_id, "Copy Discord ID")}</div>
-    <div class="drawer-meta">${pill(item.status)}<span>Submitted ${fmtTime(item.submitted_ts)}</span></div>
+    <div class="drawer-meta">${pill(item.status)}<span>Submitted ${fmtTime(item.submitted_ts)}</span>${item.review_thread_id ? `<a class="quiet-link" href="https://discord.com/channels/${esc(item.guild_id)}/${esc(item.review_thread_id)}" target="_blank" rel="noopener noreferrer">Open Discord thread</a>` : ""}${item.interview_ticket_channel_id ? `<a class="quiet-link" href="https://discord.com/channels/${esc(item.guild_id)}/${esc(item.interview_ticket_channel_id)}" target="_blank" rel="noopener noreferrer">Open interview ticket</a>` : ""}</div>
     <section class="drawer-section"><h3>Answers</h3><div class="answer-list">${Object.entries(item.answers || {}).map(([key, value]) => `<div><small>${esc(titleCase(key))}</small><p>${esc(value)}</p></div>`).join("") || '<p class="muted">No answers were stored.</p>'}</div></section>
     <details class="drawer-section" open><summary>Internal timeline (${item.timeline?.length || 0})</summary>${item.timeline?.length ? `<ol class="timeline">${item.timeline.map((event) => `<li><strong>${esc(titleCase(event.event))}</strong><br><small class="muted">${esc(identityLabel(event.actor, event.actor_id))} · ${fmtTime(event.created_ts)}</small></li>`).join("")}</ol>` : '<p class="muted">No staff activity yet.</p>'}</details>
     <details class="drawer-section"><summary>Internal notes (${item.internal_notes?.length || 0})</summary>${item.internal_notes?.map((note) => `<p>${esc(note.body)}<br><small class="muted">${esc(identityLabel(note.author, note.author_id))} · ${ago(note.created_ts)}</small></p>`).join("") || '<p class="muted">No internal notes.</p>'}<button class="button small secondary" data-app-note="${item.id}">Add note</button></details>
-    ${terminal ? "" : `<section class="drawer-section"><h3>Decision</h3><div class="toolbar application-actions"><button class="button small secondary" data-app-action="claim" data-id="${item.id}">Claim</button><button class="button small secondary" data-app-action="interview" data-id="${item.id}">Interview</button><button class="button small secondary" data-app-action="hold" data-id="${item.id}">Hold</button><button class="button small primary" data-app-action="accept" data-id="${item.id}">Accept</button><button class="button small danger" data-app-action="reject" data-id="${item.id}">Reject</button></div></section>`}`);
+    ${terminal ? "" : `<section class="drawer-section"><h3>Decision</h3><div class="toolbar application-actions"><button class="button small secondary" data-app-action="claim" data-id="${item.id}">Claim</button><button class="button small secondary" data-app-action="interview" data-id="${item.id}">Proceed to interview</button><button class="button small secondary" data-app-action="hold" data-id="${item.id}">Hold</button><button class="button small primary" data-app-action="accept" data-id="${item.id}">Accept without interview</button><button class="button small danger" data-app-action="reject" data-id="${item.id}">Reject</button></div></section>`}`);
 }
 
 function openStaffInspector(id) {
@@ -585,6 +590,8 @@ async function queueAction(action, id) {
   if (action === "state") return actionDialog({ title: "Change queue state", description: "This transition is durable and audited.", fields: [{ name: "state", label: "New state", type: "select", options: (can("pps.override") ? ["queued","paused","withdrawn","invalid","in_cycle","awaiting_outcome","rated"] : ["queued","paused","withdrawn"]).map((value) => [value,titleCase(value)]) }, { name: "reason", label: "Reason", type: "textarea", required: true }, { name: "confirmed", label: "I confirm this queue state change", type: "checkbox" }], run: (body) => api(`/api/staff/queue/${id}/state`, { method: "POST", body }) });
   if (action === "requeue") return actionDialog({ title: "Start a new outreach episode", description: "Previous outreach history remains intact and W resets to zero.", fields: [{ name: "reason", label: "Reason", type: "textarea", required: true }, { name: "confirmed", label: "I confirm this new outreach episode", type: "checkbox" }], confirm: "Start episode", run: (body) => api(`/api/staff/queue/${id}/requeue`, { method: "POST", body }) });
   if (action === "tier") return actionDialog({ title: "Adjust recommendation tier", description: "The original recommendation remains in QA history and PPS is recalculated.", fields: [{ name: "tier", label: "New tier", type: "select", options: ["rate","feature","epic","legendary","mythic"].map((value) => [value,titleCase(value)]) }, { name: "reason", label: "Reason", type: "textarea", required: true }, { name: "confirmed", label: "I confirm this tier adjustment", type: "checkbox" }], run: (body) => api(`/api/staff/queue/${id}/tier`, { method: "POST", body }) });
+  if (action === "hide") return actionDialog({ title: "Hide level", description: "The level will disappear from public and staff workflows until a Dev restores it. Its audit history remains intact.", danger: true, fields: [{ name: "reason", label: "Reason", type: "textarea", required: true }, { name: "confirmed", label: "I confirm this level should be hidden", type: "checkbox", required: true }], confirm: "Hide level", run: (body) => api(`/api/staff/queue/${id}/hide`, { method: "POST", body }) });
+  if (action === "restore") return actionDialog({ title: "Restore hidden level", description: "The level returns to the lifecycle state it had before it was hidden.", fields: [{ name: "reason", label: "Reason", type: "textarea", required: true }, { name: "confirmed", label: "I confirm this level should be restored", type: "checkbox", required: true }], confirm: "Restore level", run: (body) => api(`/api/staff/queue/${id}/restore`, { method: "POST", body }) });
 }
 
 function outreachDialog(queueId = "") {
@@ -643,6 +650,27 @@ function showAuth(message = "Use Discord to verify your current server role and 
   $("#auth-message").textContent = message;
 }
 
+function applySession(data) {
+  state.user = data.user;
+  state.viewMode = data.view_mode || state.viewMode;
+  const control = $("#view-mode-control");
+  const select = $("#view-mode-select");
+  if (state.viewMode?.roles?.length) {
+    control.hidden = false;
+    select.innerHTML = `<option value="">Actual Dev access</option>${state.viewMode.roles.filter((item) => item.key !== "dev").map((item) => `<option value="${esc(item.key)}" ${state.viewRole === item.key ? "selected" : ""}>${esc(item.label)}</option>`).join("")}`;
+  } else {
+    control.hidden = true;
+  }
+  const banner = $("#view-mode-banner");
+  banner.hidden = !state.viewRole;
+  banner.textContent = state.viewRole ? `Read-only Dev preview: ${roleLabel(state.viewRole)}. Return to actual access to make changes.` : "";
+  $("#user-name").textContent = state.user.display_name;
+  $("#user-role").textContent = state.user.role_label || roleLabel(state.user.role);
+  $("#profile-menu-name").textContent = state.user.display_name;
+  $("#profile-menu-identity").textContent = `${state.user.role_label || roleLabel(state.user.role)} · ${exactId(state.user.id)}`;
+  $("#user-avatar").src = state.user.avatar_url || "https://cdn.discordapp.com/avatars/1454985687177887866/d268221fd7a7a5529897730d18edd5a0.webp?size=128";
+}
+
 function forwardLegacyOAuthCallback() {
   const params = new URLSearchParams(location.search);
   if (!params.has("code") && !params.has("state")) return false;
@@ -663,15 +691,10 @@ function forwardLegacyOAuthCallback() {
 async function initialize() {
   try {
     const data = await api("/api/staff/session");
-    state.user = data.user;
+    applySession(data);
     if (!state.user.staff_access) return showAuth("Your Discord account does not currently have staff portal access.");
     const hash = location.hash.match(/^#(overview|work|team|admin)\/([a-z-]+)$/);
     if (hash) { state.module = hash[1]; state.section = hash[2]; }
-    $("#user-name").textContent = state.user.display_name;
-    $("#user-role").textContent = state.user.role_label || roleLabel(state.user.role);
-    $("#profile-menu-name").textContent = state.user.display_name;
-    $("#profile-menu-identity").textContent = `${state.user.role_label || roleLabel(state.user.role)} · ${exactId(state.user.id)}`;
-    $("#user-avatar").src = state.user.avatar_url || "https://cdn.discordapp.com/avatars/1454985687177887866/d268221fd7a7a5529897730d18edd5a0.webp?size=128";
     $("#app").hidden = false; $("#auth-gate").hidden = true;
     setShell(); await render();
   } catch (error) {
@@ -741,6 +764,7 @@ document.addEventListener("click", async (event) => {
   }
   if (action === "new-outreach") return outreachDialog();
   if (action === "new-task") return actionDialog({ title: "Create task", fields: [{ name: "title", label: "Title", required: true }, { name: "description", label: "Description", type: "textarea" }, { name: "priority", label: "Priority", type: "select", options: ["low","normal","high","urgent"].map((v) => [v,titleCase(v)]) }, { name: "task_type", label: "Type", type: "select", options: [["personal","Personal"],...(can("tasks.assign") ? [["assigned","Assigned"],["team","Team"]] : [])] }, ...(can("tasks.assign") ? [{ name: "assignee_id", label: "Assignee Discord ID", type: "text", discordId: true }] : []), { name: "due_at", label: "Due date", type: "datetime-local" }, { name: "linked_entity_type", label: "Linked entity type" }, { name: "linked_entity_id", label: "Linked entity ID" }], run: (body) => api("/api/staff/tasks", { method: "POST", body: { ...body, due_ts: body.due_at ? Math.floor(new Date(body.due_at).getTime() / 1000) : null } }) });
+  if (action === "add-staff") return actionDialog({ title: "Add staff member", description: "The Discord member receives the selected managed role through Avenue Guard's durable delivery queue and immediately gets a portal profile record.", fields: [{ name: "user_id", label: "Discord user ID", discordId: true, required: true }, { name: "role", label: "Staff role", type: "select", options: [["reviewer","Reviewer"],["head_reviewer","Head Reviewer"],["admin","Admin"],["owner","Owner"]] }, { name: "reason", label: "Reason", type: "textarea", required: true }, { name: "confirmed", label: "I confirm this staff access change", type: "checkbox", required: true }], confirm: "Add staff", run: (body) => api("/api/staff/staff", { method: "POST", body }) });
   if (action === "new-note") return actionDialog({ title: "Create note", fields: [{ name: "scope", label: "Visibility", type: "select", options: [["private","Private"],["reviewer_team","Reviewer team"],["entity","Entity participants"],...(can("notes.head") ? [["head_judges","Head Reviewers"]] : []),...(can("notes.owner") ? [["owners","Owners"]] : [])] }, { name: "body", label: "Note", type: "textarea", required: true }, { name: "entity_type", label: "Linked entity type" }, { name: "entity_id", label: "Linked entity ID" }], run: (body) => api("/api/staff/notes", { method: "POST", body }) });
   if (action === "config-save") return api("/api/staff/configuration", { method: "PATCH", body: { claim_stale_hours: Number($("#config-stale").value), applications_open: $("#config-apps").checked } }).then(() => { showNotice("Configuration saved"); render(); }).catch((error) => showNotice(error.message, true));
   if (action === "audit-apply") {
@@ -769,18 +793,34 @@ document.addEventListener("click", async (event) => {
   const qa = event.target.closest("[data-qa]");
   if (qa) return actionDialog({ title: "Review QA action", description: "Tier adjustments require a reason and confirmation. They remain auditable and preserve the original tier.", fields: [{ name: "action", label: "Outcome", type: "select", options: [["ok","Reviewed OK"],["discussion","Needs discussion"],["rereview","Re-review requested"],["adjust","Adjust recommendation tier"]] }, { name: "tier", label: "Tier (used only for adjustment)", type: "select", options: ["rate","feature","epic","legendary","mythic"].map((value) => [value,titleCase(value)]) }, { name: "reason", label: "Reason", type: "textarea" }, { name: "confirmed", label: "I confirm this tier adjustment when selected", type: "checkbox" }], run: (body) => api(`/api/staff/qa/${qa.dataset.qa}`, { method: "POST", body }) });
   const app = event.target.closest("[data-app-action]");
-  if (app) return actionDialog({ title: `${titleCase(app.dataset.appAction)} application`, description: "The decision and any resulting Discord role change are durable.", fields: [{ name: "reason", label: "Reason", type: "textarea", required: ["hold","accept","reject"].includes(app.dataset.appAction) }, ...(["accept","reject"].includes(app.dataset.appAction) ? [{ name: "confirmed", label: "I confirm this final application decision", type: "checkbox" }] : [])], danger: app.dataset.appAction === "reject", run: (body) => api(`/api/staff/applications/${app.dataset.id}/action`, { method: "POST", body: { ...body, action: app.dataset.appAction } }) });
+  if (app) return actionDialog({ title: `${titleCase(app.dataset.appAction)} application`, description: "The decision and any resulting Discord role, DM, thread, or interview ticket is delivered through the durable workflow.", fields: [{ name: "reason", label: "Reason", type: "textarea", required: ["hold","accept","reject"].includes(app.dataset.appAction) }, ...(["interview","accept","reject"].includes(app.dataset.appAction) ? [{ name: "confirmed", label: "I confirm this application decision", type: "checkbox", required: true }] : [])], danger: app.dataset.appAction === "reject", run: (body) => api(`/api/staff/applications/${app.dataset.id}/action`, { method: "POST", body: { ...body, action: app.dataset.appAction } }) });
   const appNote = event.target.closest("[data-app-note]");
   if (appNote) return actionDialog({ title: "Add internal application note", description: "Applicants cannot see internal notes.", fields: [{ name: "body", label: "Note", type: "textarea", required: true }], confirm: "Add note", run: (body) => api(`/api/staff/applications/${appNote.dataset.appNote}/note`, { method: "POST", body }) });
   const staff = event.target.closest("[data-staff-action]");
   if (staff) {
     const options = [["promote","Promote to Head Reviewer"],["demote","Demote to Reviewer"],["deactivate","Deactivate"],["restore","Restore Reviewer"]];
     if (can("staff.manage_all")) options.push(["set_admin","Grant Admin"],["revoke_admin","Revoke Admin"]);
-    if (can("developer.access")) options.push(["set_owner","Grant Owner"],["revoke_owner","Revoke Owner"]);
+    if (can("developer.access")) options.push(["set_owner","Grant Owner"],["revoke_owner","Revoke Owner"],["remove","Remove from team"]);
     return actionDialog({ title: "Manage staff access", description: "Discord roles are changed through the durable outbox. Dev access is config-only.", fields: [{ name: "action", label: "Action", type: "select", options }, { name: "reason", label: "Reason", type: "textarea", required: true }, { name: "confirmed", label: "I confirm this staff access change", type: "checkbox", required: true }], run: (body) => api(`/api/staff/staff/${staff.dataset.staffAction}/action`, { method: "POST", body }) });
   }
   const nickname = event.target.closest("[data-nickname-id]");
   if (nickname) return actionDialog({ title: "Edit portal nickname", description: "This affects the staff portal only, not the Discord server nickname.", fields: [{ name: "portal_nickname", label: "Portal nickname", value: nickname.dataset.nicknameValue || "" }, ...(nickname.dataset.nicknameId === state.user.id ? [] : [{ name: "reason", label: "Reason", type: "textarea", required: true }])], confirm: "Save nickname", run: (body) => api(`/api/staff/staff/${nickname.dataset.nicknameId}/nickname`, { method: "PATCH", body }) });
+});
+
+$("#view-mode-select").addEventListener("change", async (event) => {
+  const previous = state.viewRole;
+  state.viewRole = event.target.value;
+  try {
+    const session = await api("/api/staff/session");
+    applySession(session);
+    closeDrawer();
+    setShell();
+    await render();
+  } catch (error) {
+    state.viewRole = previous;
+    event.target.value = previous;
+    showNotice(error.message, true);
+  }
 });
 
 document.addEventListener("submit", async (event) => {
