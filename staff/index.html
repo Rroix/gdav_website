@@ -37,8 +37,13 @@
           <span aria-hidden="true">...</span>
         </button>
         <div id="profile-menu" class="profile-menu" role="menu" hidden>
+          <div class="profile-menu-summary" role="none">
+            <strong id="profile-menu-name"></strong>
+            <span id="profile-menu-identity"></span>
+          </div>
           <button type="button" role="menuitem" data-profile-action="view">My profile</button>
           <button type="button" role="menuitem" data-profile-action="nickname">Edit portal nickname</button>
+          <button type="button" role="menuitem" data-profile-action="identity">Discord identity</button>
           <button type="button" role="menuitem" data-nav="team/statistics">My statistics</button>
           <button id="logout-button" type="button" role="menuitem">Sign out</button>
         </div>
@@ -49,8 +54,8 @@
       <header class="topbar">
         <button id="menu-button" class="icon-button mobile-only" type="button" aria-controls="sidebar" aria-expanded="false" aria-label="Open navigation">Menu</button>
         <div class="search-wrap">
-          <label class="sr-only" for="global-search">Search staff records</label>
-          <input id="global-search" type="search" placeholder="Search levels, tasks, applications" autocomplete="off">
+          <label class="sr-only" for="global-search">Search records or jump to a portal view</label>
+          <input id="global-search" type="search" placeholder="Search or jump to..." autocomplete="off" aria-keyshortcuts="Control+K Meta+K" aria-controls="search-results" aria-expanded="false">
           <div id="search-results" class="search-results" hidden></div>
         </div>
         <div class="top-attention" id="top-attention" aria-live="polite"></div>
@@ -68,14 +73,14 @@
         <nav id="section-nav" class="section-nav" aria-label="Module sections"></nav>
         <div id="notice" class="notice" role="status" hidden></div>
         <section id="content" class="content-surface" aria-live="polite">
-          <div class="loading-state"><span class="spinner" aria-hidden="true"></span>Loading your workspace</div>
+          <div class="skeleton-view" aria-label="Loading your workspace"><span></span><span></span><span></span><span></span></div>
         </section>
       </main>
     </div>
   </div>
 
-  <aside id="detail-drawer" class="detail-drawer" aria-labelledby="detail-title" aria-hidden="true" inert>
-    <div class="drawer-head"><h2 id="detail-title">Level detail</h2><button id="drawer-close" class="icon-button" type="button" aria-label="Close detail">Close</button></div>
+  <aside id="detail-drawer" class="detail-drawer" role="dialog" aria-modal="true" aria-labelledby="detail-title" aria-hidden="true" inert>
+    <div class="drawer-head"><div><p class="eyebrow" id="detail-eyebrow">Inspector</p><h2 id="detail-title">Detail</h2></div><button id="drawer-close" class="icon-button" type="button" aria-label="Close detail">Close</button></div>
     <div id="drawer-content"></div>
   </aside>
   <div id="drawer-scrim" class="drawer-scrim" hidden></div>

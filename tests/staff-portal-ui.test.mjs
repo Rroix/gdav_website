@@ -10,6 +10,8 @@ test("staff UI keeps Discord snowflakes as strings", () => {
   assert.doesNotMatch(script, /Number\(body\.(?:assignee|reviewer|requester|user)_id\)/);
   assert.doesNotMatch(script, /parseInt\([^\n]*(?:assignee|reviewer|requester|user)_id/);
   assert.match(script, /discordId: true/);
+  assert.match(script, /const exactId = \(value\) => String/);
+  assert.doesNotMatch(script, /Number\([^\n]*(?:actor|reviewed|claimed|applicant|staff|user)_id/);
 });
 
 test("Admin visibility and hierarchy are capability based", () => {
@@ -19,12 +21,13 @@ test("Admin visibility and hierarchy are capability based", () => {
   assert.doesNotMatch(script, /state\.user\.role === "owner"/);
 });
 
-test("profile menu and modal controls are explicit and accessible", () => {
+test("profile, drawer, and modal controls are explicit and accessible", () => {
   assert.match(markup, /id="profile-button"[^>]+aria-haspopup="menu"/);
   assert.match(markup, /id="dialog-close"[^>]+type="button"/);
   assert.match(markup, /id="dialog-cancel"[^>]+type="button"/);
   assert.match(markup, /role="dialog"[^>]+aria-modal="true"/);
   assert.match(markup, /aria-labelledby="dialog-title"/);
+  assert.match(markup, /id="detail-drawer"[^>]+role="dialog"[^>]+aria-modal="true"/);
   assert.match(script, /dialog\.addEventListener\("cancel", onCancel\)/);
   assert.match(script, /state\.returnFocus/);
   assert.match(script, /event\.key !== "Tab"/);
@@ -32,6 +35,44 @@ test("profile menu and modal controls are explicit and accessible", () => {
   assert.match(styles, /\.checkbox-row/);
   assert.match(script, /profileDialog\(false\)/);
   assert.match(script, /profileDialog\(true\)/);
+  assert.match(script, /profile-nickname-form/);
+  assert.match(script, /if \(nav\) \{[^]*profile-menu[^]*aria-expanded[^]*navigate\(module, section\)/);
+  assert.match(script, /body\.classList\.add\("drawer-open"\)/);
+  assert.match(script, /event\.key === "Escape"[^]*detail-drawer/);
+});
+
+test("portal hierarchy matches the four-module workspace contract", () => {
+  assert.match(script, /overview: \{ label: "Overview"/);
+  assert.match(script, /work: \{ label: "Work"[^]*sections: \["my-work", "queue", "outreach", "tasks", "notes"\]/);
+  assert.match(script, /team: \{ label: "Team"[^]*sections: \["team-overview", "statistics", "review-qa", "applications", "staff"\]/);
+  assert.match(script, /admin: \{ label: "Admin"[^]*sections: \["operations", "requests", "pps", "community", "admin-staff", "audit", "system"\]/);
+  assert.doesNotMatch(script, /sections: \[[^\]]*"configuration"/);
+});
+
+test("operational records use inspectors and compact queue columns", () => {
+  assert.match(script, /function openApplication/);
+  assert.match(script, /function openStaffInspector/);
+  assert.match(script, /function openQAInspector/);
+  assert.match(script, /<th>Rank<\/th><th>Level<\/th><th>Tier<\/th><th>Creator<\/th><th>CP<\/th><th>W<\/th><th>Priority<\/th><th>State<\/th><th>Claim<\/th>/);
+  assert.match(script, /data-copy=/);
+});
+
+test("search provides keyboard jump navigation and loading uses skeletons", () => {
+  assert.match(markup, /aria-keyshortcuts="Control\+K Meta\+K"/);
+  assert.match(script, /event\.metaKey \|\| event\.ctrlKey/);
+  assert.match(script, /const jumpTargets/);
+  assert.match(script, /skeleton-view/);
+  assert.doesNotMatch(script, /function loading\(\)[^]*spinner[^]*\}/);
+});
+
+test("workspace tokens and responsive drawer cover desktop through mobile", () => {
+  assert.match(styles, /--surface-1:/);
+  assert.match(styles, /--content-max: 1320px/);
+  assert.match(styles, /@media \(max-width: 900px\)/);
+  assert.match(styles, /@media \(max-width: 680px\)/);
+  assert.match(styles, /@media \(max-width: 430px\)/);
+  assert.match(styles, /\.detail-drawer \{ width: 100%/);
+  assert.match(styles, /prefers-reduced-motion/);
 });
 
 test("scheduled openings can be edited without recreating them", () => {

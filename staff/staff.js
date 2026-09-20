@@ -9,6 +9,11 @@ const state = {
   request: 0,
   queueQuery: "",
   returnFocus: null,
+  drawerReturnFocus: null,
+  staffItems: [],
+  applications: [],
+  qaItems: [],
+  tasks: [],
   dialogSubmitting: false,
 };
 
@@ -16,13 +21,13 @@ const modules = {
   overview: { label: "Overview", description: "Your work, attention items, and team pulse.", sections: ["overview"] },
   work: { label: "Work", description: "Claims, outreach, tasks, and private working notes.", sections: ["my-work", "queue", "outreach", "tasks", "notes"] },
   team: { label: "Team", description: "Shared progress, statistics, review quality, applications, and staff access.", sections: ["team-overview", "statistics", "review-qa", "applications", "staff"] },
-  admin: { label: "Admin", description: "Manage Avenue Guard operations through capability-gated controls.", sections: ["operations", "requests", "pps", "community", "admin-staff", "audit", "system", "configuration"] },
+  admin: { label: "Admin", description: "Manage Avenue Guard operations through capability-gated controls.", sections: ["operations", "requests", "pps", "community", "admin-staff", "audit", "system"] },
 };
 
 const sectionNames = {
   overview: "Overview", "my-work": "My Work", queue: "Queue", outreach: "Outreach", tasks: "Tasks", notes: "Notes",
   "team-overview": "Overview", statistics: "Statistics", "review-qa": "Review QA", applications: "Applications", staff: "Staff",
-  operations: "Operations", requests: "Requests", pps: "PPS", community: "Community", "admin-staff": "Staff", audit: "Audit", system: "System", configuration: "Configuration",
+  operations: "Operations", requests: "Requests", pps: "PPS", community: "Community", "admin-staff": "Staff", audit: "Audit", system: "System",
 };
 
 const $ = (selector, root = document) => root.querySelector(selector);
@@ -52,6 +57,11 @@ const identityLabel = (identity, fallbackId = "") => {
 };
 const percent = (done, total) => total ? Math.round((Number(done) / Number(total)) * 100) : 0;
 const cookieValue = (name) => document.cookie.split(";").map((item) => item.trim()).find((item) => item.startsWith(`${name}=`))?.slice(name.length + 1) || "";
+const exactId = (value) => String(value ?? "");
+const greeting = () => {
+  const hour = new Date().getHours();
+  return hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
+};
 
 async function api(path, options = {}) {
   const mutation = options.method && options.method !== "GET";
@@ -90,7 +100,7 @@ function empty(message, detail = "") {
 }
 
 function loading() {
-  $("#content").innerHTML = '<div class="loading-state"><span class="spinner" aria-hidden="true"></span>Loading workspace</div>';
+  $("#content").innerHTML = '<div class="skeleton-view" aria-label="Loading workspace"><span></span><span></span><span></span><span></span><span></span></div>';
 }
 
 function errorState(error) {
@@ -102,7 +112,15 @@ function progress(label, done, total) {
     return `<div class="metric-line"><span>${esc(label)}</span><strong>0 / 0</strong></div><small class="muted">No assigned work yet.</small>`;
   }
   const value = percent(done, total);
-  return `<div class="metric-line"><span>${esc(label)}</span><strong>${Number(done) || 0} / ${Number(total) || 0}</strong></div><progress aria-label="${esc(label)}" max="${Math.max(1, Number(total) || 1)}" value="${Number(done) || 0}">${value}%</progress><small class="muted">${value}% complete</small>`;
+  return `<div class="metric-line"><span>${esc(label)}</span><strong>${Number(done) || 0} / ${Number(total) || 0}</strong></div><progress aria-label="${esc(label)}" aria-valuemin="0" aria-valuemax="${Math.max(1, Number(total) || 1)}" aria-valuenow="${Number(done) || 0}" max="${Math.max(1, Number(total) || 1)}" value="${Number(done) || 0}">${value}%</progress><small class="muted">${value}% complete</small>`;
+}
+
+function countMetric(label, value, detail = "") {
+  return `<div class="count-metric"><span>${esc(label)}</span><strong>${esc(value)}</strong>${detail ? `<small>${esc(detail)}</small>` : ""}</div>`;
+}
+
+function copyButton(value, label = "Copy ID") {
+  return `<button class="icon-link" type="button" data-copy="${esc(exactId(value))}">${esc(label)}</button>`;
 }
 
 function pill(value, extra = "") {
@@ -117,7 +135,7 @@ function setShell() {
   $("#primary-nav").innerHTML = allowedModules.map((key) => `<button class="nav-button ${state.module === key ? "active" : ""}" data-module="${key}" type="button">${modules[key].label}<span class="nav-count" data-count="${key}" hidden></span></button>`).join("");
   $("#section-nav").innerHTML = modules[state.module].sections.filter(sectionAllowed).map((key) => `<button class="section-tab ${state.section === key ? "active" : ""}" data-section="${key}" type="button">${sectionNames[key]}</button>`).join("");
   $("#section-nav").hidden = modules[state.module].sections.filter(sectionAllowed).length < 2;
-  $("#page-title").textContent = state.module === "overview" ? "Overview" : `${modules[state.module].label} / ${sectionNames[state.section]}`;
+  $("#page-title").textContent = sectionNames[state.section] || modules[state.module].label;
   $("#page-description").textContent = modules[state.module].description;
   $("#module-eyebrow").textContent = `${state.user.role_label || roleLabel(state.user.role)} workspace`;
 }
@@ -133,7 +151,6 @@ function sectionAllowed(section) {
   if (section === "community") return can("admin.access");
   if (section === "audit") return can("audit.view") || can("audit.view_limited");
   if (section === "system") return can("developer.access");
-  if (section === "configuration") return can("config.manage_safe");
   return true;
 }
 
@@ -146,6 +163,7 @@ async function navigate(module, section) {
   $("#sidebar").classList.remove("open");
   $("#menu-button").setAttribute("aria-expanded", "false");
   $("#search-results").hidden = true;
+  $("#global-search").setAttribute("aria-expanded", "false");
   setShell();
   await render();
 }
@@ -157,7 +175,11 @@ async function render() {
     const renderer = renderers[state.section];
     if (!renderer) throw new Error("This view is unavailable");
     const html = state.section === "queue" ? await renderer(state.queueQuery) : await renderer();
-    if (request === state.request) $("#content").innerHTML = html;
+    if (request === state.request) {
+      $("#content").innerHTML = html;
+      $("#refresh-button").textContent = "Updated now";
+      window.setTimeout(() => { $("#refresh-button").textContent = "Refresh"; }, 3500);
+    }
   } catch (error) {
     if (error.status === 401) return showAuth(error.message);
     if (request === state.request) errorState(error);
@@ -172,55 +194,56 @@ async function renderOverview() {
   const tasks = progressData.tasks_total || 0;
   const attention = Number(summary.stale_claims || 0) + Number(summary.tasks_due || 0) + Number(summary.followups_due || 0);
   $("#top-attention").textContent = attention ? `${attention} item${attention === 1 ? "" : "s"} need attention` : "No urgent items";
+  const name = data.user.portal_nickname || data.user.display_name;
+  const attentionRows = [
+    [summary.stale_claims || 0, "Stale claims", "Claims beyond the configured threshold", "work/queue", "stale"],
+    [summary.followups_due || 0, "Follow-ups due", "Outcome windows due within one day", "work/outreach", ""],
+    [summary.tasks_due || 0, "Tasks due soon", "Due within the next day", "work/tasks", ""],
+  ];
   return `
-    ${data.warnings?.length ? `<div class="inline-warning"><strong>Some data could not be refreshed</strong><span>The available sections are still shown. Reference: ${esc(data.correlation_id || "unavailable")}</span></div>` : ""}
-    <div class="summary-band">
-      <div><p class="eyebrow">Welcome back</p><h2>${esc(data.user.display_name)}</h2><small>${esc(data.user.role_label || roleLabel(data.user.role))}</small></div>
-      <div><small>Active claims</small><strong>${summary.active_claims || 0}</strong></div>
-      <div><small>Due soon</small><strong>${summary.tasks_due || 0}</strong></div>
-      <div><small>Open applications</small><strong>${can("applications.review_reviewer") || can("applications.review_judge") ? data.pending_applications || 0 : "-"}</strong></div>
-    </div>
+    ${data.warnings?.length ? `<div class="inline-warning"><strong>Some data could not be refreshed</strong><span>Available sections are still shown. Reference: ${esc(data.correlation_id || "unavailable")}</span></div>` : ""}
+    <header class="personal-header"><div><p class="eyebrow">${esc(data.user.role_label || roleLabel(data.user.role))}</p><h2>${greeting()}, ${esc(name)}</h2><p>Here is what needs your attention and how the current pipeline is moving.</p></div><span class="attention-total">${attention} attention item${attention === 1 ? "" : "s"}</span></header>
+    <section class="progress-strip" aria-label="Your recent contribution">
+      ${countMetric("Reviews", progressData.reviews_month || 0, "last 31 days")}
+      ${countMetric("Outreach", progressData.outreach_attempts || 0, "attempts")}
+      ${countMetric("Submissions", progressData.confirmed_submissions || 0, "confirmed")}
+      <div class="progress-unit">${progress("Assigned tasks", progressData.tasks_done || 0, tasks)}</div>
+    </section>
     <div class="workspace-grid">
-      <div>
-        <section class="panel"><div class="panel-head"><h2>My progress</h2><small class="muted">Last 31 days</small></div>
-          <div class="detail-grid">
-            <div class="detail-stat"><small>Reviews completed</small><strong>${progressData.reviews_month || 0}</strong></div>
-            <div class="detail-stat"><small>Outreach attempts</small><strong>${progressData.outreach_attempts || 0}</strong></div>
-            <div class="detail-stat"><small>Confirmed submissions</small><strong>${progressData.confirmed_submissions || 0}</strong></div>
-            <div class="detail-stat"><small>Active days</small><strong>${progressData.active_days || 0}</strong></div>
-          </div>
-          ${progress("Assigned work", progressData.tasks_done || 0, tasks)}
-          ${progressData.milestones?.length ? `<div class="milestones" aria-label="Contribution milestones">${progressData.milestones.map((item) => `<span class="pill">${esc(item.label)}</span>`).join("")}</div>` : ""}
-        </section>
-        <section class="panel"><div class="panel-head"><h2>Recent activity</h2></div>${data.recent_activity.length ? `<div class="stack">${data.recent_activity.map((event) => `<div class="list-row"><div><strong>${esc(titleCase(event.event))}</strong><small>${esc(event.entity_id || event.workflow_type)}</small></div><small>${ago(event.created_ts)}</small></div>`).join("")}</div>` : empty("No recent activity")}</section>
-      </div>
-      <div>
-        <section class="panel"><div class="panel-head"><h2>My attention</h2></div>
-          <div class="stack">
-            <div class="list-row"><div><strong>${summary.stale_claims || 0} stale claims</strong><small>Claims beyond the configured threshold</small></div><button class="button small secondary" data-nav="work/queue" data-filter="stale">Open</button></div>
-            <div class="list-row"><div><strong>${summary.followups_due || 0} follow-ups due</strong><small>Outcome windows due within one day</small></div><button class="button small secondary" data-nav="work/outreach">Open</button></div>
-            <div class="list-row"><div><strong>${summary.tasks_due || 0} tasks due soon</strong><small>Due within the next day</small></div><button class="button small secondary" data-nav="work/tasks">Open</button></div>
-          </div>
-        </section>
-        <section class="panel"><div class="panel-head"><h2>Team pulse</h2></div>${Object.entries(data.pipeline).map(([key, value]) => `<div class="metric-line"><span>${esc(titleCase(key))}</span><strong>${value}</strong></div>`).join("") || '<span class="muted">No queue activity yet.</span>'}</section>
-      </div>
-    </div>`;
+      <section class="section-block"><div class="panel-head"><h2>Needs attention</h2><button class="icon-link" data-nav="work/my-work">Open My Work</button></div>
+        <div class="stack">${attentionRows.map(([count, label, detail, nav, filter]) => `<div class="list-row"><div><strong>${count} ${label.toLowerCase()}</strong><small>${detail}</small></div><button class="button small secondary" data-nav="${nav}" ${filter ? `data-filter="${filter}"` : ""}>Open</button></div>`).join("")}</div>
+      </section>
+      <section class="section-block"><div class="panel-head"><h2>Team pipeline</h2><button class="icon-link" data-nav="team/team-overview">Team view</button></div><div class="pipeline-strip">${Object.entries(data.pipeline || {}).map(([key, value]) => `<div><strong>${value}</strong><span>${esc(titleCase(key))}</span></div>`).join("") || '<span class="muted">No queue activity yet.</span>'}</div></section>
+    </div>
+    <section class="section-block recent-block"><div class="panel-head"><h2>Recent activity</h2><small class="muted">Latest six events</small></div>${data.recent_activity.length ? `<div class="activity-feed">${data.recent_activity.slice(0, 6).map((event) => `<div class="list-row"><div><strong>${esc(titleCase(event.event))}</strong><small>${esc(event.entity_id || event.workflow_type)}</small></div><time>${ago(event.created_ts)}</time></div>`).join("")}</div>` : empty("No recent activity", "Your completed work will appear here.")}</section>
+    ${progressData.milestones?.length ? `<section class="milestone-line"><strong>Milestones</strong><div>${progressData.milestones.map((item) => `<span class="pill">${esc(item.label)}</span>`).join("")}</div></section>` : ""}`;
 }
 
 async function renderMyWork() {
-  const [queue, tasks, overview] = await Promise.all([
+  const results = await Promise.allSettled([
     api("/api/staff/queue?filter=mine&limit=12"),
     api("/api/staff/tasks"),
     api("/api/staff/overview"),
   ]);
+  const queue = results[0].status === "fulfilled" ? results[0].value : { items: [] };
+  const tasks = results[1].status === "fulfilled" ? results[1].value : { items: [] };
+  const overview = results[2].status === "fulfilled" ? results[2].value : { summary: {}, progress: {} };
+  const unavailable = results.filter((result) => result.status === "rejected").length;
   const openTasks = tasks.items.filter((item) => !["done", "cancelled"].includes(item.status));
-  return `<div class="workspace-grid"><div>
-    <section class="panel"><div class="panel-head"><h2>Active claims</h2><button class="button small secondary" data-nav="work/queue">Full queue</button></div>${queue.items.length ? queue.items.map(workRow).join("") : empty("You're all caught up", "You do not have any active queue claims.")}</section>
-    <section class="panel"><div class="panel-head"><h2>Assigned tasks</h2><button class="button small secondary" data-nav="work/tasks">Manage</button></div>${openTasks.length ? openTasks.slice(0, 8).map(taskRow).join("") : empty("No open tasks")}</section>
-  </div><div>
-    <section class="panel"><h2>Current month</h2><div class="metric-line"><span>Reviews</span><strong>${overview.progress.reviews_month}</strong></div><div class="metric-line"><span>Outreach attempts</span><strong>${overview.progress.outreach_attempts}</strong></div><div class="metric-line"><span>Confirmed submissions</span><strong>${overview.progress.confirmed_submissions}</strong></div></section>
-    <section class="panel"><h2>Next action</h2><p class="muted">Open your oldest claim, record the next outreach attempt, or clear an assigned task.</p></section>
-  </div></div>`;
+  state.tasks = tasks.items;
+  const followups = Number(overview.summary?.followups_due || 0);
+  return `${unavailable ? `<div class="inline-warning"><strong>${unavailable} work source${unavailable === 1 ? " is" : "s are"} temporarily unavailable</strong><span>The rest of your inbox is still available. Retry with Refresh.</span></div>` : ""}<section class="today-line" aria-label="Today's work summary">
+    ${countMetric("Active claims", queue.items.length)}
+    ${countMetric("Open tasks", openTasks.length)}
+    ${countMetric("Follow-ups due", followups)}
+    ${countMetric("Reviews this month", overview.progress.reviews_month || 0)}
+  </section><div class="workspace-grid"><div>
+    <section class="section-block"><div class="panel-head"><div><h2>Active claims</h2><p class="muted">Continue from your oldest claimed level.</p></div><button class="button small secondary" data-nav="work/queue">Full queue</button></div>${queue.items.length ? queue.items.map(workRow).join("") : empty("You're all caught up", "You do not have any active queue claims.")}</section>
+    <section class="section-block"><div class="panel-head"><h2>Assigned tasks</h2><button class="button small secondary" data-nav="work/tasks">Manage</button></div>${openTasks.length ? openTasks.slice(0, 8).map(taskRow).join("") : empty("No open tasks", "Assigned and system-generated work will appear here.")}</section>
+  </div><aside class="work-rail">
+    <section class="section-block"><h2>Next action</h2>${queue.items[0] ? `<p><strong>${esc(queue.items[0].level_name)}</strong> is your oldest visible claim.</p><button class="button primary" data-open-queue="${queue.items[0].id}">Continue review</button>` : `<p class="muted">There is no claimed level waiting for you.</p><button class="button secondary" data-nav="work/queue">Browse queue</button>`}</section>
+    <section class="section-block"><h2>Monthly contribution</h2><div class="metric-line"><span>Outreach attempts</span><strong>${overview.progress.outreach_attempts || 0}</strong></div><div class="metric-line"><span>Confirmed submissions</span><strong>${overview.progress.confirmed_submissions || 0}</strong></div><div class="metric-line"><span>Active days</span><strong>${overview.progress.active_days || 0}</strong></div></section>
+  </aside></div>`;
 }
 
 function workRow(item) {
@@ -237,29 +260,25 @@ async function renderQueue(query = "") {
     <select id="queue-tier" aria-label="Recommendation tier"><option value="">All tiers</option>${["rate","feature","epic","legendary","mythic"].map((value) => `<option value="${value}" ${params.get("tier") === value ? "selected" : ""}>${titleCase(value)}</option>`).join("")}</select>
     <button class="button secondary" data-action="queue-apply">Apply</button>
   </div>
-  ${data.items.length ? `<table class="data-table"><thead><tr><th>Rank</th><th>Level</th><th>Tier</th><th>CP</th><th>W</th><th>PPS</th><th>State</th><th>Claim</th></tr></thead><tbody>${data.items.map(queueRow).join("")}</tbody></table><p class="muted">Showing ${data.items.length} of ${data.total} entries</p>` : empty("No levels match this view", "Try another filter or search term.")}`;
+  ${data.items.length ? `<div class="table-wrap"><table class="data-table queue-table"><thead><tr><th>Rank</th><th>Level</th><th>Tier</th><th>Creator</th><th>CP</th><th>W</th><th>Priority</th><th>State</th><th>Claim</th></tr></thead><tbody>${data.items.map(queueRow).join("")}</tbody></table></div><p class="muted table-caption">Showing ${data.items.length} of ${data.total} entries</p>` : empty("No levels match this view", "Try another filter or search term.")}`;
 }
 
 function queueRow(item) {
-  const claim = item.claim ? `${item.claim.user_id}${item.claim.stale ? " · stale" : ""}` : "Unclaimed";
-  return `<tr data-open-queue="${item.id}" role="button" tabindex="0" aria-label="Open ${esc(item.level_name)}"><td data-label="Rank">${item.rank ? `#${item.rank}` : "-"}</td><td class="level-cell"><strong>${esc(item.level_name)}</strong><small>${esc(item.level_id)} · ${esc(item.creator)}</small></td><td data-label="Tier">${pill(item.tier)}</td><td data-label="CP">${item.cp === null || item.cp === undefined ? "Unknown" : item.cp}</td><td data-label="W">${item.waiting_cycles}</td><td data-label="PPS">${item.components.complete ? Number(item.components.p).toFixed(2) : "Incomplete"}</td><td data-label="State">${pill(item.state)}</td><td data-label="Claim">${esc(claim)}</td></tr>`;
+  const claim = item.claim ? `${item.claim.user?.display_name || (item.claim.user_id === state.user.id ? "You" : "Claimed")}${item.claim.stale ? " · stale" : ""}` : "Unclaimed";
+  return `<tr data-open-queue="${item.id}" role="button" tabindex="0" aria-label="Open ${esc(item.level_name)}"><td data-label="Rank"><strong>${item.rank ? `#${item.rank}` : "-"}</strong></td><td class="level-cell"><strong>${esc(item.level_name)}</strong><small>${esc(item.level_id)}</small></td><td data-label="Tier">${pill(item.tier)}</td><td data-label="Creator">${esc(item.creator || "Unknown")}</td><td data-label="CP">${item.cp === null || item.cp === undefined ? "Unknown" : item.cp}</td><td data-label="W">${item.waiting_cycles}</td><td data-label="Priority">${item.components.complete ? Number(item.components.p).toFixed(2) : "Incomplete"}</td><td data-label="State">${pill(item.state)}</td><td data-label="Claim">${esc(claim)}</td></tr>`;
 }
 
 async function openQueue(id) {
-  const drawer = $("#detail-drawer");
-  state.returnFocus = document.activeElement;
-  $("#drawer-content").innerHTML = '<div class="loading-state"><span class="spinner"></span>Loading level</div>';
-  drawer.inert = false;
-  drawer.classList.add("open"); drawer.setAttribute("aria-hidden", "false"); $("#drawer-scrim").hidden = false;
+  openDrawer("Level inspector", "Loading level", '<div class="skeleton-view compact" aria-label="Loading level"><span></span><span></span><span></span></div>');
   try {
     const data = await api(`/api/staff/queue/${id}`);
     const item = data.queue;
     $("#detail-title").textContent = item.level_name;
     $("#drawer-content").innerHTML = `
-      <p class="muted">${esc(item.level_id)} · ${esc(item.creator)}</p>
+      <div class="drawer-identity"><div><span>Level ID</span><strong class="secondary-id">${esc(item.level_id)}</strong></div>${copyButton(item.level_id)}</div><p class="muted">Created by ${esc(item.creator)}</p>
       <div class="detail-grid"><div class="detail-stat"><small>Tier</small><strong>${esc(titleCase(item.tier))}</strong></div><div class="detail-stat"><small>State</small><strong>${esc(titleCase(item.state))}</strong></div><div class="detail-stat"><small>Creator Points</small><strong>${item.cp ?? "Unknown"}</strong></div><div class="detail-stat"><small>Exact rank</small><strong>${item.rank ? `#${item.rank}` : "Unavailable"}</strong></div></div>
-      <section class="panel"><h3>Priority point system</h3><div class="detail-grid"><div class="detail-stat"><small>F</small><strong>${item.components.f ?? "-"}</strong></div><div class="detail-stat"><small>G</small><strong>${item.components.g ?? "-"}</strong></div><div class="detail-stat"><small>H</small><strong>${item.components.h ?? "-"}</strong></div><div class="detail-stat"><small>P</small><strong>${item.components.complete ? Number(item.components.p).toFixed(2) : "Incomplete"}</strong></div></div></section>
-      <section class="panel"><div class="panel-head"><h3>Actions</h3></div><div class="toolbar">
+      <details class="drawer-section" open><summary>Priority breakdown</summary><div class="detail-grid"><div class="detail-stat"><small>Prestige F</small><strong>${item.components.f ?? "-"}</strong></div><div class="detail-stat"><small>Creator G</small><strong>${item.components.g ?? "-"}</strong></div><div class="detail-stat"><small>Waiting H</small><strong>${item.components.h ?? "-"}</strong></div><div class="detail-stat"><small>Total P</small><strong>${item.components.complete ? Number(item.components.p).toFixed(2) : "Incomplete"}</strong></div></div></details>
+      <section class="drawer-section"><div class="panel-head"><h3>Actions</h3></div><div class="toolbar">
         ${!item.claim && can("queue.claim") ? `<button class="button primary" data-queue-action="claim" data-id="${id}">Claim</button>` : ""}
         ${item.claim && (item.claim.user_id === state.user.id || can("queue.reassign")) ? `<button class="button secondary" data-queue-action="release" data-id="${id}">Release</button>` : ""}
         ${item.claim && can("queue.reassign") ? `<button class="button secondary" data-queue-action="reassign" data-id="${id}">Reassign</button>` : ""}
@@ -267,9 +286,9 @@ async function openQueue(id) {
         ${can("queue.manage_state") ? `<button class="button secondary" data-queue-action="state" data-id="${id}">Change state</button><button class="button secondary" data-queue-action="requeue" data-id="${id}">New episode</button>` : ""}
         ${can("review.adjust_tier") ? `<button class="button secondary" data-queue-action="tier" data-id="${id}">Adjust tier</button>` : ""}
       </div></section>
-      <section class="panel"><h3>Outreach</h3>${data.outreach.length ? data.outreach.map((event) => `<div class="list-row"><div><strong>${esc(titleCase(event.status))}</strong><small>${esc(event.route_type)} · ${esc(event.private_target_label || "No target")}</small></div><small>${ago(event.event_ts)}</small></div>`).join("") : '<p class="muted">No outreach recorded.</p>'}</section>
-      <section class="panel"><h3>History</h3><ol class="timeline">${data.history.map((event) => `<li><strong>${esc(titleCase(event.event))}</strong><br><small class="muted">${fmtTime(event.created_ts)}</small></li>`).join("") || '<li>No history recorded.</li>'}</ol></section>
-      <section class="panel"><h3>Notes</h3>${data.notes.length ? data.notes.map((note) => `<div class="list-row"><div><strong>${esc(titleCase(note.scope))}</strong><small>${esc(note.body)}</small></div><small>${ago(note.updated_ts)}</small></div>`).join("") : '<p class="muted">No visible notes.</p>'}</section>`;
+      <details class="drawer-section"><summary>Outreach (${data.outreach.length})</summary>${data.outreach.length ? data.outreach.map((event) => `<div class="list-row"><div><strong>${esc(titleCase(event.status))}</strong><small>${esc(event.route_type)} · ${esc(event.private_target_label || "No target")}</small></div><small>${ago(event.event_ts)}</small></div>`).join("") : '<p class="muted">No outreach recorded.</p>'}</details>
+      <details class="drawer-section"><summary>History (${data.history.length})</summary><ol class="timeline">${data.history.map((event) => `<li><strong>${esc(titleCase(event.event))}</strong><br><small class="muted">${fmtTime(event.created_ts)}</small></li>`).join("") || '<li>No history recorded.</li>'}</ol></details>
+      <details class="drawer-section"><summary>Notes (${data.notes.length})</summary>${data.notes.length ? data.notes.map((note) => `<div class="list-row"><div><strong>${esc(titleCase(note.scope))}</strong><small>${esc(note.body)}</small></div><small>${ago(note.updated_ts)}</small></div>`).join("") : '<p class="muted">No visible notes.</p>'}</details>`;
   } catch (error) {
     $("#drawer-content").innerHTML = empty("Level detail unavailable", error.message);
   }
@@ -285,13 +304,23 @@ async function renderOutreach() {
 async function renderTasks() {
   const scope = can("tasks.manage_team") ? "team" : "mine";
   const data = await api(`/api/staff/tasks?scope=${scope}`);
+  state.tasks = data.items;
   return `<div class="panel-head"><div><h2>Tasks</h2><p class="muted">Personal, assigned, team, and generated attention work.</p></div><button class="button primary" data-action="new-task">New task</button></div>
     <section class="panel">${progress("Task progress", data.progress.done, data.progress.total)}</section>
     <div class="stack">${data.items.length ? data.items.map(taskRow).join("") : empty("No open tasks")}</div>`;
 }
 
 function taskRow(task) {
-  return `<div class="list-row"><div><strong>${esc(task.title)} ${task.system_key ? '<span class="pill">System</span>' : ""}</strong><small>${esc(titleCase(task.status))} · ${esc(titleCase(task.priority))}${task.due_ts ? ` · due ${fmtTime(task.due_ts)}` : ""}</small></div>${task.status !== "done" ? `<button class="button small secondary" data-complete-task="${task.id}">Complete</button>` : '<span class="pill">Done</span>'}</div>`;
+  return `<div class="list-row row-clickable" data-open-task="${task.id}" role="button" tabindex="0"><div><strong>${esc(task.title)} ${task.system_key ? '<span class="pill">System</span>' : ""}</strong><small>${esc(titleCase(task.status))} · ${esc(titleCase(task.priority))}${task.due_ts ? ` · due ${fmtTime(task.due_ts)}` : ""}</small></div>${task.status !== "done" ? `<button class="button small secondary" data-complete-task="${task.id}">Complete</button>` : '<span class="pill">Done</span>'}</div>`;
+}
+
+function openTaskInspector(id) {
+  const task = state.tasks.find((item) => String(item.id) === String(id));
+  if (!task) return showNotice("That task is no longer in this view", true);
+  openDrawer("Task inspector", task.title, `<div class="drawer-meta">${pill(task.status)}${pill(task.priority)}${task.system_key ? '<span class="pill">System generated</span>' : ""}</div>
+    ${task.description ? `<section class="drawer-section"><h3>Description</h3><p>${esc(task.description)}</p></section>` : ""}
+    <div class="detail-grid"><div class="detail-stat"><small>Due</small><strong>${task.due_ts ? fmtTime(task.due_ts) : "No due date"}</strong></div><div class="detail-stat"><small>Linked entity</small><strong>${esc(task.linked_entity_type ? `${task.linked_entity_type} ${task.linked_entity_id || ""}` : "None")}</strong></div></div>
+    ${task.status !== "done" ? `<section class="drawer-section"><button class="button primary" data-complete-task="${task.id}">Mark complete</button></section>` : ""}`);
 }
 
 async function renderNotes() {
@@ -306,31 +335,80 @@ async function renderTeamOverview() {
 }
 
 async function renderStatistics() {
-  const data = await api("/api/staff/statistics");
-  return `<div class="summary-band"><div><p class="eyebrow">${data.scope === "team" ? "Team activity" : "Your activity"}</p><h2>Operational totals</h2><small>Direct workflow counts, not a competitive score.</small></div><div><small>Active weeks</small><strong>${data.active_weeks}</strong></div><div><small>Tasks completed</small><strong>${data.tasks_completed}</strong></div><div><small>Stale claims</small><strong>${data.stale_claims}</strong></div></div><div class="statistics-grid"><section class="panel"><div class="panel-head"><h2>${data.scope === "team" ? "Reviewer activity" : "My review activity"}</h2><small class="muted">Review count and median turnaround</small></div>${data.reviewers.map((item) => `<div class="list-row"><div><strong>${esc(identityLabel(item.identity, item.reviewed_by))}</strong><small class="secondary-id">Discord ID: ${esc(item.reviewed_by || "Unknown")}</small><small>Median turnaround: ${item.median_turnaround ? `${Math.round(item.median_turnaround / 3600)}h` : "Unavailable"}</small></div><strong>${item.reviews} reviews</strong></div>`).join("") || empty("No review statistics yet")}</section><section class="panel"><h2>Outreach and queue</h2><div class="detail-grid"><div class="detail-stat"><small>Attempts</small><strong>${data.outreach.attempts}</strong></div><div class="detail-stat"><small>Confirmed submissions</small><strong>${data.outreach.submissions}</strong></div><div class="detail-stat"><small>Follow-ups</small><strong>${data.outreach.followups}</strong></div><div class="detail-stat"><small>Stale claims</small><strong>${data.stale_claims}</strong></div></div>${data.outreach.routes.map((route) => `<div class="metric-line"><span>${esc(titleCase(route.route_type))}</span><strong>${route.submissions || 0} / ${route.attempts}</strong></div>`).join("")}${Object.entries(data.queue).map(([state,count]) => `<div class="metric-line"><span>${esc(titleCase(state))}</span><strong>${count}</strong></div>`).join("")}</section><section class="panel"><h2>Review decisions</h2>${Object.entries(data.results).map(([result,count]) => `<div class="distribution-row"><span>${esc(titleCase(result))}</span><progress max="${Math.max(1, Object.values(data.results).reduce((a,b) => a + Number(b), 0))}" value="${count}"></progress><strong>${count}</strong></div>`).join("") || '<p class="muted">No reviewed levels yet.</p>'}</section><section class="panel"><h2>Recommendation tiers</h2>${Object.entries(data.tiers).map(([tier,count]) => `<div class="metric-line"><span>${pill(tier)}</span><strong>${count}</strong></div>`).join("") || '<p class="muted">No tier data yet.</p>'}<h3>Queue distributions</h3><p class="muted">Waiting: ${esc(Object.entries(data.waiting_distribution).map(([key,value]) => `W${key}: ${value}`).join(" | ") || "None")}</p><p class="muted">Creator Points: ${esc(Object.entries(data.cp_distribution).map(([key,value]) => `${key}: ${value}`).join(" | ") || "None")}</p></section></div>`;
+  const [data, staff] = await Promise.all([
+    api("/api/staff/statistics"),
+    can("staff.view") ? api("/api/staff/staff").catch(() => ({ items: [] })) : Promise.resolve({ items: [] }),
+  ]);
+  state.staffItems = staff.items;
+  const reviewTotal = Object.values(data.results).reduce((sum, value) => sum + Number(value), 0);
+  const queueTotal = Object.values(data.queue).reduce((sum, value) => sum + Number(value), 0);
+  return `<section class="progress-strip" aria-label="Team statistics summary">${countMetric("Reviews", reviewTotal)}${countMetric("Queue", queueTotal)}${countMetric("Outreach", data.outreach.attempts)}${countMetric("Applications", data.pending_applications ?? "-")}</section>
+    <div class="workspace-grid"><section class="section-block"><div class="panel-head"><div><h2>${data.scope === "team" ? "Reviewer activity" : "My review activity"}</h2><p class="muted">Review counts and real median turnaround.</p></div></div>${data.reviewers.map((item) => {
+      const known = state.staffItems.some((member) => exactId(member.id) === exactId(item.reviewed_by));
+      const content = `<div><strong>${esc(item.identity?.display_name || "Unresolved staff identity")}</strong><small class="secondary-id">${esc(exactId(item.reviewed_by || item.identity?.id || "Unknown"))}</small><small>Median turnaround: ${item.median_turnaround ? `${Math.round(item.median_turnaround / 3600)}h` : "Unavailable"}</small></div><strong>${item.reviews} reviews</strong>`;
+      return known ? `<button class="list-row row-button" data-open-staff="${esc(exactId(item.reviewed_by))}">${content}</button>` : `<div class="list-row">${content}</div>`;
+    }).join("") || empty("No review statistics yet")}</section><section class="section-block"><h2>Queue and outreach</h2><div class="detail-grid"><div class="detail-stat"><small>Attempts</small><strong>${data.outreach.attempts}</strong></div><div class="detail-stat"><small>Confirmed</small><strong>${data.outreach.submissions}</strong></div><div class="detail-stat"><small>Follow-ups</small><strong>${data.outreach.followups}</strong></div><div class="detail-stat"><small>Stale claims</small><strong>${data.stale_claims}</strong></div></div>${data.outreach.routes.map((route) => `<div class="metric-line"><span>${esc(titleCase(route.route_type))}</span><strong>${route.submissions || 0} / ${route.attempts}</strong></div>`).join("")}${Object.entries(data.queue).map(([queueState, count]) => `<div class="metric-line"><span>${esc(titleCase(queueState))}</span><strong>${count}</strong></div>`).join("")}</section></div>
+    <div class="statistics-grid"><section class="section-block"><h2>Review decisions</h2>${Object.entries(data.results).map(([result,count]) => `<div class="distribution-row"><span>${esc(titleCase(result))}</span><progress aria-label="${esc(titleCase(result))} decisions" aria-valuemin="0" aria-valuemax="${Math.max(1, reviewTotal)}" aria-valuenow="${count}" max="${Math.max(1, reviewTotal)}" value="${count}"></progress><strong>${count}</strong></div>`).join("") || '<p class="muted">No reviewed levels yet.</p>'}</section><section class="section-block"><h2>Recommendation tiers</h2>${Object.entries(data.tiers).map(([tier,count]) => `<div class="metric-line"><span>${pill(tier)}</span><strong>${count}</strong></div>`).join("") || '<p class="muted">No tier data yet.</p>'}<h3>Distributions</h3><p class="muted">Waiting: ${esc(Object.entries(data.waiting_distribution).map(([key,value]) => `W${key}: ${value}`).join(" | ") || "None")}</p><p class="muted">Creator Points: ${esc(Object.entries(data.cp_distribution).map(([key,value]) => `${key}: ${value}`).join(" | ") || "None")}</p></section></div>`;
 }
 
 async function renderQA() {
   const data = await api("/api/staff/qa");
-  return `<div class="panel-head"><div><h2>Review QA</h2><p class="muted">Operational consistency checks, never a reviewer quality score.</p></div></div>${data.items.length ? `<table class="data-table"><thead><tr><th>Level</th><th>Review</th><th>Tier</th><th>QA state</th><th>Action</th></tr></thead><tbody>${data.items.map((item) => `<tr><td class="level-cell"><strong>${esc(item.level_id)}</strong><small>${esc(identityLabel(item.reviewer, item.reviewed_by))}</small></td><td data-label="Review">${esc(titleCase(item.result))}</td><td data-label="Tier">${item.send_type ? pill(item.send_type) : "-"}</td><td data-label="QA state">${pill(item.qa_status || "unreviewed")}</td><td data-label="Action"><button class="button small secondary" data-qa="${item.request_message_id}">Review</button></td></tr>`).join("")}</tbody></table>` : empty("No reviews are waiting for QA")}`;
+  state.qaItems = data.items;
+  return `<div class="panel-head"><div><h2>Review QA</h2><p class="muted">Operational consistency checks, never a reviewer quality score.</p></div></div>${data.items.length ? `<div class="table-wrap"><table class="data-table"><thead><tr><th>Level</th><th>Reviewer</th><th>Decision</th><th>Tier</th><th>QA state</th></tr></thead><tbody>${data.items.map((item) => `<tr data-open-qa="${item.request_message_id}" role="button" tabindex="0"><td class="level-cell"><strong>${esc(item.level_id)}</strong><small>Open review detail</small></td><td data-label="Reviewer">${esc(identityLabel(item.reviewer, item.reviewed_by))}</td><td data-label="Decision">${esc(titleCase(item.result))}</td><td data-label="Tier">${item.send_type ? pill(item.send_type) : "-"}</td><td data-label="QA state">${pill(item.qa_status || "unreviewed")}</td></tr>`).join("")}</tbody></table></div>` : empty("No reviews are waiting for QA", "Completed review decisions will appear here when QA is required.")}`;
 }
 
 async function renderApplications() {
   const data = await api("/api/staff/applications");
-  return `<div class="panel-head"><div><h2>Reviewer applications</h2><p class="muted">Answers, internal context, and durable decision history.</p></div></div>${data.items.length ? data.items.map((item) => `<article class="panel application-review"><div class="application-main"><div class="panel-head"><div><h3>Application #${item.id}</h3><small class="muted">${esc(identityLabel(item.applicant, item.applicant_id))} | ${fmtTime(item.submitted_ts)}</small></div>${pill(item.status)}</div><div class="detail-grid">${Object.entries(item.answers || {}).map(([key,value]) => `<div class="detail-stat"><small>${esc(titleCase(key))}</small><strong>${esc(value)}</strong></div>`).join("")}</div></div><aside class="application-side"><h4>Internal timeline</h4>${item.timeline?.length ? `<ol class="timeline">${item.timeline.map((event) => `<li><strong>${esc(titleCase(event.event))}</strong><br><small class="muted">${esc(identityLabel(event.actor, event.actor_id))} | ${fmtTime(event.created_ts)}</small></li>`).join("")}</ol>` : '<p class="muted">No staff activity yet.</p>'}<h4>Internal notes</h4>${item.internal_notes?.map((note) => `<p>${esc(note.body)}<br><small class="muted">${esc(identityLabel(note.author, note.author_id))} | ${ago(note.created_ts)}</small></p>`).join("") || '<p class="muted">No internal notes.</p>'}<button class="button small secondary" data-app-note="${item.id}">Add note</button></aside>${!["accepted","rejected","withdrawn"].includes(item.status) ? `<div class="toolbar application-actions"><button class="button small secondary" data-app-action="claim" data-id="${item.id}">Claim</button><button class="button small secondary" data-app-action="interview" data-id="${item.id}">Interview</button><button class="button small secondary" data-app-action="hold" data-id="${item.id}">Hold</button><button class="button small primary" data-app-action="accept" data-id="${item.id}">Accept</button><button class="button small danger" data-app-action="reject" data-id="${item.id}">Reject</button></div>` : ""}</article>`).join("") : empty("No applications are waiting for review")}`;
+  state.applications = data.items;
+  return `<div class="panel-head"><div><h2>Reviewer applications</h2><p class="muted">Open an application to inspect answers, notes, and its durable decision history.</p></div></div>${data.items.length ? `<div class="record-list">${data.items.map((item) => `<button class="record-row" type="button" data-open-application="${item.id}"><span><strong>${esc(identityLabel(item.applicant, item.applicant_id))}</strong><small>Application #${item.id} · submitted ${ago(item.submitted_ts)}</small></span>${pill(item.status)}<span class="row-chevron" aria-hidden="true">View</span></button>`).join("")}</div>` : empty("No applications are waiting for review", "New reviewer applications will appear here.")}`;
 }
 
 async function renderStaff() {
   const data = await api("/api/staff/staff");
-  return `<div class="panel-head"><div><h2>Staff access</h2><p class="muted">Discord roles remain authoritative. Portal nicknames are separate and all changes are audited.</p></div></div>${data.items.length ? `<div class="stack">${data.items.map((member) => `<article class="list-row"><div class="identity-row">${member.avatar_url ? `<img src="${esc(member.avatar_url)}" alt="" width="36" height="36">` : ""}<div><strong>${esc(member.display_name)} ${pill(member.active ? "active" : "inactive")}</strong><small class="secondary-id">${esc(member.id)}</small><small>${esc(member.role_label || roleLabel(member.role))} | ${member.reviews} reviews | ${member.workload} active claims${member.last_activity_ts ? ` | active ${ago(member.last_activity_ts)}` : ""}${member.role_delivery_status === "pending" ? ` | ${esc(roleLabel(member.desired_role))} change pending` : ""}</small></div></div><div class="toolbar row-actions"><button class="button small secondary" data-nickname-id="${member.id}" data-nickname-value="${esc(member.portal_nickname || "")}">Nickname</button>${can("staff.manage_standard_roles") ? `<button class="button small secondary" data-staff-action="${member.id}" data-staff-role="${esc(member.role)}">Manage</button>` : ""}</div></article>`).join("")}</div>` : empty("No configured staff roles found")}`;
+  state.staffItems = data.items;
+  return `<div class="panel-head"><div><h2>Staff access</h2><p class="muted">Discord roles remain authoritative. Portal names are separate and every access change is audited.</p></div></div>${data.items.length ? `<div class="record-list">${data.items.map((member) => `<button class="record-row staff-record" type="button" data-open-staff="${esc(exactId(member.id))}"><span class="identity-row">${member.avatar_url ? `<img src="${esc(member.avatar_url)}" alt="" width="36" height="36">` : ""}<span><strong>${esc(member.display_name)}</strong><small>${esc(member.role_label || roleLabel(member.role))} · ${member.reviews} reviews · ${member.workload} active claims</small></span></span>${pill(member.active ? "active" : "inactive")}<span class="row-chevron" aria-hidden="true">View</span></button>`).join("")}</div>` : empty("No configured staff roles found")}`;
+}
+
+function openApplication(id) {
+  const item = state.applications.find((entry) => String(entry.id) === String(id));
+  if (!item) return showNotice("That application is no longer in this view", true);
+  const terminal = ["accepted", "rejected", "withdrawn"].includes(item.status);
+  openDrawer("Application inspector", `Application #${item.id}`, `
+    <div class="drawer-identity"><div><span>Applicant</span><strong>${esc(identityLabel(item.applicant, item.applicant_id))}</strong><small class="secondary-id">${esc(exactId(item.applicant_id))}</small></div>${copyButton(item.applicant_id, "Copy Discord ID")}</div>
+    <div class="drawer-meta">${pill(item.status)}<span>Submitted ${fmtTime(item.submitted_ts)}</span></div>
+    <section class="drawer-section"><h3>Answers</h3><div class="answer-list">${Object.entries(item.answers || {}).map(([key, value]) => `<div><small>${esc(titleCase(key))}</small><p>${esc(value)}</p></div>`).join("") || '<p class="muted">No answers were stored.</p>'}</div></section>
+    <details class="drawer-section" open><summary>Internal timeline (${item.timeline?.length || 0})</summary>${item.timeline?.length ? `<ol class="timeline">${item.timeline.map((event) => `<li><strong>${esc(titleCase(event.event))}</strong><br><small class="muted">${esc(identityLabel(event.actor, event.actor_id))} · ${fmtTime(event.created_ts)}</small></li>`).join("")}</ol>` : '<p class="muted">No staff activity yet.</p>'}</details>
+    <details class="drawer-section"><summary>Internal notes (${item.internal_notes?.length || 0})</summary>${item.internal_notes?.map((note) => `<p>${esc(note.body)}<br><small class="muted">${esc(identityLabel(note.author, note.author_id))} · ${ago(note.created_ts)}</small></p>`).join("") || '<p class="muted">No internal notes.</p>'}<button class="button small secondary" data-app-note="${item.id}">Add note</button></details>
+    ${terminal ? "" : `<section class="drawer-section"><h3>Decision</h3><div class="toolbar application-actions"><button class="button small secondary" data-app-action="claim" data-id="${item.id}">Claim</button><button class="button small secondary" data-app-action="interview" data-id="${item.id}">Interview</button><button class="button small secondary" data-app-action="hold" data-id="${item.id}">Hold</button><button class="button small primary" data-app-action="accept" data-id="${item.id}">Accept</button><button class="button small danger" data-app-action="reject" data-id="${item.id}">Reject</button></div></section>`}`);
+}
+
+function openStaffInspector(id) {
+  const member = state.staffItems.find((entry) => exactId(entry.id) === exactId(id));
+  if (!member) return showNotice("That staff identity is no longer in this view", true);
+  openDrawer("Staff inspector", member.display_name, `
+    <div class="profile-hero">${member.avatar_url ? `<img src="${esc(member.avatar_url)}" alt="" width="64" height="64">` : ""}<div>${pill(member.role_label || roleLabel(member.role))}${pill(member.active ? "active" : "inactive")}</div></div>
+    <div class="drawer-identity"><div><span>Exact Discord ID</span><strong class="secondary-id">${esc(exactId(member.id))}</strong></div>${copyButton(member.id)}</div>
+    <div class="detail-grid"><div class="detail-stat"><small>Reviews</small><strong>${member.reviews || 0}</strong></div><div class="detail-stat"><small>Active claims</small><strong>${member.workload || 0}</strong></div><div class="detail-stat"><small>Last activity</small><strong>${member.last_activity_ts ? ago(member.last_activity_ts) : "Unknown"}</strong></div><div class="detail-stat"><small>Role delivery</small><strong>${esc(titleCase(member.role_delivery_status || "current"))}</strong></div></div>
+    <section class="drawer-section"><h3>Portal identity</h3><p class="muted">The portal nickname does not change the Discord server nickname.</p><button class="button secondary" data-nickname-id="${esc(exactId(member.id))}" data-nickname-value="${esc(member.portal_nickname || "")}">Edit nickname</button></section>
+    ${can("staff.manage_standard_roles") ? `<section class="drawer-section"><h3>Access</h3><button class="button secondary" data-staff-action="${esc(exactId(member.id))}" data-staff-role="${esc(member.role)}">Manage staff access</button></section>` : ""}`);
+}
+
+function openQAInspector(id) {
+  const item = state.qaItems.find((entry) => exactId(entry.request_message_id) === exactId(id));
+  if (!item) return showNotice("That QA item is no longer in this view", true);
+  openDrawer("Review QA inspector", `Level ${item.level_id}`, `
+    <div class="drawer-identity"><div><span>Reviewer</span><strong>${esc(identityLabel(item.reviewer, item.reviewed_by))}</strong><small class="secondary-id">${esc(exactId(item.reviewed_by))}</small></div>${copyButton(item.reviewed_by, "Copy reviewer ID")}</div>
+    <div class="detail-grid"><div class="detail-stat"><small>Decision</small><strong>${esc(titleCase(item.result))}</strong></div><div class="detail-stat"><small>Tier</small><strong>${esc(titleCase(item.send_type || "Not set"))}</strong></div><div class="detail-stat"><small>QA state</small><strong>${esc(titleCase(item.qa_status || "unreviewed"))}</strong></div><div class="detail-stat"><small>Review message</small><strong class="secondary-id">${esc(exactId(item.request_message_id))}</strong></div></div>
+    <section class="drawer-section"><h3>QA action</h3><button class="button primary" data-qa="${esc(exactId(item.request_message_id))}">Record QA outcome</button></section>`);
 }
 
 async function renderOperations() {
   const data = await api("/api/staff/operations");
   const health = (ready) => pill(ready ? "healthy" : "degraded", ready ? "" : "warning");
   return `<div class="summary-band"><div><p class="eyebrow">Live operations</p><h2>${esc(data.service.state || "Unknown")}</h2><small>${esc(data.service.detail || "No service detail")}</small></div><div><small>Bot readiness</small><strong>${health(data.runtime.ready)}</strong></div><div><small>Database</small><strong>${health(data.database.connected)}</strong></div><div><small>Open incidents</small><strong>${data.incidents.length}</strong></div></div>
-    <div class="operations-grid"><section class="panel"><h2>Core systems</h2><div class="metric-line"><span>Gateway and event loop</span>${health(data.runtime.responsive)}</div><div class="metric-line"><span>Database worker</span>${health(data.database.connected && data.database.worker_alive !== false)}</div><div class="metric-line"><span>Current request wave</span><strong>${esc(titleCase(data.request_wave.state || "unknown"))}</strong></div><div class="metric-line"><span>PPS maintenance worker</span><strong>${esc(titleCase(data.pps_worker || "unknown"))}</strong></div><div class="metric-line"><span>Public level cache</span><strong>${esc(titleCase(data.public_cache?.state || "unknown"))}</strong></div></section><section class="panel"><h2>Durable outbox</h2>${["pending","processing","dead","delivered"].map((key) => `<div class="metric-line"><span>${esc(titleCase(key))}</span><strong>${data.outbox[key] || 0}</strong></div>`).join("")}</section><section class="panel"><h2>Providers</h2>${Object.entries(data.providers || {}).map(([name, provider]) => `<div class="list-row"><div><strong>${esc(titleCase(name))}</strong><small>${esc(provider.last_error || "No recent error")}</small></div>${pill(provider.circuit_open ? "degraded" : "healthy", provider.circuit_open ? "warning" : "")}</div>`).join("") || '<p class="muted">Provider telemetry is not available yet.</p>'}</section><section class="panel"><h2>Background workers</h2>${Object.entries(data.background_workers || {}).map(([name, status]) => `<div class="metric-line"><span>${esc(titleCase(name))}</span><strong>${esc(titleCase(status))}</strong></div>`).join("") || '<p class="muted">No worker telemetry available.</p>'}</section></div>
-    <section class="panel incident-panel"><div class="panel-head"><div><h2>Recent incidents</h2><p class="muted">Summarized here so diagnostics remain readable.</p></div></div>${data.incidents.map((item) => `<article class="incident-row"><div><strong>${esc(item.component)}</strong><span>${esc(item.error_type)}: ${esc(item.summary)}</span><small>${item.occurrence_count} occurrence${item.occurrence_count === 1 ? "" : "s"} | last seen ${ago(item.last_seen_ts)}</small></div>${item.details_available ? `<button class="button small secondary" data-incident="${esc(item.fingerprint)}">View details</button>` : ""}</article>`).join("") || '<p class="muted">No open incidents.</p>'}</section>`;
+    <section class="system-status-line" aria-label="Operations summary">${countMetric("Gateway", data.runtime.responsive ? "Healthy" : "Degraded")}${countMetric("Outbox pending", data.outbox.pending || 0)}${countMetric("Current wave", titleCase(data.request_wave.state || "unknown"))}${countMetric("Providers", `${Object.values(data.providers || {}).filter((item) => !item.circuit_open).length} healthy`)}</section>
+    <details class="admin-disclosure"><summary>View diagnostics</summary><div class="operations-grid"><section class="section-block"><h2>Core systems</h2><div class="metric-line"><span>Database worker</span>${health(data.database.connected && data.database.worker_alive !== false)}</div><div class="metric-line"><span>PPS maintenance</span><strong>${esc(titleCase(data.pps_worker || "unknown"))}</strong></div><div class="metric-line"><span>Public level cache</span><strong>${esc(titleCase(data.public_cache?.state || "unknown"))}</strong></div></section><section class="section-block"><h2>Durable outbox</h2>${["pending","processing","dead","delivered"].map((key) => `<div class="metric-line"><span>${esc(titleCase(key))}</span><strong>${data.outbox[key] || 0}</strong></div>`).join("")}</section><section class="section-block"><h2>Providers</h2>${Object.entries(data.providers || {}).map(([name, provider]) => `<div class="list-row"><div><strong>${esc(titleCase(name))}</strong><small>${esc(provider.last_error || "No recent error")}</small></div>${pill(provider.circuit_open ? "degraded" : "healthy", provider.circuit_open ? "warning" : "")}</div>`).join("") || '<p class="muted">Provider telemetry is not available yet.</p>'}</section><section class="section-block"><h2>Background workers</h2>${Object.entries(data.background_workers || {}).map(([name, status]) => `<div class="metric-line"><span>${esc(titleCase(name))}</span><strong>${esc(titleCase(status))}</strong></div>`).join("") || '<p class="muted">No worker telemetry available.</p>'}</section></div></details>
+    <section class="section-block incident-panel"><div class="panel-head"><div><h2>Recent incidents</h2><p class="muted">Sanitized summaries; open one only when investigation is needed.</p></div></div>${data.incidents.map((item) => `<article class="incident-row"><div><strong>${esc(item.component)}</strong><span>${esc(item.error_type)}: ${esc(item.summary)}</span><small>${item.occurrence_count} occurrence${item.occurrence_count === 1 ? "" : "s"} · last seen ${ago(item.last_seen_ts)}</small></div>${item.details_available ? `<button class="button small secondary" data-incident="${esc(item.fingerprint)}">View details</button>` : ""}</article>`).join("") || '<p class="muted">No open incidents.</p>'}</section>`;
 }
 
 async function renderRequestsAdmin() {
@@ -346,8 +424,16 @@ async function renderCommunity() {
 }
 
 async function renderSystem() {
-  const data = await api("/api/staff/system");
-  return `<div class="panel-head"><div><h2>Developer system controls</h2><p class="muted">Sanitized engineering diagnostics. Secrets and raw environment values are never returned.</p></div></div><div class="operations-grid"><section class="panel"><h3>Runtime</h3><div class="metric-line"><span>Ready</span><strong>${data.runtime.ready ? "Yes" : "No"}</strong></div><div class="metric-line"><span>Heartbeat age</span><strong>${data.runtime.heartbeat_age_seconds ?? "Unknown"}s</strong></div><div class="metric-line"><span>Event-loop lag</span><strong>${data.runtime.event_loop_lag_ms ?? "Unknown"}ms</strong></div></section><section class="panel"><h3>Database</h3><div class="metric-line"><span>Connected</span><strong>${data.database.connected ? "Yes" : "No"}</strong></div><div class="metric-line"><span>Remote primary</span><strong>${data.database.uses_remote ? "Yes" : "No"}</strong></div><div class="metric-line"><span>Waiting operations</span><strong>${data.database.waiting_operations || 0}</strong></div></section><section class="panel"><h3>Schema versions</h3>${data.schemas.map((item) => `<div class="metric-line"><span>${esc(item.component)}</span><strong>v${item.schema_version}</strong></div>`).join("") || '<p class="muted">No schema metadata.</p>'}</section><section class="panel"><h3>Dead outbox entries</h3><strong>${data.dead_outbox.length}</strong><p class="muted">Inspect correlation IDs in deployment/error logs before replaying side effects.</p></section></div><section class="panel"><h3>Safe recovery actions</h3><div class="toolbar">${data.available_actions.map((action) => `<button class="button secondary" data-system-action="${esc(action)}">${esc(titleCase(action))}</button>`).join("")}</div></section>`;
+  const [data, config] = await Promise.all([
+    api("/api/staff/system"),
+    can("config.manage_safe") ? api("/api/staff/configuration").catch(() => null) : Promise.resolve(null),
+  ]);
+  return `<div class="panel-head"><div><h2>System</h2><p class="muted">Sanitized engineering diagnostics. Secrets and raw environment values are never returned.</p></div></div>
+    <div class="system-status-line">${countMetric("Runtime", data.runtime.ready ? "Ready" : "Degraded")}${countMetric("Database", data.database.connected ? "Connected" : "Unavailable")}${countMetric("Waiting operations", data.database.waiting_operations || 0)}${countMetric("Dead outbox", data.dead_outbox.length)}</div>
+    <details class="admin-disclosure" open><summary>Runtime and database</summary><div class="operations-grid"><section class="section-block"><h3>Runtime</h3><div class="metric-line"><span>Heartbeat age</span><strong>${data.runtime.heartbeat_age_seconds ?? "Unknown"}s</strong></div><div class="metric-line"><span>Event-loop lag</span><strong>${data.runtime.event_loop_lag_ms ?? "Unknown"}ms</strong></div></section><section class="section-block"><h3>Database</h3><div class="metric-line"><span>Remote primary</span><strong>${data.database.uses_remote ? "Yes" : "No"}</strong></div><div class="metric-line"><span>Waiting operations</span><strong>${data.database.waiting_operations || 0}</strong></div></section></div></details>
+    <details class="admin-disclosure"><summary>Schema and delivery diagnostics</summary><div class="operations-grid"><section class="section-block"><h3>Schema versions</h3>${data.schemas.map((item) => `<div class="metric-line"><span>${esc(item.component)}</span><strong>v${item.schema_version}</strong></div>`).join("") || '<p class="muted">No schema metadata.</p>'}</section><section class="section-block"><h3>Identity integrity</h3>${Object.entries(data.identity_repairs || {}).map(([status, item]) => `<div class="metric-line"><span>${esc(titleCase(status))}</span><strong>${item.records} records · ${item.rows_changed} rows</strong></div>`).join("") || '<p class="muted">No legacy snowflake repairs recorded.</p>'}</section><section class="section-block"><h3>Dead outbox entries</h3><strong>${data.dead_outbox.length}</strong><p class="muted">Inspect correlation IDs before replaying side effects.</p></section></div></details>
+    ${config ? `<details class="admin-disclosure"><summary>Safe configuration</summary><div class="form-grid compact-form"><label>Stale claim threshold in hours<input id="config-stale" type="number" min="1" max="720" value="${config.configuration.claim_stale_hours}"></label><label class="checkbox-row"><input id="config-apps" type="checkbox" ${config.configuration.applications_open ? "checked" : ""}><span>Reviewer applications open</span></label><button class="button primary" data-action="config-save">Save configuration</button></div></details>` : ""}
+    <details class="admin-disclosure danger-zone"><summary>Recovery actions</summary><p class="muted">Use only after inspecting the relevant incident or worker state. Every action is audited.</p><div class="toolbar">${data.available_actions.map((action) => `<button class="button secondary" data-system-action="${esc(action)}">${esc(titleCase(action))}</button>`).join("")}</div></details>`;
 }
 
 async function renderPPS() {
@@ -361,18 +447,27 @@ async function renderAudit() {
   return `<div class="toolbar"><input id="audit-actor" placeholder="Actor ID"><input id="audit-action" placeholder="Action"><input id="audit-entity" placeholder="Entity"><button class="button secondary" data-action="audit-apply">Filter</button></div>${data.items.length ? `<table class="data-table"><thead><tr><th>When</th><th>Action</th><th>Entity</th><th>Actor</th></tr></thead><tbody>${data.items.map((item) => `<tr><td data-label="When">${fmtTime(item.created_ts)}</td><td data-label="Action">${esc(titleCase(item.event))}</td><td data-label="Entity">${esc(item.entity_id)}</td><td data-label="Actor">${esc(item.actor_id ? identityLabel(item.actor, item.actor_id) : "System")}</td></tr>`).join("")}</tbody></table>` : empty("No audit events match")}`;
 }
 
-async function renderConfiguration() {
-  const data = await api("/api/staff/configuration");
-  return `<section class="panel"><div class="panel-head"><div><h2>Safe configuration</h2><p class="muted">Secrets and arbitrary database access are intentionally unavailable.</p></div></div><div class="form-grid"><label>Stale claim threshold in hours<input id="config-stale" type="number" min="1" max="720" value="${data.configuration.claim_stale_hours}"></label><label><input id="config-apps" type="checkbox" ${data.configuration.applications_open ? "checked" : ""}> Applications open</label><button class="button primary" data-action="config-save">Save configuration</button></div></section>`;
-}
-
 const renderers = {
   overview: renderOverview, "my-work": renderMyWork, queue: renderQueue, outreach: renderOutreach,
   tasks: renderTasks, notes: renderNotes, "team-overview": renderTeamOverview, statistics: renderStatistics,
   "review-qa": renderQA, applications: renderApplications, staff: renderStaff, operations: renderOperations, pps: renderPPS,
   requests: renderRequestsAdmin, community: renderCommunity, "admin-staff": renderStaff, system: renderSystem,
-  audit: renderAudit, configuration: renderConfiguration,
+  audit: renderAudit,
 };
+
+function openDrawer(eyebrow, title, html) {
+  const drawer = $("#detail-drawer");
+  state.drawerReturnFocus = document.activeElement?.offsetParent !== null ? document.activeElement : $("#profile-button");
+  $("#detail-eyebrow").textContent = eyebrow;
+  $("#detail-title").textContent = title;
+  $("#drawer-content").innerHTML = html;
+  drawer.inert = false;
+  drawer.classList.add("open");
+  drawer.setAttribute("aria-hidden", "false");
+  $("#drawer-scrim").hidden = false;
+  document.body.classList.add("drawer-open");
+  $("#drawer-close").focus();
+}
 
 function closeDrawer() {
   const drawer = $("#detail-drawer");
@@ -380,8 +475,9 @@ function closeDrawer() {
   drawer.setAttribute("aria-hidden", "true");
   drawer.inert = true;
   $("#drawer-scrim").hidden = true;
-  if (state.returnFocus instanceof HTMLElement) state.returnFocus.focus();
-  state.returnFocus = null;
+  document.body.classList.remove("drawer-open");
+  if (state.drawerReturnFocus instanceof HTMLElement) state.drawerReturnFocus.focus();
+  state.drawerReturnFocus = null;
 }
 
 async function actionDialog({ title, description, fields = [], confirm = "Confirm", danger = false, showCancel = true, run }) {
@@ -482,7 +578,7 @@ async function actionDialog({ title, description, fields = [], confirm = "Confir
 }
 
 async function queueAction(action, id) {
-  if (action === "claim") return api(`/api/staff/queue/${id}/claim`, { method: "POST", body: {} }).then(() => openQueue(id));
+  if (action === "claim") return api(`/api/staff/queue/${id}/claim`, { method: "POST", body: {} }).then(() => { showNotice("Claimed"); return openQueue(id); });
   if (action === "release") return actionDialog({ title: "Release claim", description: "The level will become available to other staff.", fields: [{ name: "reason", label: "Reason (required for another staff member)", type: "textarea" }], confirm: "Release", run: (body) => api(`/api/staff/queue/${id}/release`, { method: "POST", body }) });
   if (action === "reassign") return actionDialog({ title: "Reassign claim", description: "Responsibility moves to the selected staff member and the change is audited.", fields: [{ name: "assignee_id", label: "New assignee Discord ID", type: "text", discordId: true, required: true }, { name: "reason", label: "Reason", type: "textarea", required: true }], confirm: "Reassign", run: (body) => api(`/api/staff/queue/${id}/reassign`, { method: "POST", body }) });
   if (action === "outreach") return outreachDialog(id);
@@ -504,27 +600,12 @@ function outreachDialog(queueId = "") {
 
 function profileDialog(editNickname = false) {
   const user = state.user;
-  return actionDialog({
-    title: editNickname ? "Edit portal nickname" : "My staff profile",
-    description: editNickname ? "This name appears only in the staff portal. Your Discord nickname is unchanged." : "Your current Discord identity and role are resolved by Avenue Guard.",
-    fields: editNickname ? [
-      { name: "portal_nickname", label: "Portal nickname", value: user.portal_nickname || "" },
-    ] : [
-      { name: "display_name", label: "Display name", type: "display", value: user.display_name },
-      { name: "discord_display_name", label: "Discord display name", type: "display", value: user.discord_display_name },
-      { name: "username", label: "Discord username", type: "display", value: user.username },
-      { name: "user_id", label: "Discord ID", type: "display", value: user.id, monospace: true },
-      { name: "role", label: "Portal role", type: "display", value: user.role_label || roleLabel(user.role) },
-    ],
-    confirm: editNickname ? "Save nickname" : "Close",
-    showCancel: editNickname,
-    run: async (body) => {
-      if (!editNickname) return;
-      const result = await api("/api/staff/profile", { method: "PATCH", body });
-      state.user = { ...state.user, ...result.profile };
-      $("#user-name").textContent = state.user.display_name;
-    },
-  });
+  const identity = `<div class="profile-hero">${user.avatar_url ? `<img src="${esc(user.avatar_url)}" alt="" width="72" height="72">` : ""}<div>${pill(user.role_label || roleLabel(user.role))}</div></div>
+    <div class="profile-detail"><small>Display name</small><strong>${esc(user.display_name)}</strong></div>
+    <div class="profile-detail"><small>Discord username</small><strong>${esc(user.username || "Not available")}</strong></div>
+    <div class="profile-detail"><small>Exact Discord ID</small><span><strong class="secondary-id">${esc(exactId(user.id))}</strong>${copyButton(user.id)}</span></div>`;
+  const nickname = `<form id="profile-nickname-form" class="drawer-section form-grid"><label>Portal nickname<input name="portal_nickname" value="${esc(user.portal_nickname || "")}" maxlength="64"></label><p class="muted">This affects the staff portal only. Your Discord nickname is unchanged.</p><button class="button primary" type="submit">Save nickname</button></form>`;
+  openDrawer("Personal profile", editNickname ? "Edit portal nickname" : "My staff profile", `${identity}${editNickname ? nickname : `<section class="drawer-section"><button class="button secondary" data-profile-action="nickname">Edit portal nickname</button></section>`}`);
 }
 
 function requestAdminDialog(action, scheduled = null) {
@@ -588,6 +669,8 @@ async function initialize() {
     if (hash) { state.module = hash[1]; state.section = hash[2]; }
     $("#user-name").textContent = state.user.display_name;
     $("#user-role").textContent = state.user.role_label || roleLabel(state.user.role);
+    $("#profile-menu-name").textContent = state.user.display_name;
+    $("#profile-menu-identity").textContent = `${state.user.role_label || roleLabel(state.user.role)} · ${exactId(state.user.id)}`;
     $("#user-avatar").src = state.user.avatar_url || "https://cdn.discordapp.com/avatars/1454985687177887866/d268221fd7a7a5529897730d18edd5a0.webp?size=128";
     $("#app").hidden = false; $("#auth-gate").hidden = true;
     setShell(); await render();
@@ -607,6 +690,12 @@ document.addEventListener("click", async (event) => {
     $("#profile-button").setAttribute("aria-expanded", "false");
     if (profileAction.dataset.profileAction === "view") return profileDialog(false);
     if (profileAction.dataset.profileAction === "nickname") return profileDialog(true);
+    if (profileAction.dataset.profileAction === "identity") return profileDialog(false);
+  }
+  const copy = event.target.closest("[data-copy]");
+  if (copy) {
+    await navigator.clipboard.writeText(copy.dataset.copy);
+    return showNotice("Copied to clipboard");
   }
   const moduleButton = event.target.closest("[data-module]");
   if (moduleButton) return navigate(moduleButton.dataset.module);
@@ -617,6 +706,8 @@ document.addEventListener("click", async (event) => {
   }
   const nav = event.target.closest("[data-nav]");
   if (nav) {
+    $("#profile-menu").hidden = true;
+    $("#profile-button").setAttribute("aria-expanded", "false");
     const [module, section] = nav.dataset.nav.split("/");
     state.queueQuery = section === "queue" && nav.dataset.filter
       ? new URLSearchParams({ filter: nav.dataset.filter, limit: "50" }).toString()
@@ -631,6 +722,14 @@ document.addEventListener("click", async (event) => {
   }
   const open = event.target.closest("[data-open-queue]");
   if (open) return openQueue(open.dataset.openQueue);
+  const openApplicationButton = event.target.closest("[data-open-application]");
+  if (openApplicationButton) return openApplication(openApplicationButton.dataset.openApplication);
+  const openStaffButton = event.target.closest("[data-open-staff]");
+  if (openStaffButton) return openStaffInspector(openStaffButton.dataset.openStaff);
+  const openQAButton = event.target.closest("[data-open-qa]");
+  if (openQAButton) return openQAInspector(openQAButton.dataset.openQa);
+  const openTaskButton = event.target.closest("[data-open-task]");
+  if (openTaskButton && !event.target.closest("[data-complete-task]")) return openTaskInspector(openTaskButton.dataset.openTask);
   const queueButton = event.target.closest("[data-queue-action]");
   if (queueButton) return queueAction(queueButton.dataset.queueAction, queueButton.dataset.id);
   const action = event.target.closest("[data-action]")?.dataset.action;
@@ -666,7 +765,7 @@ document.addEventListener("click", async (event) => {
   const incident = event.target.closest("[data-incident]");
   if (incident) return showIncident(incident.dataset.incident);
   const complete = event.target.closest("[data-complete-task]");
-  if (complete) return api(`/api/staff/tasks/${complete.dataset.completeTask}`, { method: "PATCH", body: { status: "done" } }).then(render).catch((error) => showNotice(error.message, true));
+  if (complete) return api(`/api/staff/tasks/${complete.dataset.completeTask}`, { method: "PATCH", body: { status: "done" } }).then(() => { showNotice("Task completed"); return render(); }).catch((error) => showNotice(error.message, true));
   const qa = event.target.closest("[data-qa]");
   if (qa) return actionDialog({ title: "Review QA action", description: "Tier adjustments require a reason and confirmation. They remain auditable and preserve the original tier.", fields: [{ name: "action", label: "Outcome", type: "select", options: [["ok","Reviewed OK"],["discussion","Needs discussion"],["rereview","Re-review requested"],["adjust","Adjust recommendation tier"]] }, { name: "tier", label: "Tier (used only for adjustment)", type: "select", options: ["rate","feature","epic","legendary","mythic"].map((value) => [value,titleCase(value)]) }, { name: "reason", label: "Reason", type: "textarea" }, { name: "confirmed", label: "I confirm this tier adjustment when selected", type: "checkbox" }], run: (body) => api(`/api/staff/qa/${qa.dataset.qa}`, { method: "POST", body }) });
   const app = event.target.closest("[data-app-action]");
@@ -684,11 +783,51 @@ document.addEventListener("click", async (event) => {
   if (nickname) return actionDialog({ title: "Edit portal nickname", description: "This affects the staff portal only, not the Discord server nickname.", fields: [{ name: "portal_nickname", label: "Portal nickname", value: nickname.dataset.nicknameValue || "" }, ...(nickname.dataset.nicknameId === state.user.id ? [] : [{ name: "reason", label: "Reason", type: "textarea", required: true }])], confirm: "Save nickname", run: (body) => api(`/api/staff/staff/${nickname.dataset.nicknameId}/nickname`, { method: "PATCH", body }) });
 });
 
-document.addEventListener("keydown", (event) => {
-  const row = event.target.closest?.("[data-open-queue]");
-  if (!row || !["Enter", " "].includes(event.key)) return;
+document.addEventListener("submit", async (event) => {
+  if (event.target.id !== "profile-nickname-form") return;
   event.preventDefault();
-  openQueue(row.dataset.openQueue);
+  const submit = event.target.querySelector('button[type="submit"]');
+  submit.disabled = true;
+  try {
+    const portal_nickname = new FormData(event.target).get("portal_nickname")?.toString().trim() || "";
+    const result = await api("/api/staff/profile", { method: "PATCH", body: { portal_nickname } });
+    state.user = { ...state.user, ...result.profile };
+    $("#user-name").textContent = state.user.display_name;
+    $("#profile-menu-name").textContent = state.user.display_name;
+    showNotice("Portal nickname saved");
+    closeDrawer();
+  } catch (error) {
+    showNotice(error.message, true);
+  } finally {
+    submit.disabled = false;
+  }
+});
+
+document.addEventListener("keydown", (event) => {
+  if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+    event.preventDefault();
+    $("#global-search").focus();
+    showJumpResults();
+    return;
+  }
+  if (event.key === "Escape" && $("#detail-drawer").classList.contains("open")) {
+    closeDrawer();
+    return;
+  }
+  if (event.key === "Tab" && $("#detail-drawer").classList.contains("open")) {
+    const focusable = [...$("#detail-drawer").querySelectorAll('button, a[href], input, select, textarea, summary, [tabindex]:not([tabindex="-1"])')].filter((item) => !item.disabled && item.offsetParent !== null);
+    if (focusable.length) {
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+    }
+  }
+  const row = event.target.closest?.("[data-open-queue]");
+  const task = event.target.closest?.("[data-open-task]");
+  if (!["Enter", " "].includes(event.key)) return;
+  if (row) { event.preventDefault(); openQueue(row.dataset.openQueue); }
+  else if (task) { event.preventDefault(); openTaskInspector(task.dataset.openTask); }
 });
 
 $("#refresh-button").addEventListener("click", render);
@@ -705,6 +844,10 @@ document.addEventListener("click", (event) => {
   if (event.target.closest(".sidebar-profile-wrap")) return;
   $("#profile-menu").hidden = true;
   $("#profile-button").setAttribute("aria-expanded", "false");
+  if (!event.target.closest(".search-wrap")) {
+    $("#search-results").hidden = true;
+    $("#global-search").setAttribute("aria-expanded", "false");
+  }
 });
 $("#logout-button").addEventListener("click", async () => {
   try {
@@ -714,16 +857,33 @@ $("#logout-button").addEventListener("click", async () => {
   }
 });
 let searchTimer;
+const jumpTargets = [
+  ["work", "my-work", "My Work"], ["work", "queue", "Queue"], ["work", "outreach", "Outreach"],
+  ["work", "tasks", "Tasks"], ["team", "statistics", "Statistics"], ["team", "applications", "Applications"],
+  ["admin", "operations", "Operations"], ["admin", "requests", "Requests"], ["admin", "system", "System"],
+];
+function showJumpResults(term = "") {
+  const normalized = term.toLowerCase();
+  const targets = jumpTargets.filter(([module, section, label]) => (!normalized || label.toLowerCase().includes(normalized)) && modules[module] && sectionAllowed(section) && (module !== "admin" || can("admin.access")));
+  const box = $("#search-results");
+  box.innerHTML = targets.map(([module, section, label]) => `<button class="search-result jump-result" type="button" data-nav="${module}/${section}"><strong>${esc(label)}</strong><small>Jump to ${esc(modules[module].label)}</small></button>`).join("") || '<div class="search-result">No matching destinations</div>';
+  box.hidden = false;
+  $("#global-search").setAttribute("aria-expanded", "true");
+}
+$("#global-search").addEventListener("focus", (event) => {
+  if (!event.target.value.trim()) showJumpResults();
+});
 $("#global-search").addEventListener("input", (event) => {
   clearTimeout(searchTimer);
   const term = event.target.value.trim();
-  if (term.length < 2) { $("#search-results").hidden = true; return; }
+  if (term.length < 2) { showJumpResults(term); return; }
   searchTimer = setTimeout(async () => {
     try {
       const data = await api(`/api/staff/search?q=${encodeURIComponent(term)}`);
       const box = $("#search-results");
       box.innerHTML = data.items.length ? data.items.map((item) => `<button class="search-result" type="button" ${item.type === "level" ? `data-open-queue="${item.id}"` : `data-search-type="${esc(item.type)}" data-search-id="${esc(item.id)}"`}><strong>${esc(item.current_level_name || item.title || item.display_name || `Application #${item.id}`)}</strong><br><small>${esc(titleCase(item.role || item.type))}</small></button>`).join("") : '<div class="search-result">No matching staff records</div>';
       box.hidden = false;
+      $("#global-search").setAttribute("aria-expanded", "true");
     } catch { $("#search-results").hidden = true; }
   }, 280);
 });

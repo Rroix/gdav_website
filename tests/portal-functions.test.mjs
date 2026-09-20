@@ -134,6 +134,37 @@ test("authenticated reload proxies the secure cookie session without exposing se
   assert.equal(typeof JSON.parse(response.body).user.id, "string");
 });
 
+test("proxy preserves exact snowflake strings across every staff workflow shape", async () => {
+  process.env.AVENUE_GUARD_API_URL = "https://avenue-guard.example";
+  process.env.AVENUE_GUARD_API_TOKEN = "private-service-token";
+  const exact = "1102884420207255653";
+  const payload = {
+    profile: { user_id: exact, role_ids: ["901431567719731230"] },
+    claim: { claimed_by: exact },
+    outreach: { actor_id: exact },
+    qa: { reviewed_by: exact, qa_by: exact },
+    audit: { actor_id: exact },
+    task: { assignee_id: exact, created_by: exact },
+    application: { applicant_id: exact, decided_by: exact },
+  };
+  globalThis.fetch = async () => jsonResponse(200, payload);
+  const response = await proxy({
+    httpMethod: "GET",
+    headers: { cookie: `${SESSION_COOKIE}=browser-session` },
+    rawUrl: "https://gdavenue.netlify.app/api/staff/identity-contract",
+    queryStringParameters: {},
+  });
+  assert.equal(response.statusCode, 200);
+  const received = JSON.parse(response.body);
+  assert.deepEqual(received, payload);
+  for (const section of Object.values(received)) {
+    for (const [key, value] of Object.entries(section)) {
+      if (key.endsWith("_id") || key.endsWith("_by")) assert.equal(typeof value, "string");
+      if (key === "role_ids") assert.equal(typeof value[0], "string");
+    }
+  }
+});
+
 test("OAuth login uses identify only and the server callback route", async () => {
   process.env.DISCORD_CLIENT_ID = "1454985687177887866";
   process.env.URL = "https://gdavenue.netlify.app";
