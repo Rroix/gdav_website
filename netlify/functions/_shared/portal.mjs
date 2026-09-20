@@ -69,6 +69,17 @@ export function siteUrl(event) {
   return `${proto}://${host}`;
 }
 
+export function portalDestinationUrl(event, destination, params = {}) {
+  const pathname = destination === "/apply" ? "/apply/" : "/staff/";
+  const target = new URL(pathname, `${siteUrl(event)}/`);
+  for (const [key, value] of Object.entries(params)) {
+    if (value !== undefined && value !== null && String(value)) {
+      target.searchParams.set(key, String(value));
+    }
+  }
+  return target.toString();
+}
+
 export async function botRequest(path, { method = "GET", body, session, csrf, idempotency, viewRole } = {}) {
   const base = required("AVENUE_GUARD_API_URL").replace(/\/$/, "");
   const headers = {

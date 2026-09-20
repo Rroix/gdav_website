@@ -5,6 +5,7 @@ import {
   botRequest,
   cookie,
   cookies,
+  portalDestinationUrl,
   required,
   secureEqual,
   siteUrl,
@@ -19,6 +20,11 @@ export async function handler(event) {
   if (!parsedState) {
     return { statusCode: 400, body: "This sign-in attempt expired. Return to the portal and try again." };
   }
+  const cleanDestination = (params = {}) => portalDestinationUrl(
+    event,
+    parsedState.destination,
+    params,
+  );
   if (!stateCookie || !secureEqual(stateCookie, state)) {
     // Some mobile browsers revisit the callback after the first exchange has
     // already created the session and cleared the one-time state cookie. Check
@@ -32,9 +38,9 @@ export async function handler(event) {
         );
         if (session.status < 400) {
           return {
-            statusCode: 302,
+            statusCode: 303,
             headers: {
-              Location: parsedState.destination,
+              Location: cleanDestination(),
               "Set-Cookie": cookie(OAUTH_COOKIE, "", { httpOnly: true, sameSite: "Lax", maxAge: 0 }),
               "Cache-Control": "no-store",
             },
@@ -45,7 +51,7 @@ export async function handler(event) {
         // Clear stale browser credentials below. A fresh login can then start.
       }
       return {
-        statusCode: 302,
+        statusCode: 303,
         multiValueHeaders: {
           "Set-Cookie": [
             cookie(SESSION_COOKIE, "", { httpOnly: true, maxAge: 0 }),
@@ -54,13 +60,26 @@ export async function handler(event) {
           ],
         },
         headers: {
-          Location: `${parsedState.destination}?auth_error=${encodeURIComponent("Your previous sign-in expired. Please continue with Discord again.")}`,
+          Location: cleanDestination({
+            auth_error: "Your previous sign-in expired. Please continue with Discord again.",
+          }),
           "Cache-Control": "no-store",
         },
         body: "",
       };
     }
     return { statusCode: 400, body: "This sign-in attempt expired. Return to the portal and try again." };
+  }
+  const code = String(event.queryStringParameters?.code || "").trim();
+  if (!code) {
+    return {
+      statusCode: 400,
+      headers: {
+        "Set-Cookie": cookie(OAUTH_COOKIE, "", { httpOnly: true, sameSite: "Lax", maxAge: 0 }),
+        "Cache-Control": "no-store",
+      },
+      body: "This sign-in attempt is incomplete. Return to the portal and try again.",
+    };
   }
   try {
     const redirectUri = `${siteUrl(event)}/api/auth/callback`;
@@ -71,7 +90,7 @@ export async function handler(event) {
         client_id: required("DISCORD_CLIENT_ID"),
         client_secret: required("DISCORD_CLIENT_SECRET"),
         grant_type: "authorization_code",
-        code: String(event.queryStringParameters?.code || ""),
+        code,
         redirect_uri: redirectUri,
       }),
     });
@@ -90,15 +109,15 @@ export async function handler(event) {
       },
     });
     if (sessionResponse.status >= 400) {
-      const reason = encodeURIComponent(
+      const reason = String(
         sessionResponse.payload?.error?.message
         || sessionResponse.payload?.message
         || "Access could not be verified",
       );
       return {
-        statusCode: 302,
+        statusCode: 303,
         headers: {
-          Location: `${parsedState.destination}?auth_error=${reason}`,
+          Location: cleanDestination({ auth_error: reason }),
           "Set-Cookie": cookie(OAUTH_COOKIE, "", { httpOnly: true, sameSite: "Lax", maxAge: 0 }),
           "Cache-Control": "no-store",
         },
@@ -107,7 +126,7 @@ export async function handler(event) {
     }
     const ttl = Math.max(60, Number(sessionResponse.payload.expires_ts || 0) - Math.floor(Date.now() / 1000));
     return {
-      statusCode: 302,
+      statusCode: 303,
       multiValueHeaders: {
         "Set-Cookie": [
           cookie(SESSION_COOKIE, sessionResponse.payload.session_token, { httpOnly: true, maxAge: ttl }),
@@ -115,15 +134,15 @@ export async function handler(event) {
           cookie(OAUTH_COOKIE, "", { httpOnly: true, sameSite: "Lax", maxAge: 0 }),
         ],
       },
-      headers: { Location: parsedState.destination, "Cache-Control": "no-store" },
+      headers: { Location: cleanDestination(), "Cache-Control": "no-store" },
       body: "",
     };
   } catch {
-    const reason = encodeURIComponent("Discord sign-in could not be completed. Please try again.");
+    const reason = "Discord sign-in could not be completed. Please try again.";
     return {
-      statusCode: 302,
+      statusCode: 303,
       headers: {
-        Location: `${parsedState.destination}?auth_error=${reason}`,
+        Location: cleanDestination({ auth_error: reason }),
         "Set-Cookie": cookie(OAUTH_COOKIE, "", { httpOnly: true, sameSite: "Lax", maxAge: 0 }),
         "Cache-Control": "no-store",
       },

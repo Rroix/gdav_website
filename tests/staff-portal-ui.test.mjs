@@ -91,7 +91,7 @@ test("Dev controls expose read-only role preview and reversible hidden levels", 
   assert.match(markup, /id="view-mode-select"/);
   assert.match(script, /"X-Staff-View-Role": state\.viewRole/);
   assert.match(script, /Read-only Dev preview/);
-  assert.match(script, /\["hidden","Hidden"\]/);
+  assert.match(script, /\["hidden", supports\("hidden_queue_entries"\) \? "Hidden" : "Hidden \(API update required\)"/);
   assert.match(script, /data-queue-action="hide"/);
   assert.match(script, /data-queue-action="restore"/);
   assert.match(script, /supports\("hidden_queue_entries"\)/);
@@ -99,6 +99,7 @@ test("Dev controls expose read-only role preview and reversible hidden levels", 
 
 test("team and application workflows expose the requested operational controls", () => {
   assert.match(script, /data-action="add-staff"/);
+  assert.match(script, /Add staff is preserved but temporarily disabled/);
   assert.match(script, /\["remove","Remove from team"\]/);
   assert.match(script, /Proceed to interview/);
   assert.match(script, /Accept without interview/);
@@ -118,7 +119,19 @@ test("public applications render server-defined typed questions and review promp
   assert.doesNotMatch(application, /Assigned level/i);
   assert.match(application, /\/api\/apply\/form/);
   assert.match(application, /application_data_reset/);
+  assert.match(application, /Application deletion is preserved but temporarily disabled/);
   assert.match(application, /method: "DELETE"/);
   assert.match(application, /credentials: "same-origin"/);
   assert.match(application, /sessionStorage\.getItem\(replayKey\)/);
+  assert.match(application, /sessionStorage\.removeItem\("av-apply-oauth-forward"\)/);
+});
+
+test("OAuth compatibility bridges are one-shot and clean callback parameters", () => {
+  assert.match(script, /params\.delete\("code"\)/);
+  assert.match(script, /params\.delete\("state"\)/);
+  assert.match(script, /sessionStorage\.getItem\(replayKey\) === oauthState/);
+  assert.match(script, /sessionStorage\.removeItem\("av-staff-oauth-forward"\)/);
+  assert.match(application, /params\.delete\("code"\)/);
+  assert.match(application, /params\.delete\("state"\)/);
+  assert.match(application, /sessionStorage\.getItem\(replayKey\) === oauthState/);
 });

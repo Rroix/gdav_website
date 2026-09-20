@@ -7,6 +7,7 @@ import {
   SESSION_COOKIE,
   cookie,
   createOAuthState,
+  portalDestinationUrl,
   secureEqual,
   verifyOAuthState,
 } from "../netlify/functions/_shared/portal.mjs";
@@ -50,6 +51,17 @@ test("OAuth state is signed, destination-bound, and tamper evident", () => {
   const parsed = verifyOAuthState(value);
   assert.equal(parsed.destination, "/apply");
   assert.equal(verifyOAuthState(`${value}tampered`), null);
+});
+
+test("portal destinations are absolute, canonical, and contain only approved query values", () => {
+  process.env.URL = "https://gdavenue.netlify.app";
+  const staff = new URL(portalDestinationUrl({}, "/staff"));
+  const apply = new URL(portalDestinationUrl({}, "/apply", { auth_error: "Try again" }));
+  assert.equal(staff.href, "https://gdavenue.netlify.app/staff/");
+  assert.equal(apply.pathname, "/apply/");
+  assert.equal(apply.searchParams.get("auth_error"), "Try again");
+  assert.equal(apply.searchParams.has("code"), false);
+  assert.equal(apply.searchParams.has("state"), false);
 });
 
 test("session cookies keep the server session HttpOnly while CSRF remains readable", () => {
@@ -218,8 +230,9 @@ test("OAuth callback exchanges identity server-side and creates a clean staff se
     });
   };
   const response = await callback(oauthEvent(state));
-  assert.equal(response.statusCode, 302);
-  assert.equal(response.headers.Location, "/staff");
+  assert.equal(response.statusCode, 303);
+  assert.equal(response.headers.Location, "https://gdavenue.netlify.app/staff/");
+  assert.equal(new URL(response.headers.Location).search, "");
   const cookies = response.multiValueHeaders["Set-Cookie"];
   assert.ok(cookies.some((value) => value.startsWith(`${SESSION_COOKIE}=`) && value.includes("HttpOnly") && value.includes("Secure")));
   assert.ok(cookies.some((value) => value.startsWith(`${CSRF_COOKIE}=`) && !value.includes("HttpOnly")));
@@ -249,8 +262,11 @@ test("OAuth callback reads the standardized Avenue Guard error contract", async 
       headers: { cookie: `${OAUTH_COOKIE}=${encodeURIComponent(state)}`, host: "gdavenue.netlify.app" },
       queryStringParameters: { state, code: "code" },
     });
-    assert.equal(response.statusCode, 302);
-    assert.match(response.headers.Location, /auth_error=A%20current%20staff%20role%20is%20required/);
+    assert.equal(response.statusCode, 303);
+    const destination = new URL(response.headers.Location);
+    assert.equal(destination.searchParams.get("auth_error"), "A current staff role is required");
+    assert.equal(destination.pathname, "/staff/");
+    assert.equal(destination.searchParams.has("code"), false);
   } finally {
     global.fetch = originalFetch;
   }
@@ -271,7 +287,8 @@ test("application callback requests an application session instead of staff elev
     return jsonResponse(201, { session_token: "session", csrf_token: "csrf", expires_ts: Math.floor(Date.now() / 1000) + 3600 });
   };
   const response = await callback(oauthEvent(state, "/apply"));
-  assert.equal(response.headers.Location, "/apply");
+  assert.equal(response.statusCode, 303);
+  assert.equal(response.headers.Location, "https://gdavenue.netlify.app/apply/");
   assert.deepEqual(backendBody, { user_id: "999", purpose: "apply" });
 });
 
@@ -288,8 +305,8 @@ test("revisited OAuth callback redirects an existing session without reusing the
     headers: { cookie: `${SESSION_COOKIE}=existing-session`, host: "gdavenue.netlify.app" },
     queryStringParameters: { state, code: "already-used-code" },
   });
-  assert.equal(response.statusCode, 302);
-  assert.equal(response.headers.Location, "/staff");
+  assert.equal(response.statusCode, 303);
+  assert.equal(response.headers.Location, "https://gdavenue.netlify.app/staff/");
   assert.deepEqual(requests, ["https://avenue-guard.example/api/staff/session"]);
 });
 
@@ -302,8 +319,8 @@ test("revisited OAuth callback clears a stale session instead of looping", async
     headers: { cookie: `${SESSION_COOKIE}=stale-session`, host: "gdavenue.netlify.app" },
     queryStringParameters: { state, code: "already-used-code" },
   });
-  assert.equal(response.statusCode, 302);
-  assert.match(response.headers.Location, /^\/apply\?auth_error=/);
+  assert.equal(response.statusCode, 303);
+  assert.match(response.headers.Location, /^https:\/\/gdavenue\.netlify\.app\/apply\/\?auth_error=/);
   assert.equal(response.multiValueHeaders["Set-Cookie"].length, 3);
   assert.ok(response.multiValueHeaders["Set-Cookie"].every((value) => value.includes("Max-Age=0")));
 });
@@ -330,6 +347,55 @@ test("OAuth callback rejects a present state cookie that does not match", async 
   });
   assert.equal(response.statusCode, 400);
   assert.equal(contacted, false);
+});
+
+test("OAuth callback rejects a missing code before contacting Discord", async () => {
+  const state = createOAuthState("/staff");
+  let contacted = false;
+  globalThis.fetch = async () => { contacted = true; throw new Error("must not run"); };
+  const response = await callback({
+    headers: { cookie: `${OAUTH_COOKIE}=${encodeURIComponent(state)}`, host: "gdavenue.netlify.app" },
+    queryStringParameters: { state },
+  });
+  assert.equal(response.statusCode, 400);
+  assert.equal(contacted, false);
+  assert.match(response.headers["Set-Cookie"], /Max-Age=0/);
+});
+
+test("proxy forwards add-staff and application deletion mutations exactly", async () => {
+  process.env.AVENUE_GUARD_API_URL = "https://avenue-guard.example";
+  process.env.AVENUE_GUARD_API_TOKEN = "private-service-token";
+  const calls = [];
+  globalThis.fetch = async (url, options) => {
+    calls.push({ url: String(url), options });
+    return jsonResponse(200, { ok: true });
+  };
+  const headers = {
+    cookie: `${SESSION_COOKIE}=browser-session; ${CSRF_COOKIE}=csrf-token`,
+    "x-csrf-token": "csrf-token",
+    "idempotency-key": "workflow-test-key-123",
+  };
+  const addStaff = await proxy({
+    httpMethod: "POST",
+    headers,
+    rawUrl: "https://gdavenue.netlify.app/api/staff/staff",
+    body: JSON.stringify({ user_id: "1156180438977617990", role: "admin" }),
+    queryStringParameters: {},
+  });
+  const deleteApplication = await proxy({
+    httpMethod: "DELETE",
+    headers: { ...headers, "idempotency-key": "workflow-test-key-456" },
+    rawUrl: "https://gdavenue.netlify.app/api/apply/mine",
+    body: JSON.stringify({ confirmation: "DELETE" }),
+    queryStringParameters: {},
+  });
+  assert.equal(addStaff.statusCode, 200);
+  assert.equal(deleteApplication.statusCode, 200);
+  assert.equal(calls[0].url, "https://avenue-guard.example/api/staff/staff");
+  assert.equal(calls[0].options.method, "POST");
+  assert.equal(calls[1].url, "https://avenue-guard.example/api/apply/mine");
+  assert.equal(calls[1].options.method, "DELETE");
+  assert.deepEqual(JSON.parse(calls[1].options.body), { confirmation: "DELETE" });
 });
 
 test("invalid OAuth state is rejected before Discord or Avenue Guard is contacted", async () => {

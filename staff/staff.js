@@ -260,9 +260,11 @@ async function renderQueue(query = "") {
   const params = new URLSearchParams(query || { limit: "50" });
   if (!params.has("limit")) params.set("limit", "50");
   const data = await api(`/api/staff/queue?${params}`);
+  const filters = [["unclaimed","Unclaimed"],["mine","Mine"],["claimed","Claimed"],["top_priority","Top priority"],["cp_zero","CP 0"],["cp_unknown","CP unknown"],["waiting_3","W >= 3"],["outreach","In outreach"],["awaiting","Awaiting outcome"],["stale","Stale claims"]];
+  if (can("developer.access")) filters.push(["hidden", supports("hidden_queue_entries") ? "Hidden" : "Hidden (API update required)", !supports("hidden_queue_entries")]);
   return `<div class="toolbar">
     <input id="queue-search" type="search" placeholder="Level ID, name, or creator" value="${esc(params.get("q") || "")}">
-    <select id="queue-filter" aria-label="Queue filter"><option value="all">All queue</option>${[["unclaimed","Unclaimed"],["mine","Mine"],["claimed","Claimed"],["top_priority","Top priority"],["cp_zero","CP 0"],["cp_unknown","CP unknown"],["waiting_3","W >= 3"],["outreach","In outreach"],["awaiting","Awaiting outcome"],["stale","Stale claims"],...(can("developer.access") && supports("hidden_queue_entries") ? [["hidden","Hidden"]] : [])].map(([value,label]) => `<option value="${value}" ${params.get("filter") === value ? "selected" : ""}>${label}</option>`).join("")}</select>
+    <select id="queue-filter" aria-label="Queue filter"><option value="all">All queue</option>${filters.map(([value,label,disabled]) => `<option value="${value}" ${params.get("filter") === value ? "selected" : ""} ${disabled ? "disabled" : ""}>${label}</option>`).join("")}</select>
     <select id="queue-tier" aria-label="Recommendation tier"><option value="">All tiers</option>${["rate","feature","epic","legendary","mythic"].map((value) => `<option value="${value}" ${params.get("tier") === value ? "selected" : ""}>${titleCase(value)}</option>`).join("")}</select>
     <button class="button secondary" data-action="queue-apply">Apply</button>
   </div>
@@ -291,8 +293,8 @@ async function openQueue(id) {
         ${item.state !== "hidden" && can("outreach.record") ? `<button class="button secondary" data-queue-action="outreach" data-id="${id}">Record outreach</button>` : ""}
         ${item.state !== "hidden" && can("queue.manage_state") ? `<button class="button secondary" data-queue-action="state" data-id="${id}">Change state</button><button class="button secondary" data-queue-action="requeue" data-id="${id}">New episode</button>` : ""}
         ${item.state !== "hidden" && can("review.adjust_tier") ? `<button class="button secondary" data-queue-action="tier" data-id="${id}">Adjust tier</button>` : ""}
-        ${can("developer.access") && supports("hidden_queue_entries") && item.state !== "hidden" ? `<button class="button danger" data-queue-action="hide" data-id="${id}">Hide level</button>` : ""}
-        ${can("developer.access") && supports("hidden_queue_entries") && item.state === "hidden" ? `<button class="button primary" data-queue-action="restore" data-id="${id}">Restore level</button>` : ""}
+        ${can("developer.access") && item.state !== "hidden" ? `<button class="button danger" data-queue-action="hide" data-id="${id}" ${supports("hidden_queue_entries") ? "" : 'disabled aria-disabled="true" title="Deploy the matching Avenue Guard API to enable hidden levels"'}>Hide level</button>` : ""}
+        ${can("developer.access") && item.state === "hidden" ? `<button class="button primary" data-queue-action="restore" data-id="${id}" ${supports("hidden_queue_entries") ? "" : 'disabled aria-disabled="true" title="Deploy the matching Avenue Guard API to restore hidden levels"'}>Restore level</button>` : ""}
       </div></section>
       <details class="drawer-section"><summary>Outreach (${data.outreach.length})</summary>${data.outreach.length ? data.outreach.map((event) => `<div class="list-row"><div><strong>${esc(titleCase(event.status))}</strong><small>${esc(event.route_type)} · ${esc(event.private_target_label || "No target")}</small></div><small>${ago(event.event_ts)}</small></div>`).join("") : '<p class="muted">No outreach recorded.</p>'}</details>
       <details class="drawer-section"><summary>History (${data.history.length})</summary><ol class="timeline">${data.history.map((event) => `<li><strong>${esc(titleCase(event.event))}</strong><br><small class="muted">${fmtTime(event.created_ts)}</small></li>`).join("") || '<li>No history recorded.</li>'}</ol></details>
@@ -374,7 +376,11 @@ async function renderApplications() {
 async function renderStaff() {
   const data = await api("/api/staff/staff");
   state.staffItems = data.items;
-  return `<div class="panel-head"><div><h2>Staff access</h2><p class="muted">Discord roles remain authoritative. Portal names are separate and every access change is audited.</p></div>${can("developer.access") && supports("staff_manual_management") ? '<button class="button primary" data-action="add-staff">Add staff</button>' : ""}</div>${can("developer.access") && !supports("staff_manual_management") ? '<p class="warning-text">Manual staff management is unavailable until Avenue Guard and the portal use the same API version.</p>' : ""}${data.items.length ? `<div class="record-list">${data.items.map((member) => `<button class="record-row staff-record" type="button" data-open-staff="${esc(exactId(member.id))}"><span class="identity-row">${member.avatar_url ? `<img src="${esc(member.avatar_url)}" alt="" width="36" height="36">` : ""}<span><strong>${esc(member.display_name)}</strong><small>${esc(member.role_label || roleLabel(member.role))} · ${member.reviews} reviews · ${member.workload} active claims</small></span></span>${pill(member.active ? "active" : "inactive")}<span class="row-chevron" aria-hidden="true">View</span></button>`).join("")}</div>` : empty("No configured staff roles found")}`;
+  const manualManagement = supports("staff_manual_management");
+  const addStaff = can("developer.access")
+    ? `<button class="button primary" data-action="add-staff" ${manualManagement ? "" : 'disabled aria-disabled="true" title="Deploy the matching Avenue Guard API to enable this control"'}>Add staff</button>`
+    : "";
+  return `<div class="panel-head"><div><h2>Staff access</h2><p class="muted">Discord roles remain authoritative. Portal names are separate and every access change is audited.</p></div>${addStaff}</div>${can("developer.access") && !manualManagement ? '<p class="warning-text">Add staff is preserved but temporarily disabled because the deployed Avenue Guard API is older than this portal. Deploy Avenue Guard to enable it.</p>' : ""}${data.items.length ? `<div class="record-list">${data.items.map((member) => `<button class="record-row staff-record" type="button" data-open-staff="${esc(exactId(member.id))}"><span class="identity-row">${member.avatar_url ? `<img src="${esc(member.avatar_url)}" alt="" width="36" height="36">` : ""}<span><strong>${esc(member.display_name)}</strong><small>${esc(member.role_label || roleLabel(member.role))} · ${member.reviews} reviews · ${member.workload} active claims</small></span></span>${pill(member.active ? "active" : "inactive")}<span class="row-chevron" aria-hidden="true">View</span></button>`).join("")}</div>` : empty("No configured staff roles found")}`;
 }
 
 function openApplication(id) {
@@ -663,7 +669,12 @@ function applySession(data) {
   const select = $("#view-mode-select");
   if (supports("view_role_preview") && state.viewMode?.roles?.length) {
     control.hidden = false;
+    select.disabled = false;
     select.innerHTML = `<option value="">Actual Dev access</option>${state.viewMode.roles.filter((item) => item.key !== "dev").map((item) => `<option value="${esc(item.key)}" ${state.viewRole === item.key ? "selected" : ""}>${esc(item.label)}</option>`).join("")}`;
+  } else if (can("developer.access")) {
+    control.hidden = false;
+    select.disabled = true;
+    select.innerHTML = '<option>Role preview requires Avenue Guard update</option>';
   } else {
     control.hidden = true;
   }
@@ -682,21 +693,28 @@ function forwardLegacyOAuthCallback() {
   if (!params.has("code") && !params.has("state")) return false;
   const code = params.get("code");
   const oauthState = params.get("state");
-  history.replaceState(null, "", `${location.pathname}${location.hash}`);
+  params.delete("code");
+  params.delete("state");
+  const cleanQuery = params.toString();
+  history.replaceState(null, "", `${location.pathname}${cleanQuery ? `?${cleanQuery}` : ""}${location.hash}`);
   if (!code || !oauthState) {
     showAuth("This Discord sign-in attempt is incomplete. Please start again.");
     return true;
   }
+  const replayKey = "av-staff-oauth-forward";
+  if (sessionStorage.getItem(replayKey) === oauthState) return false;
+  sessionStorage.setItem(replayKey, oauthState);
   const callback = new URL("/api/auth/callback", location.origin);
   callback.searchParams.set("code", code);
   callback.searchParams.set("state", oauthState);
-  location.replace(`${callback.pathname}${callback.search}`);
+  location.replace(callback.href);
   return true;
 }
 
 async function initialize() {
   try {
     const data = await api("/api/staff/session");
+    sessionStorage.removeItem("av-staff-oauth-forward");
     applySession(data);
     if (!state.user.staff_access) return showAuth("Your Discord account does not currently have staff portal access.");
     const hash = location.hash.match(/^#(overview|work|team|admin)\/([a-z-]+)$/);

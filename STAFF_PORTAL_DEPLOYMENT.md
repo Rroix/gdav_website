@@ -47,8 +47,10 @@ After Discord returns the authorization code, the Netlify callback exchanges it
 server-side, requests `/users/@me`, and sends only that Discord user ID to Avenue
 Guard. Avenue Guard looks up the user in the configured guild with the bot and
 maps the live member roles to `judge`, `head_judge`, or `owner`. The callback then
-sets an `HttpOnly`, `Secure`, `SameSite=Strict` session cookie and redirects to the
-clean `/staff` URL. The authorization code and state are never stored in browser
+sets an `HttpOnly`, `Secure`, `SameSite=Strict` session cookie and returns a 303
+redirect to the absolute, canonical `/staff/` URL. Absolute trailing-slash URLs
+prevent Netlify's directory canonicalization from carrying the callback query into
+the portal. The authorization code and state are never stored in browser
 application state.
 
 The role mapping is refreshed on every authenticated bot API request. A member
@@ -62,9 +64,11 @@ cleared instead of being redirected repeatedly. A callback without
 either the matching one-time state cookie or an existing session still fails closed.
 
 Session responses include an Avenue Guard API version and explicit feature list.
-New portal controls stay hidden when the deployed bot does not advertise their
-route. This prevents misleading 404 actions during a website-first deployment,
-but does not replace the bot-first deployment order below.
+New Dev controls remain visible but disabled when the deployed bot does not
+advertise their route, with an explicit deployment-mismatch message. This prevents
+misleading 404 actions without making Add Staff, application deletion, hidden
+levels, or role preview appear to have been removed. It does not replace the
+bot-first deployment order below.
 
 ## Deploy order
 
@@ -79,7 +83,7 @@ but does not replace the bot-first deployment order below.
 ## Production checks
 
 - Request `/api/staff/session` signed out and confirm HTTP 401, not HTTP 404.
-- Visit `/staff` signed out and complete OAuth; confirm the final URL is exactly `/staff` without `code` or `state`.
+- Visit `/staff/` signed out and complete OAuth; confirm the final URL is exactly `/staff/` without `code` or `state`.
 - Verify an ordinary member can use `/apply` but cannot access staff data.
 - Verify Judge, Head Judge, and Owner navigation and mutation permissions.
 - As Dev, use **View as** for every role and confirm all preview requests are read-only.
@@ -104,7 +108,7 @@ but does not replace the bot-first deployment order below.
 - Search `/levels` by ID, name, and creator and inspect that no exact PPS, CP, requester, reviewer, note, target, or route is exposed.
 - Check `/staff`, `/apply`, `/levels`, and `/level/[id]` at desktop and mobile widths.
 
-For a local UI fixture with production-shaped responses, run `node tests/staff-preview-server.mjs` and open `http://127.0.0.1:4174/staff/`. The fixture never connects to production or Turso.
+For a local UI fixture with production-shaped responses, run `node tests/staff-preview-server.mjs` and open `http://127.0.0.1:4174/staff/`. To verify version-mismatch behavior, run `PORT=4175 LEGACY_API=1 WITHDRAWN_APPLICATION=1 node tests/staff-preview-server.mjs`; Add Staff and application deletion must remain visible but disabled. The fixture never connects to production or Turso.
 
 ## Rollback
 

@@ -6,30 +6,39 @@ let apiFeatures = new Set();
 let initialization = null;
 const supports = (feature) => apiFeatures.has(feature);
 
+function applicationResetControl(label) {
+  const available = supports("application_data_reset");
+  return `<button class="button danger" type="button" data-reset-application ${available ? "" : 'disabled aria-disabled="true" title="Deploy the matching Avenue Guard API to enable this control"'}>${esc(label)}</button>`;
+}
+
+function applicationCompatibilityNotice() {
+  return supports("application_data_reset")
+    ? ""
+    : '<p class="warning-text">Application deletion is preserved but temporarily disabled because the deployed Avenue Guard API is older than this page.</p>';
+}
+
 function forwardLegacyOAuthCallback() {
   const params = new URLSearchParams(location.search);
   if (!params.has("code") && !params.has("state")) return false;
   const code = params.get("code");
   const oauthState = params.get("state");
-  history.replaceState(null, "", `${location.pathname}${location.hash}`);
+  params.delete("code");
+  params.delete("state");
+  const cleanQuery = params.toString();
+  history.replaceState(null, "", `${location.pathname}${cleanQuery ? `?${cleanQuery}` : ""}${location.hash}`);
   if (!code || !oauthState) {
     $("#apply-content").hidden = true;
     $("#apply-auth").hidden = false;
     $("#apply-auth-message").textContent = "This Discord sign-in attempt is incomplete. Please start again.";
     return true;
   }
-  const replayKey = `av-oauth-forward:${oauthState}`;
-  if (sessionStorage.getItem(replayKey)) {
-    $("#apply-content").hidden = true;
-    $("#apply-auth").hidden = false;
-    $("#apply-auth-message").textContent = "That sign-in callback was already used. Clear the old sign-in and continue again.";
-    return true;
-  }
-  sessionStorage.setItem(replayKey, String(Date.now()));
+  const replayKey = "av-apply-oauth-forward";
+  if (sessionStorage.getItem(replayKey) === oauthState) return false;
+  sessionStorage.setItem(replayKey, oauthState);
   const callback = new URL("/api/auth/callback", location.origin);
   callback.searchParams.set("code", code);
   callback.searchParams.set("state", oauthState);
-  location.replace(`${callback.pathname}${callback.search}`);
+  location.replace(callback.href);
   return true;
 }
 
@@ -85,7 +94,7 @@ function formHtml(formData) {
   const answers = draft.answers || {};
   return `${stage("draft")}<form id="judge-form" class="form-grid">
     ${formData.questions.map((question) => questionHtml(question, answers)).join("")}
-    <div class="dialog-actions">${supports("application_data_reset") ? '<button class="button danger" type="button" data-reset-application>Delete application data</button>' : ""}<button class="button secondary" type="button" data-save="draft">Save draft</button><button class="button primary" type="submit">Submit application</button></div>
+    ${applicationCompatibilityNotice()}<div class="dialog-actions">${applicationResetControl("Delete application data")}<button class="button secondary" type="button" data-save="draft">Save draft</button><button class="button primary" type="submit">Submit application</button></div>
     <p id="apply-status" role="status"></p>
   </form>`;
 }
@@ -96,12 +105,13 @@ async function initializeInner() {
   if (authError) history.replaceState(null, "", `${location.pathname}${location.hash}`);
   try {
     const session = await api("/api/apply/session");
+    sessionStorage.removeItem("av-apply-oauth-forward");
     apiFeatures = new Set(session.api?.features || []);
     const data = await api("/api/apply/mine");
     const active = data.items.find((item) => ["submitted","under_review","interview","hold","accepted_pending_role"].includes(item.status));
     const visibleApplication = active || data.items.find((item) => item.status !== "draft");
     if (visibleApplication) {
-      $("#apply-content").innerHTML = `${stage(visibleApplication.status)}<section class="panel"><div class="panel-head"><h2>Application #${visibleApplication.id}</h2><span class="pill">${esc(visibleApplication.status.replaceAll("_"," "))}</span></div><p>Your application is saved and its current stage is shown above.</p>${visibleApplication.decision_reason ? `<p class="muted">Decision note: ${esc(visibleApplication.decision_reason)}</p>` : ""}<div class="dialog-actions">${!["accepted","rejected","withdrawn"].includes(visibleApplication.status) ? `<button class="button secondary" data-withdraw="${visibleApplication.id}">Withdraw application</button>` : ""}${supports("application_data_reset") ? '<button class="button danger" data-reset-application>Delete my application data</button>' : ""}</div></section>`;
+      $("#apply-content").innerHTML = `${stage(visibleApplication.status)}<section class="panel"><div class="panel-head"><h2>Application #${visibleApplication.id}</h2><span class="pill">${esc(visibleApplication.status.replaceAll("_"," "))}</span></div><p>Your application is saved and its current stage is shown above.</p>${visibleApplication.decision_reason ? `<p class="muted">Decision note: ${esc(visibleApplication.decision_reason)}</p>` : ""}${applicationCompatibilityNotice()}<div class="dialog-actions">${!["accepted","rejected","withdrawn"].includes(visibleApplication.status) ? `<button class="button secondary" data-withdraw="${visibleApplication.id}">Withdraw application</button>` : ""}${applicationResetControl("Delete my application data")}</div></section>`;
     } else {
       const formData = await api("/api/apply/form");
       $("#apply-content").innerHTML = formHtml(formData);

@@ -5,6 +5,8 @@ import path from "node:path";
 
 const root = path.resolve(import.meta.dirname, "..");
 const port = Number(process.env.PORT || 4174);
+const legacyApi = process.env.LEGACY_API === "1";
+const withdrawnApplication = process.env.WITHDRAWN_APPLICATION === "1";
 const now = Math.floor(Date.now() / 1000);
 const user = {
   id: "1102884420207255653",
@@ -26,8 +28,8 @@ const viewRoles = [
   ["dev", "Dev", user.capabilities],
 ];
 const api = {
-  version: 2,
-  features: ["application_data_reset", "application_interviews", "application_review_embeds", "application_review_threads", "hidden_queue_entries", "staff_manual_management", "task_assignment_dm", "view_role_preview"],
+  version: legacyApi ? 0 : 2,
+  features: legacyApi ? [] : ["application_data_reset", "application_interviews", "application_review_embeds", "application_review_threads", "hidden_queue_entries", "staff_manual_management", "task_assignment_dm", "view_role_preview"],
 };
 const queue = [
   { id: 1, rank: 1, level_id: "101935961", level_name: "Synergy", creator: "CreatorName", tier: "mythic", cp: 0, waiting_cycles: 2, components: { f: 17.9, g: 3.22, h: 4.24, p: 25.36, complete: true }, state: "queued", claim: null },
@@ -49,7 +51,7 @@ const publicLevels = queue.filter((item) => item.state !== "hidden").map((item) 
 const payloads = {
   "/api/staff/session": { user, api, view_mode: { active: false, actual_role: "dev", roles: viewRoles.map(([key, label, capabilities]) => ({ key, label, capabilities })) } },
   "/api/apply/session": { user: { ...user, role: "applicant", role_label: "Applicant", staff_access: false, capabilities: ["applications.self"] }, api },
-  "/api/apply/mine": { items: [] },
+  "/api/apply/mine": { items: withdrawnApplication ? [{ id: 1, application_type: "judge", status: "withdrawn", answers: {}, created_ts: now - 86400, updated_ts: now - 3600 }] : [] },
   "/api/apply/form": { application: { id: 15, application_type: "judge", status: "draft", answers: {} }, questions: [
     { key: "age", label: "How old are you?", type: "single_choice", required: true, options: ["12 or under", "13 to 15", "16 to 18", "19 or above"] },
     { key: "motivation", label: "Why do you want to be a reviewer?", type: "long_text", required: true, options: [] },
