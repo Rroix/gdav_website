@@ -131,7 +131,9 @@ test("staff applications expose typed choices, cooldowns, timezone defaults, and
   assert.match(application, /Reviewer application/);
   assert.match(application, /Mod application/);
   assert.match(application, /Appeal application/);
-  assert.match(application, /five-day application cooldown/i);
+  assert.match(application, /Each application type has its own five-day cooldown/i);
+  assert.match(application, /cooldownForType/);
+  assert.match(application, /application\.application_type === item\.application_type/);
   assert.match(application, /Intl\.DateTimeFormat\(\)\.resolvedOptions\(\)\.timeZone/);
   assert.match(application, /withdrawableStatuses\.has\(application\.status\)/);
   assert.doesNotMatch(application, /police/i);

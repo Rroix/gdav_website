@@ -4,7 +4,6 @@ const $ = (selector) => document.querySelector(selector);
 const esc = (value) => String(value ?? "").replace(/[&<>'"]/g, (char) => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", "'":"&#39;", '"':"&quot;" })[char]);
 const cookieValue = (name) => document.cookie.split(";").map((item) => item.trim()).find((item) => item.startsWith(`${name}=`))?.slice(name.length + 1) || "";
 const activeStatuses = new Set(["draft", "submitted", "under_review", "interview", "hold", "accepted_pending_role"]);
-const terminalStatuses = new Set(["accepted", "rejected", "withdrawn"]);
 const withdrawableStatuses = new Set(["draft", "submitted", "under_review", "hold"]);
 let apiFeatures = new Set();
 let initialization = null;
@@ -108,37 +107,50 @@ function statusHtml(application) {
   $("#apply-title").textContent = label;
   $("#apply-intro").textContent = "Your application status and next step are shown below.";
   const canWithdraw = withdrawableStatuses.has(application.status);
-  return `${stage(application.status)}<section class="panel"><div class="panel-head"><h2>Application #${application.id}</h2><span class="pill ${esc(application.status)}">${esc(application.status.replaceAll("_", " "))}</span></div><p>Your application is saved and its current stage is shown above.</p>${application.decision_reason ? `<p class="muted">Decision note: ${esc(application.decision_reason)}</p>` : ""}${applicationCompatibilityNotice()}<div class="dialog-actions">${canWithdraw ? `<button class="button secondary" data-withdraw="${application.id}">Withdraw application</button>` : ""}${terminalStatuses.has(application.status) ? '<button class="button secondary" type="button" data-application-chooser>View application types</button>' : ""}${applicationResetControl("Delete my application data")}</div></section>`;
+  return `${stage(application.status)}<section class="panel"><div class="panel-head"><h2>Application #${application.id}</h2><span class="pill ${esc(application.status)}">${esc(application.status.replaceAll("_", " "))}</span></div><p>Your application is saved and its current stage is shown above.</p>${application.decision_reason ? `<p class="muted">Decision note: ${esc(application.decision_reason)}</p>` : ""}${applicationCompatibilityNotice()}<div class="dialog-actions">${canWithdraw ? `<button class="button secondary" data-withdraw="${application.id}">Withdraw application</button>` : ""}<button class="button secondary" type="button" data-application-chooser>View application types</button>${applicationResetControl("Delete my application data")}</div></section>`;
+}
+
+function cooldownForType(options, applicationType) {
+  return options.cooldowns?.[applicationType]
+    || options.items.find((item) => item.application_type === applicationType)?.cooldown
+    || options.cooldown
+    || { active: false, days: 5 };
 }
 
 function cooldownText(cooldown) {
-  if (!cooldown?.active || !cooldown.until_ts) return "All staff applications have a five-day cooldown after submission.";
+  if (!cooldown?.active || !cooldown.until_ts) return "Start application";
   const when = new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" }).format(new Date(Number(cooldown.until_ts) * 1000));
-  return `Your five-day application cooldown ends ${when}.`;
+  return `Available ${when}`;
 }
 
 function chooserHtml(options, applications) {
   $("#apply-title").textContent = "Staff applications";
-  $("#apply-intro").textContent = "Choose the team you want to apply for. You can keep one active application at a time.";
-  const locked = Boolean(options.active_application) || Boolean(options.cooldown?.active) || !options.applications_open;
+  $("#apply-intro").textContent = "Choose the team you want to apply for. Each application type is tracked separately.";
   const choices = options.items.map((item) => {
-    const disabled = !item.enabled || locked;
-    const note = !item.enabled ? "Coming later" : !options.applications_open ? "Applications closed" : options.active_application ? "Finish your current application" : options.cooldown?.active ? "Available after cooldown" : "Start application";
+    const active = applications.find((application) => application.application_type === item.application_type && activeStatuses.has(application.status));
+    const cooldown = cooldownForType(options, item.application_type);
+    const disabled = !item.enabled || !options.applications_open || Boolean(active) || Boolean(cooldown.active);
+    const note = !item.enabled ? "Coming later" : !options.applications_open ? "Applications closed" : active ? "Application in progress" : cooldownText(cooldown);
     return `<button class="application-choice" type="button" data-application-type="${esc(item.application_type)}" ${disabled ? "disabled" : ""}><span><strong>${esc(item.label)}</strong><small>${esc(item.description)}</small></span><span class="application-choice-action">${esc(note)}</span></button>`;
   }).join("");
   const history = applications.filter((item) => item.status !== "draft").slice(0, 5);
-  return `<section class="application-chooser"><h2>Which application do you want to fill out?</h2><p class="muted">${esc(cooldownText(options.cooldown))}</p><div class="application-choice-list">${choices}</div>${history.length ? `<div class="application-history"><h3>Previous applications</h3>${history.map((item) => `<button type="button" class="application-history-row" data-view-application="${item.id}"><span>${esc(item.application_label || item.application_type)}</span><span class="pill ${esc(item.status)}">${esc(item.status.replaceAll("_", " "))}</span></button>`).join("")}</div>` : ""}</section>`;
+  return `<section class="application-chooser"><h2>Which application do you want to fill out?</h2><p class="muted">Each application type has its own five-day cooldown after submission.</p><div class="application-choice-list">${choices}</div>${history.length ? `<div class="application-history"><h3>Previous applications</h3>${history.map((item) => `<button type="button" class="application-history-row" data-view-application="${item.id}"><span>${esc(item.application_label || item.application_type)}</span><span class="pill ${esc(item.status)}">${esc(item.status.replaceAll("_", " "))}</span></button>`).join("")}</div>` : ""}</section>`;
 }
 
 async function loadOptions() {
   if (supports("multi_type_applications")) return api("/api/apply/options");
-  return { items: [{ application_type: "judge", label: "Reviewer application", description: "Apply to join the GD Avenue review team.", enabled: true }, { application_type: "mod", label: "Mod application", description: "Deploy the matching Avenue Guard API to enable this application.", enabled: false }, { application_type: "appeal", label: "Appeal application", description: "This application will be added in a future update.", enabled: false }], applications_open: true, cooldown: { active: false, days: 5 }, active_application: null };
+  return { items: [{ application_type: "judge", label: "Reviewer application", description: "Apply to join the GD Avenue review team.", enabled: true }, { application_type: "mod", label: "Mod application", description: "Deploy the matching Avenue Guard API to enable this application.", enabled: false }, { application_type: "appeal", label: "Appeal application", description: "This application will be added in a future update.", enabled: false }], applications_open: true, cooldown: { active: false, days: 5 }, cooldowns: {}, active_applications: [], active_application: null };
 }
 
 async function loadForm(applicationType) {
   const path = supports("multi_type_applications") ? `/api/apply/form/${encodeURIComponent(applicationType)}` : "/api/apply/form";
   const formData = await api(path);
-  if (applicationOptions && formData.application) applicationOptions.active_application = { id: formData.application.id, application_type: formData.application.application_type, status: formData.application.status };
+  if (applicationOptions && formData.application) {
+    const active = { id: formData.application.id, application_type: formData.application.application_type, status: formData.application.status };
+    applicationOptions.active_applications = (applicationOptions.active_applications || []).filter((item) => item.application_type !== active.application_type);
+    applicationOptions.active_applications.push(active);
+    applicationOptions.active_application = active;
+  }
   if (formData.application && !ownApplications.some((item) => String(item.id) === String(formData.application.id))) ownApplications.unshift(formData.application);
   $("#apply-content").innerHTML = formHtml(formData);
 }
@@ -164,11 +176,17 @@ async function initializeInner() {
     applicationOptions = options;
     const active = ownApplications.find((item) => activeStatuses.has(item.status));
     const selectedType = new URLSearchParams(location.search).get("type");
+    if (showChooser) { $("#apply-content").innerHTML = chooserHtml(options, ownApplications); return; }
+    if (selectedType && options.items.some((item) => item.application_type === selectedType && item.enabled) && options.applications_open) {
+      const selectedActive = ownApplications.find((item) => item.application_type === selectedType && activeStatuses.has(item.status));
+      if (selectedActive?.status === "draft") return loadForm(selectedType);
+      if (selectedActive) { $("#apply-content").innerHTML = statusHtml(selectedActive); return; }
+      if (!cooldownForType(options, selectedType).active) return loadForm(selectedType);
+    }
     if (active?.status === "draft") return loadForm(active.application_type);
     if (active) { $("#apply-content").innerHTML = statusHtml(active); return; }
-    if (selectedType && options.items.some((item) => item.application_type === selectedType && item.enabled) && !options.cooldown?.active && options.applications_open) return loadForm(selectedType);
     const latest = ownApplications.find((item) => item.status !== "draft");
-    if (latest && !showChooser) { $("#apply-content").innerHTML = statusHtml(latest); return; }
+    if (latest) { $("#apply-content").innerHTML = statusHtml(latest); return; }
     $("#apply-content").innerHTML = chooserHtml(options, ownApplications);
   } catch (error) {
     if (authError || [401, 403].includes(error.status)) { $("#apply-content").hidden = true; $("#apply-auth").hidden = false; $("#apply-auth-message").textContent = authError || error.message; }
