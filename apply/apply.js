@@ -216,7 +216,7 @@ async function save(submit) {
 document.addEventListener("submit", (event) => { if (event.target.id === "application-form") { event.preventDefault(); save(true); } });
 document.addEventListener("click", async (event) => {
   if (event.target.closest("[data-save='draft']")) save(false);
-  const typeButton = event.target.closest("[data-application-type]");
+  const typeButton = event.target.closest("button[data-application-type]");
   if (typeButton && !typeButton.disabled) {
     showChooser = false;
     const params = new URLSearchParams();
@@ -237,7 +237,7 @@ document.addEventListener("click", async (event) => {
   const withdraw = event.target.closest("[data-withdraw]");
   if (withdraw && confirm("Withdraw this application?")) { await api(`/api/apply/${withdraw.dataset.withdraw}/withdraw`, { method: "POST", body: {} }); showChooser = false; await initialize(); }
   if (event.target.closest("[data-reset-application]")) {
-    const confirmation = prompt("Enter DELETE to permanently remove your application data and start again.");
+    const confirmation = prompt("Enter DELETE to permanently remove your application data. A recent submission will keep a 24-hour cooldown for that application type.");
     if (confirmation !== "DELETE") return;
     try { await api("/api/apply/mine", { method: "DELETE", body: { confirmation } }); showChooser = true; await initialize(); }
     catch (error) { const status = $("#apply-status"); if (status) status.textContent = error.message; else alert(error.message); }

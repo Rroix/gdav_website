@@ -205,6 +205,9 @@ progress { width: 100%; height: 8px; border: 0; border-radius: 0; accent-color: 
 
 .toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 14px; }
 .toolbar input, .toolbar select, .form-grid input, .form-grid select, .form-grid textarea { min-height: 38px; padding: 8px 10px; color: var(--text); background: var(--bg); border: 1px solid var(--line-strong); border-radius: 5px; }
+.form-grid input:focus-visible, .form-grid select:focus-visible, .form-grid textarea:focus-visible { outline: none; border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.choice-option:focus-within { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.choice-option input:focus-visible { outline: none; }
 .toolbar input { min-width: min(290px, 100%); }
 .filter-field { display: grid; gap: 3px; color: var(--muted); font-size: .76rem; }
 .filter-field select { min-width: 150px; color: var(--text); font-size: .9rem; }
@@ -288,7 +291,7 @@ dialog form { display: grid; grid-template-rows: auto auto minmax(0, 1fr) auto a
 .dialog-head, .dialog-actions { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .dialog-head h2 { margin: 0; }
 .dialog-actions { justify-content: flex-end; margin-top: 20px; }
-.form-grid { display: grid; gap: 12px; overflow-y: auto; padding: 2px 3px 2px 0; }
+.form-grid { display: grid; gap: 12px; overflow-y: auto; padding: 2px 3px; }
 .form-grid label { display: grid; gap: 5px; color: var(--muted); font-size: .85rem; }
 .form-grid textarea { min-height: 96px; resize: vertical; }
 .profile-detail { display: grid; grid-template-columns: minmax(130px, .7fr) minmax(0, 1.3fr); align-items: baseline; gap: 12px; padding: 9px 0; border-bottom: 1px solid var(--line); }

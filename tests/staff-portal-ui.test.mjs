@@ -134,10 +134,14 @@ test("staff applications expose typed choices, cooldowns, timezone defaults, and
   assert.match(application, /Each application type has its own five-day cooldown/i);
   assert.match(application, /cooldownForType/);
   assert.match(application, /application\.application_type === item\.application_type/);
+  assert.match(application, /closest\("button\[data-application-type\]"\)/);
+  assert.doesNotMatch(application, /closest\("\[data-application-type\]"\)/);
   assert.match(application, /Intl\.DateTimeFormat\(\)\.resolvedOptions\(\)\.timeZone/);
   assert.match(application, /withdrawableStatuses\.has\(application\.status\)/);
   assert.doesNotMatch(application, /police/i);
   assert.match(styles, /\.pill\.accepted, \.pill\.accepted_pending_role/);
+  assert.match(styles, /\.form-grid textarea:focus-visible/);
+  assert.match(styles, /box-shadow: inset 0 0 0 1px var\(--accent\)/);
 });
 
 test("application review workspace filters by type, status, and claim state", () => {
