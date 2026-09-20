@@ -111,7 +111,13 @@ function statusHtml(application) {
   $("#apply-title").textContent = label;
   $("#apply-intro").textContent = "Your application status and next step are shown below.";
   const canWithdraw = withdrawableStatuses.has(application.status);
-  return `${applicationTypesNav()}${stage(application.status)}<section class="panel"><div class="panel-head"><h2>Application #${application.id}</h2><span class="pill ${esc(application.status)}">${esc(application.status.replaceAll("_", " "))}</span></div><p>Your application is saved and its current stage is shown above.</p>${application.decision_reason ? `<p class="muted">Decision note: ${esc(application.decision_reason)}</p>` : ""}${applicationCompatibilityNotice()}<div class="dialog-actions">${canWithdraw ? `<button class="button secondary" data-withdraw="${application.id}">Withdraw application</button>` : ""}${applicationResetControl("Delete my application data")}</div></section>`;
+  return `${applicationTypesNav()}${stage(application.status)}<section class="panel"><div class="panel-head"><h2>Your application</h2><span class="pill ${esc(application.status)}">${esc(application.status.replaceAll("_", " "))}</span></div><p>Your application is saved and its current stage is shown above.</p>${application.decision_reason ? `<p class="muted">Decision note: ${esc(application.decision_reason)}</p>` : ""}${applicationCompatibilityNotice()}<div class="dialog-actions">${canWithdraw ? `<button class="button secondary" data-withdraw="${application.id}">Withdraw application</button>` : ""}${applicationResetControl("Delete my application data")}</div></section>`;
+}
+
+function applicationTypeOpen(options, item) {
+  if (!options.applications_open) return false;
+  if (typeof item.open === "boolean") return item.open;
+  return options.application_open_by_type?.[item.application_type] !== false;
 }
 
 function cooldownForType(options, applicationType) {
@@ -133,8 +139,9 @@ function chooserHtml(options, applications) {
   const choices = options.items.map((item) => {
     const active = applications.find((application) => application.application_type === item.application_type && activeStatuses.has(application.status));
     const cooldown = cooldownForType(options, item.application_type);
-    const disabled = !item.enabled || (!active && (!options.applications_open || Boolean(cooldown.active)));
-    const note = !item.enabled ? "Coming later" : active?.status === "draft" ? "Return to draft" : active ? "View application" : !options.applications_open ? "Applications closed" : cooldownText(cooldown);
+    const isOpen = applicationTypeOpen(options, item);
+    const disabled = !item.enabled || (!active && (!isOpen || Boolean(cooldown.active)));
+    const note = !item.enabled ? "Coming later" : active?.status === "draft" ? "Return to draft" : active ? "View application" : !isOpen ? "Applications closed" : cooldownText(cooldown);
     const action = active && active.status !== "draft"
       ? `data-view-application="${esc(active.id)}"`
       : `data-application-type="${esc(item.application_type)}"`;
@@ -146,7 +153,7 @@ function chooserHtml(options, applications) {
 
 async function loadOptions() {
   if (supports("multi_type_applications")) return api("/api/apply/options");
-  return { items: [{ application_type: "judge", label: "Reviewer application", description: "Apply to join the GD Avenue review team.", enabled: true }, { application_type: "mod", label: "Mod application", description: "Deploy the matching Avenue Guard API to enable this application.", enabled: false }, { application_type: "appeal", label: "Appeal application", description: "This application will be added in a future update.", enabled: false }], applications_open: true, cooldown: { active: false, days: 5 }, cooldowns: {}, active_applications: [], active_application: null };
+  return { items: [{ application_type: "judge", label: "Reviewer application", description: "Apply to join the GD Avenue review team.", enabled: true, open: true }, { application_type: "mod", label: "Mod application", description: "Deploy the matching Avenue Guard API to enable this application.", enabled: false, open: false }, { application_type: "appeal", label: "Appeal application", description: "This application will be added in a future update.", enabled: false, open: false }], applications_open: true, application_open_by_type: { judge: true, mod: false }, cooldown: { active: false, days: 5 }, cooldowns: {}, active_applications: [], active_application: null };
 }
 
 async function loadForm(applicationType) {
@@ -186,7 +193,8 @@ async function initializeInner() {
       const selectedActive = ownApplications.find((item) => item.application_type === selectedType && activeStatuses.has(item.status));
       if (selectedActive?.status === "draft") return loadForm(selectedType);
       if (selectedActive) { $("#apply-content").innerHTML = statusHtml(selectedActive); return; }
-      if (options.applications_open && !cooldownForType(options, selectedType).active) return loadForm(selectedType);
+      const selectedOption = options.items.find((item) => item.application_type === selectedType);
+      if (applicationTypeOpen(options, selectedOption) && !cooldownForType(options, selectedType).active) return loadForm(selectedType);
     }
     $("#apply-content").innerHTML = chooserHtml(options, ownApplications);
   } catch (error) {

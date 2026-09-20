@@ -88,6 +88,31 @@
       </article>
     </section>
 
+    <section class="health-section" aria-labelledby="health-title">
+      <div class="section-heading">
+        <div>
+          <p class="bot-kicker">Service health</p>
+          <h2 id="health-title">System availability</h2>
+        </div>
+        <span class="release-count" id="historyWindow">Waiting for samples</span>
+      </div>
+      <div class="system-grid" id="systemList" aria-live="polite">
+        <div class="system-row surface"><span class="system-status system-status--unknown" aria-hidden="true"></span><span><strong>Loading systems</strong><small>Waiting for Avenue Guard</small></span></div>
+      </div>
+      <div class="health-chart-grid">
+        <article class="health-chart surface">
+          <div class="health-chart__heading"><h3>Availability signals</h3><span>Recent samples</span></div>
+          <canvas id="availabilityChart" width="640" height="190" role="img" aria-label="Recent Avenue Guard availability samples"></canvas>
+          <p class="health-chart__summary" id="availabilitySummary">Waiting for historical health data</p>
+        </article>
+        <article class="health-chart surface">
+          <div class="health-chart__heading"><h3>Discord latency</h3><span>Milliseconds</span></div>
+          <canvas id="latencyChart" width="640" height="190" role="img" aria-label="Recent Discord gateway latency"></canvas>
+          <p class="health-chart__summary" id="latencySummary">Waiting for historical health data</p>
+        </article>
+      </div>
+    </section>
+
     <section class="release-section" aria-labelledby="release-title">
       <div class="section-heading">
         <div>
@@ -115,6 +140,7 @@
     <a href="privacy.html">Privacy Policy</a>
   </footer>
 
+  <script src="bot-core.js" defer></script>
   <script src="bot.js" defer></script>
 </body>
 </html>

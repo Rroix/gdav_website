@@ -167,10 +167,10 @@ progress { width: 100%; height: 8px; border: 0; border-radius: 0; accent-color: 
 .field-help { margin: 4px 0 8px; color: var(--muted); font-size: .88rem; font-weight: 400; }
 .field-help a { color: var(--accent); }
 .field-label, .concept-label { display: inline-flex; align-items: center; gap: 5px; min-width: 0; }
-.help-tip { position: relative; z-index: 1; display: inline-grid; flex: 0 0 auto; width: 17px; height: 17px; place-items: center; color: var(--muted); background: transparent; border: 1px solid var(--line-strong); border-radius: 50%; font: 700 11px/1 system-ui, sans-serif; cursor: help; }
-.help-tip:hover, .help-tip:focus-visible { z-index: 12; color: var(--text); border-color: var(--accent); outline: none; }
-.help-tip::after { content: attr(data-help); position: absolute; z-index: 20; left: 50%; bottom: calc(100% + 8px); width: min(300px, 72vw); padding: 8px 10px; color: var(--text); background: var(--surface-2); border: 1px solid var(--line-strong); border-radius: var(--radius); box-shadow: 0 12px 34px rgba(0,0,0,.4); font: 12px/1.45 system-ui, sans-serif; text-align: left; white-space: normal; opacity: 0; visibility: hidden; transform: translate(-50%, 4px); pointer-events: none; transition: opacity .12s ease, transform .12s ease, visibility .12s ease; }
-.help-tip:hover::after, .help-tip:focus-visible::after { opacity: 1; visibility: visible; transform: translate(-50%, 0); }
+.help-tip { display: inline-grid; flex: 0 0 auto; width: 18px; height: 18px; min-width: 18px; min-height: 18px; margin: 0; padding: 0; place-items: center; color: var(--muted); background: transparent; border: 1px solid var(--line-strong); border-radius: 50%; font: 700 11px/1 system-ui, sans-serif; cursor: help; user-select: none; appearance: none; }
+.help-tip:hover, .help-tip:focus-visible, .help-tip[aria-expanded="true"] { color: var(--text); border-color: var(--accent); outline: none; }
+.portal-help-tooltip { position: fixed; inset: 0 auto auto 0; z-index: 1000; width: min(300px, calc(100vw - 24px)); max-height: min(240px, calc(100vh - 24px)); overflow: auto; padding: 9px 11px; color: var(--text); background: var(--surface-2); border: 1px solid var(--line-strong); border-radius: var(--radius); box-shadow: 0 12px 34px rgba(0,0,0,.45); font: 12px/1.45 system-ui, sans-serif; text-align: left; white-space: normal; overflow-wrap: anywhere; pointer-events: none; }
+.portal-help-tooltip[hidden] { display: none; }
 .form-question { display: grid; gap: 5px; min-width: 0; }
 .form-question > label { color: var(--muted); font-size: .85rem; }
 .review-showcase { display: grid; gap: 10px; margin: 4px 0 8px; padding: 12px; background: var(--surface-2); border: 1px solid var(--line-strong); border-radius: var(--radius); }

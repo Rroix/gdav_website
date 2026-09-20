@@ -1,10 +1,13 @@
 (function () {
   "use strict";
 
-  var API_BASE = "https://avenue-guard.onrender.com";
+  var API_BASE = /^(localhost|127\.0\.0\.1)$/.test(location.hostname)
+    ? location.origin
+    : "https://avenue-guard.onrender.com";
   var DEFAULT_BOT_AVATAR = "https://cdn.discordapp.com/avatars/1454985687177887866/d268221fd7a7a5529897730d18edd5a0.webp?size=2048";
   var REFRESH_INTERVAL_MS = 30000;
   var REQUEST_TIMEOUT_MS = 12000;
+  var Core = window.AvenueStatusCore;
 
   var elements = {
     avatar: document.getElementById("botAvatar"),
@@ -19,12 +22,20 @@
     latency: document.getElementById("latencyValue"),
     members: document.getElementById("memberValue"),
     checked: document.getElementById("checkedValue"),
+    systemList: document.getElementById("systemList"),
+    historyWindow: document.getElementById("historyWindow"),
+    availabilityChart: document.getElementById("availabilityChart"),
+    availabilitySummary: document.getElementById("availabilitySummary"),
+    latencyChart: document.getElementById("latencyChart"),
+    latencySummary: document.getElementById("latencySummary"),
     releaseCount: document.getElementById("releaseCount"),
     releaseList: document.getElementById("releaseList")
   };
 
   var lastStatus = null;
+  var lastCheckedTs = 0;
   var refreshTimer = null;
+  var resizeTimer = null;
 
   function formatNumber(value) {
     if (value === null || value === undefined || value === "") return "--";
@@ -81,6 +92,135 @@
     return new Intl.DateTimeFormat("en-US", options).format(new Date(seconds * 1000));
   }
 
+  function updateCheckedTime() {
+    elements.checked.textContent = Core.relativeTime(lastCheckedTs, Date.now() / 1000);
+    elements.checked.title = lastCheckedTs ? formatDate(lastCheckedTs, true) : "";
+  }
+
+  function renderSystems(systems) {
+    var items = Array.isArray(systems) ? systems : [];
+    elements.systemList.replaceChildren();
+    if (!items.length) {
+      items = [{ name: "Avenue Guard", status: "unknown", detail: "No component data is available" }];
+    }
+    items.forEach(function (system) {
+      var status = ["operational", "degraded", "unavailable", "unknown"].includes(system.status)
+        ? system.status
+        : "unknown";
+      var row = document.createElement("div");
+      row.className = "system-row surface";
+      var dot = document.createElement("span");
+      dot.className = "system-status system-status--" + status;
+      dot.setAttribute("aria-hidden", "true");
+      var copy = document.createElement("span");
+      appendTextElement(copy, "strong", "", String(system.name || "System"));
+      appendTextElement(copy, "small", "", String(system.detail || status));
+      var badge = appendTextElement(row, "span", "system-badge system-badge--" + status, status);
+      row.prepend(dot, copy);
+      badge.setAttribute("aria-label", String(system.name || "System") + ": " + status);
+      elements.systemList.appendChild(row);
+    });
+  }
+
+  function canvasContext(canvas) {
+    var width = Math.max(280, Math.floor(canvas.getBoundingClientRect().width || 640));
+    var height = 190;
+    var ratio = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+    canvas.width = Math.round(width * ratio);
+    canvas.height = Math.round(height * ratio);
+    var context = canvas.getContext("2d");
+    context.scale(ratio, ratio);
+    context.clearRect(0, 0, width, height);
+    return { context: context, width: width, height: height };
+  }
+
+  function emptyChart(canvas, message) {
+    var drawing = canvasContext(canvas);
+    drawing.context.fillStyle = "#9ba3ad";
+    drawing.context.font = "13px system-ui, sans-serif";
+    drawing.context.fillText(message, 14, drawing.height / 2);
+  }
+
+  function renderAvailabilityChart(history) {
+    if (!history.length) {
+      emptyChart(elements.availabilityChart, "No historical samples yet");
+      elements.availabilitySummary.textContent = "Historical checks will appear after Avenue Guard records them.";
+      return;
+    }
+    var drawing = canvasContext(elements.availabilityChart);
+    var context = drawing.context;
+    var plotWidth = drawing.width - 28;
+    var slotWidth = plotWidth / history.length;
+    var barWidth = Math.max(0.75, slotWidth * 0.72);
+    var healthy = 0;
+    history.forEach(function (sample, index) {
+      if (sample.healthy) healthy += 1;
+      context.fillStyle = sample.healthy ? "#52d273" : "#f16b74";
+      var height = sample.healthy ? 104 : 56;
+      var x = 14 + index * slotWidth + Math.max(0, (slotWidth - barWidth) / 2);
+      context.fillRect(x, drawing.height - 32 - height, barWidth, height);
+    });
+    context.fillStyle = "#65707c";
+    context.fillRect(14, drawing.height - 31, drawing.width - 28, 1);
+    var percentage = Math.round(healthy / history.length * 100);
+    elements.availabilitySummary.textContent = healthy + " of " + history.length + " persisted checks were healthy (" + percentage + "%).";
+    elements.availabilityChart.setAttribute("aria-label", "Recent availability: " + percentage + "% of persisted checks healthy");
+  }
+
+  function renderLatencyChart(history) {
+    var points = history.filter(function (sample) {
+      return Number.isFinite(sample.gateway_latency_ms) && sample.gateway_latency_ms >= 0;
+    });
+    if (!points.length) {
+      emptyChart(elements.latencyChart, "No latency samples yet");
+      elements.latencySummary.textContent = "Gateway latency will appear after Avenue Guard records it.";
+      return;
+    }
+    var drawing = canvasContext(elements.latencyChart);
+    var context = drawing.context;
+    var maxValue = Math.max(100, Math.ceil(Math.max.apply(null, points.map(function (item) { return item.gateway_latency_ms; })) / 50) * 50);
+    var left = 16;
+    var top = 18;
+    var plotWidth = drawing.width - 32;
+    var plotHeight = drawing.height - 50;
+    context.strokeStyle = "#34404a";
+    context.lineWidth = 1;
+    [0, 0.5, 1].forEach(function (ratio) {
+      var y = top + plotHeight * ratio;
+      context.beginPath();
+      context.moveTo(left, y);
+      context.lineTo(left + plotWidth, y);
+      context.stroke();
+    });
+    context.strokeStyle = "#58d5ba";
+    context.lineWidth = 2;
+    context.beginPath();
+    points.forEach(function (point, index) {
+      var x = left + (points.length === 1 ? plotWidth / 2 : index / (points.length - 1) * plotWidth);
+      var y = top + plotHeight - Math.min(point.gateway_latency_ms, maxValue) / maxValue * plotHeight;
+      if (index === 0) context.moveTo(x, y);
+      else context.lineTo(x, y);
+    });
+    context.stroke();
+    var average = Math.round(points.reduce(function (total, point) { return total + point.gateway_latency_ms; }, 0) / points.length);
+    var latest = Math.round(points[points.length - 1].gateway_latency_ms);
+    elements.latencySummary.textContent = average + " ms average; latest sample " + latest + " ms.";
+    elements.latencyChart.setAttribute("aria-label", "Discord latency averaged " + average + " milliseconds; latest " + latest + " milliseconds");
+  }
+
+  function renderHealthHistory(samples) {
+    var history = Core.normalizeHistory(samples);
+    renderAvailabilityChart(history);
+    renderLatencyChart(history);
+    if (!history.length) {
+      elements.historyWindow.textContent = "No samples yet";
+      return;
+    }
+    var seconds = Math.max(0, history[history.length - 1].sample_ts - history[0].sample_ts);
+    var hours = Math.max(1, Math.round(seconds / 3600));
+    elements.historyWindow.textContent = history.length + " samples · " + hours + "h window";
+  }
+
   function setStatusAppearance(state, online) {
     elements.statusDot.className = "status-dot";
     if (online) {
@@ -124,7 +264,10 @@
       ? Math.round(Number(data.latency_ms)) + " ms"
       : "--";
     elements.members.textContent = formatNumber(data.member_count);
-    elements.checked.textContent = formatDate(data.updated_ts, true);
+    lastCheckedTs = Number(data.updated_ts) || Date.now() / 1000;
+    updateCheckedTime();
+    renderSystems(data.systems);
+    renderHealthHistory(data.health_history);
     elements.statusNotice.textContent = "";
 
     var avatarUrl = String(data.avatar_url || "");
@@ -140,7 +283,8 @@
       ? "Status temporarily unavailable"
       : "Unable to reach Avenue Guard";
     elements.statusNotice.textContent = message;
-    elements.checked.textContent = formatDate(Date.now() / 1000, true);
+    lastCheckedTs = Date.now() / 1000;
+    updateCheckedTime();
   }
 
   function appendTextElement(parent, tag, className, text) {
@@ -283,7 +427,14 @@
   document.addEventListener("visibilitychange", function () {
     if (document.visibilityState === "visible") refresh();
   });
+  window.addEventListener("resize", function () {
+    window.clearTimeout(resizeTimer);
+    resizeTimer = window.setTimeout(function () {
+      if (lastStatus) renderHealthHistory(lastStatus.health_history);
+    }, 120);
+  });
 
   refresh();
   scheduleRefresh();
+  window.setInterval(updateCheckedTime, 15000);
 }());

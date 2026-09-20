@@ -33,6 +33,12 @@ test("privacy policy covers applications, hidden records, task DMs, and Dev prev
   assert.match(policy, /notify included staff about personal, assigned, and team tasks/);
 });
 
+test("privacy policy covers public health samples and curated Discord avatars", () => {
+  assert.match(policy, /recent component-health samples/);
+  assert.match(policy, /small, configured list of public team profiles/);
+  assert.match(policy, /checked-in profile image remains the fallback/);
+});
+
 test("authenticated entry points link to the privacy policy", () => {
   assert.match(staff, /href="\/privacy\.html"/);
   assert.match(application, /href="\/privacy\.html"/);

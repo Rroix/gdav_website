@@ -28,8 +28,8 @@ const viewRoles = [
   ["dev", "Dev", user.capabilities],
 ];
 const api = {
-  version: legacyApi ? 0 : 5,
-  features: legacyApi ? [] : ["application_data_reset", "application_interviews", "application_review_embeds", "application_review_threads", "application_cooldown", "multi_type_applications", "hidden_queue_entries", "staff_manual_management", "staff_assignee_directory", "task_assignment_dm", "task_recipient_dm", "view_role_preview"],
+  version: legacyApi ? 0 : 6,
+  features: legacyApi ? [] : ["application_data_reset", "application_interviews", "application_type_availability", "application_review_embeds", "application_review_threads", "application_cooldown", "multi_type_applications", "hidden_queue_entries", "staff_manual_management", "staff_assignee_directory", "task_assignment_dm", "task_recipient_dm", "view_role_preview"],
 };
 const queue = [
   { id: 1, rank: 1, level_id: "101935961", level_name: "Synergy", creator: "CreatorName", tier: "mythic", cp: 0, waiting_cycles: 2, components: { f: 17.9, g: 3.22, h: 4.24, p: 25.36, complete: true }, state: "queued", claim: null },
@@ -49,10 +49,13 @@ const publicLevels = queue.filter((item) => item.state !== "hidden").map((item) 
 }));
 
 const payloads = {
+  "/api/bot": { schema_version: 4, service: "Avenue Guard", bot_name: "Avenue Guard", avatar_url: user.avatar_url, state: "online", status: "Operational", online: true, ready: true, responsive: true, version: "3.24.0", service_started_ts: now - 86400 * 5, service_uptime_seconds: 86400 * 5, latency_ms: 46, guild_count: 1, member_count: 2431, uptime_percentage: 99.94, uptime_tracking_since_ts: now - 86400 * 30, updated_ts: now - 240, systems: [{ name: "Discord gateway", status: "operational", detail: "Connected and responsive" }, { name: "Database", status: "operational", detail: "Connected" }, { name: "Background services", status: "operational", detail: "Core tasks running" }, { name: "GD validation providers", status: "degraded", detail: "2 of 3 available" }], health_history: Array.from({ length: 48 }, (_value, index) => ({ sample_ts: now - (47 - index) * 1800, healthy: index !== 31, database_ok: true, gateway_latency_ms: 38 + Math.round(Math.sin(index / 5) * 12), database_latency_ms: 4 + index % 3, provider_available: index < 40 ? 3 : 2, provider_total: 3 })) },
+  "/api/releases": { schema_version: 1, count: 2, releases: [{ version: "3.24.0", title: "Staff workflow reliability", summary: "Improved application controls, public health history, and team profile freshness.", changes: ["Added per-type application availability", "Added public system health graphs"], published_ts: now - 3600 }, { version: "3.23.0", title: "Application workflow", summary: "Introduced Reviewer and Mod application workflows.", changes: ["Added typed application forms"], published_ts: now - 86400 * 3 }] },
+  "/api/team": { schema_version: 1, count: 1, members: [{ id: user.id, display_name: user.display_name, avatar_url: user.avatar_url }] },
   "/api/staff/session": { user, api, view_mode: { active: false, actual_role: "dev", roles: viewRoles.map(([key, label, capabilities]) => ({ key, label, capabilities })) } },
   "/api/apply/session": { user: { ...user, role: "applicant", role_label: "Applicant", staff_access: false, capabilities: ["applications.self"] }, api },
   "/api/apply/mine": { items: withdrawnApplication ? [{ id: 1, application_type: "judge", status: "withdrawn", answers: {}, created_ts: now - 86400, updated_ts: now - 3600 }] : [] },
-  "/api/apply/options": { items: [{ application_type: "judge", label: "Reviewer application", description: "Review Geometry Dash levels and recommend rating tiers.", enabled: true, cooldown: { days: 5, active: false } }, { application_type: "mod", label: "Mod application", description: "Help moderate GD Avenue and support the community.", enabled: true, cooldown: { days: 5, active: false } }, { application_type: "appeal", label: "Appeal application", description: "This application will be added in a future update.", enabled: false }], applications_open: true, cooldown: { days: 5, active: false }, cooldowns: { judge: { days: 5, active: false }, mod: { days: 5, active: false } }, active_applications: [], active_application: null },
+  "/api/apply/options": { items: [{ application_type: "judge", label: "Reviewer application", description: "Review Geometry Dash levels and recommend rating tiers.", enabled: true, open: true, cooldown: { days: 5, active: false } }, { application_type: "mod", label: "Mod application", description: "Help moderate GD Avenue and support the community.", enabled: true, open: true, cooldown: { days: 5, active: false } }, { application_type: "appeal", label: "Appeal application", description: "This application will be added in a future update.", enabled: false, open: false }], applications_open: true, application_open_by_type: { judge: true, mod: true }, cooldown: { days: 5, active: false }, cooldowns: { judge: { days: 5, active: false }, mod: { days: 5, active: false } }, active_applications: [], active_application: null },
   "/api/apply/form": { application: { id: 15, application_type: "judge", status: "draft", answers: {} }, questions: [
     { key: "age", label: "How old are you?", type: "single_choice", required: true, options: ["12 or under", "13 to 15", "16 to 18", "19 or above"] },
     { key: "motivation", label: "Why do you want to be a reviewer?", type: "long_text", required: true, options: [] },
@@ -88,7 +91,7 @@ const payloads = {
   "/api/staff/system": { service: { state: "online", detail: "All core services ready" }, runtime: { ready: true, responsive: true, heartbeat_age_seconds: 8, event_loop_lag_ms: 12 }, database: { connected: true, uses_remote: true, waiting_operations: 0 }, outbox: { pending: 1, processing: 0, dead: 0, delivered: 84 }, request_wave: { state: "open" }, incidents: [], providers: {}, background_workers: { "priority.maintenance": "running" }, public_cache: { state: "available" }, schemas: [{ component: "core", schema_version: 10 }], identity_repairs: { repaired: { records: 2, rows_changed: 4 }, unresolved: { records: 0, rows_changed: 0 } }, dead_outbox: [], available_actions: ["restart_stopped_tasks", "rebuild_public_cache", "request_repair", "restore_drill"] },
   "/api/staff/pps": { model_version: "pps_v1", outcome_window_seconds: 2592000, dashboard: { active_cycle: 4, queue: 27 } },
   "/api/staff/audit": { items: [{ event: "claim_created", entity_id: "queue:1", actor_id: user.id, created_ts: now - 900 }] },
-  "/api/staff/configuration": { configuration: { claim_stale_hours: 48, applications_open: true } },
+  "/api/staff/configuration": { configuration: { claim_stale_hours: 48, applications_open: true, application_open_by_type: { judge: true, mod: true } } },
 };
 payloads["/api/apply/form/judge"] = payloads["/api/apply/form"];
 

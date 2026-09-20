@@ -951,6 +951,105 @@ a.inline {
   line-height: 1.42;
 }
 
+.health-section {
+  margin-top: 42px;
+}
+
+.system-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.system-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 11px;
+  min-height: 72px;
+  padding: 14px 15px;
+}
+
+.system-row strong,
+.system-row small {
+  display: block;
+}
+
+.system-row strong {
+  font-size: 0.94rem;
+}
+
+.system-row small {
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.system-status {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--muted);
+}
+
+.system-status--operational { background: #52d273; }
+.system-status--degraded { background: #f2c14e; }
+.system-status--unavailable { background: #f16b74; }
+
+.system-badge {
+  color: var(--muted);
+  font-size: 0.7rem;
+  font-weight: 750;
+  text-transform: uppercase;
+}
+
+.system-badge--operational { color: #7bdc92; }
+.system-badge--degraded { color: #f2c14e; }
+.system-badge--unavailable { color: #f28b92; }
+
+.health-chart-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.health-chart {
+  min-width: 0;
+  padding: 17px;
+}
+
+.health-chart__heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.health-chart__heading h3 {
+  margin: 0;
+  font-size: 0.96rem;
+}
+
+.health-chart__heading span,
+.health-chart__summary {
+  color: var(--muted);
+  font-size: 0.76rem;
+}
+
+.health-chart canvas {
+  display: block;
+  width: 100%;
+  height: 190px;
+  margin-top: 8px;
+}
+
+.health-chart__summary {
+  min-height: 2.8em;
+  margin: 7px 0 0;
+  line-height: 1.4;
+}
+
 .release-section {
   margin-top: 42px;
 }
@@ -1050,7 +1149,8 @@ a.inline {
 }
 
 @media (max-width: 860px) {
-  .bot-metrics {
+  .bot-metrics,
+  .health-chart-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
@@ -1086,6 +1186,11 @@ a.inline {
   }
 
   .bot-metrics {
+    grid-template-columns: 1fr;
+  }
+
+  .system-grid,
+  .health-chart-grid {
     grid-template-columns: 1fr;
   }
 

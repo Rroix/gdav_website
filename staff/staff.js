@@ -81,8 +81,55 @@ const conceptHelp = {
   staleClaim: "A claim older than the configured inactivity threshold. It may need reassignment or release.",
   waiting: "Completed outreach waiting cycles for this level. This is the W input used by the Priority Point System.",
 };
-const helpTip = (text) => `<span class="help-tip" tabindex="0" role="note" aria-label="Help: ${esc(text)}" title="${esc(text)}" data-help="${esc(text)}">?</span>`;
-const conceptLabel = (label, help) => `<span class="concept-label">${esc(label)}${helpTip(help)}</span>`;
+const helpTip = (text, label = "this item") => `<button class="help-tip" type="button" aria-label="Explain ${esc(label)}" aria-expanded="false" data-help="${esc(text)}">?</button>`;
+const conceptLabel = (label, help) => `<span class="concept-label">${esc(label)}${helpTip(help, label)}</span>`;
+let activeHelpTrigger = null;
+function helpTooltipElement() {
+  let tooltip = $("#portal-help-tooltip");
+  if (tooltip) return tooltip;
+  tooltip = document.createElement("div");
+  tooltip.id = "portal-help-tooltip";
+  tooltip.className = "portal-help-tooltip";
+  tooltip.setAttribute("role", "tooltip");
+  tooltip.hidden = true;
+  document.body.appendChild(tooltip);
+  return tooltip;
+}
+function positionHelpTooltip() {
+  if (!activeHelpTrigger?.isConnected) return hideHelpTooltip();
+  const tooltip = helpTooltipElement();
+  const trigger = activeHelpTrigger.getBoundingClientRect();
+  const tooltipRect = tooltip.getBoundingClientRect();
+  const margin = 12;
+  const centered = trigger.left + trigger.width / 2 - tooltipRect.width / 2;
+  const left = Math.max(margin, Math.min(centered, window.innerWidth - tooltipRect.width - margin));
+  const above = trigger.top - tooltipRect.height - 9;
+  const top = above >= margin ? above : Math.min(trigger.bottom + 9, window.innerHeight - tooltipRect.height - margin);
+  tooltip.style.left = `${Math.round(left)}px`;
+  tooltip.style.top = `${Math.round(Math.max(margin, top))}px`;
+}
+function showHelpTooltip(trigger) {
+  if (!(trigger instanceof HTMLElement)) return;
+  const text = String(trigger.dataset.help || "").trim();
+  if (!text) return;
+  if (activeHelpTrigger && activeHelpTrigger !== trigger) activeHelpTrigger.setAttribute("aria-expanded", "false");
+  activeHelpTrigger = trigger;
+  trigger.setAttribute("aria-expanded", "true");
+  trigger.setAttribute("aria-describedby", "portal-help-tooltip");
+  const tooltip = helpTooltipElement();
+  tooltip.textContent = text;
+  tooltip.hidden = false;
+  positionHelpTooltip();
+}
+function hideHelpTooltip() {
+  if (activeHelpTrigger) {
+    activeHelpTrigger.setAttribute("aria-expanded", "false");
+    activeHelpTrigger.removeAttribute("aria-describedby");
+  }
+  activeHelpTrigger = null;
+  const tooltip = $("#portal-help-tooltip");
+  if (tooltip) tooltip.hidden = true;
+}
 const percent = (done, total) => total ? Math.round((Number(done) / Number(total)) * 100) : 0;
 const cookieValue = (name) => document.cookie.split(";").map((item) => item.trim()).find((item) => item.startsWith(`${name}=`))?.slice(name.length + 1) || "";
 const exactId = (value) => String(value ?? "");
@@ -412,7 +459,7 @@ async function renderApplications() {
   const typeOptions = [["all", "All types"], ...(data.application_types || ["judge", "mod"]).map((value) => [value, value === "judge" ? "Reviewer" : titleCase(value)])];
   const filter = (key, options) => `<label class="filter-field"><span>${esc(titleCase(key))}</span><select id="application-${esc(key)}-filter">${options.map(([value,label]) => `<option value="${esc(value)}" ${state.applicationFilters[key] === value ? "selected" : ""}>${esc(label)}</option>`).join("")}</select></label>`;
   const controls = `<div class="toolbar application-filter-bar">${filter("type", typeOptions)}${filter("status", [["active","Active"],["all","All statuses"],["submitted","Submitted"],["under_review","Under review"],["interview","Interview"],["hold","Held"],["accepted_pending_role","Accepted, role pending"],["accepted","Accepted"],["rejected","Rejected"],["withdrawn","Withdrawn"]])}${filter("claim", [["all","All claims"],["unclaimed","Not claimed"],["claimed","Claimed"],["mine","Claimed by me"]])}<button class="button secondary" type="button" data-action="application-filter-apply">Apply filters</button></div>`;
-  return `<div class="panel-head"><div><h2>Staff applications</h2><p class="muted">Review Reviewer and Mod applications, assignment state, notes, and durable decision history.</p></div></div>${controls}${data.items.length ? `<div class="record-list">${data.items.map((item) => `<button class="record-row" type="button" data-open-application="${item.id}"><span><strong>${esc(identityLabel(item.applicant, item.applicant_id))}</strong><small>${esc(item.application_label || titleCase(item.application_type))} #${item.id} · submitted ${ago(item.submitted_ts)}</small></span><span class="record-tags">${pill(item.status)}${pill(item.claimed_by ? "claimed" : "unclaimed")}</span><span class="row-chevron" aria-hidden="true">View</span></button>`).join("")}</div>` : empty("No applications match these filters", "Change the status, claim, or application type filters to widen the view.")}`;
+  return `<div class="panel-head"><div><h2>Staff applications</h2><p class="muted">Review Reviewer and Mod applications, assignment state, notes, and durable decision history.</p></div></div>${controls}${data.items.length ? `<div class="record-list">${data.items.map((item) => `<button class="record-row" type="button" data-open-application="${item.id}"><span><strong>${esc(identityLabel(item.applicant, item.applicant_id))}</strong><small>${esc(item.application_label || titleCase(item.application_type))} · submitted ${ago(item.submitted_ts)}</small></span><span class="record-tags">${pill(item.status)}${pill(item.claimed_by ? "claimed" : "unclaimed")}</span><span class="row-chevron" aria-hidden="true">View</span></button>`).join("")}</div>` : empty("No applications match these filters", "Change the status, claim, or application type filters to widen the view.")}`;
 }
 
 async function renderStaff() {
@@ -463,7 +510,8 @@ function openApplication(id) {
   const interviewDelivery = ["pending", "processing", "failed"].includes(item.interview_delivery_status)
     ? pill(`interview setup ${item.interview_delivery_status}`, item.interview_delivery_status === "failed" ? "warning" : "")
     : "";
-  openDrawer("Application inspector", `Application #${item.id}`, `
+  const applicantName = item.applicant?.display_name || item.applicant?.username || "Applicant";
+  openDrawer("Application inspector", `${applicantName}'s application`, `
     <div class="drawer-identity"><div><span>Applicant</span><strong>${esc(identityLabel(item.applicant, item.applicant_id))}</strong><small class="secondary-id">${esc(exactId(item.applicant_id))}</small></div>${copyButton(item.applicant_id, "Copy Discord ID")}</div>
     <div class="drawer-meta">${pill(item.status)}${pill(item.application_type === "judge" ? "reviewer" : item.application_type)}${interviewDelivery}<span>Submitted ${fmtTime(item.submitted_ts)}</span>${item.claimed_by ? `<span>Claimed by ${esc(identityLabel(item.claimed_by_identity, item.claimed_by))}</span>` : ""}${item.review_thread_id ? `<a class="quiet-link" href="https://discord.com/channels/${esc(item.guild_id)}/${esc(item.review_thread_id)}" target="_blank" rel="noopener noreferrer">Open Discord thread</a>` : ""}${item.interview_ticket_channel_id ? `<a class="quiet-link" href="https://discord.com/channels/${esc(item.guild_id)}/${esc(item.interview_ticket_channel_id)}" target="_blank" rel="noopener noreferrer">Open interview ticket</a>` : ""}</div>
     <section class="drawer-section"><h3>Answers</h3><div class="answer-list">${Object.entries(item.answers || {}).map(([key, value]) => `<div><small>${esc(titleCase(key))}</small><p>${esc(value)}</p></div>`).join("") || '<p class="muted">No answers were stored.</p>'}</div></section>
@@ -522,7 +570,7 @@ async function renderSystem() {
     <div class="system-status-line">${countMetric("Runtime", data.runtime.ready ? "Ready" : "Degraded")}${countMetric("Database", data.database.connected ? "Connected" : "Unavailable")}${countMetric("Waiting operations", data.database.waiting_operations || 0)}${countMetric("Dead outbox", data.dead_outbox.length)}</div>
     <details class="admin-disclosure" open><summary>Runtime and database</summary><div class="operations-grid"><section class="section-block"><h3>Runtime</h3><div class="metric-line"><span>Heartbeat age</span><strong>${data.runtime.heartbeat_age_seconds ?? "Unknown"}s</strong></div><div class="metric-line"><span>Event-loop lag</span><strong>${data.runtime.event_loop_lag_ms ?? "Unknown"}ms</strong></div></section><section class="section-block"><h3>Database</h3><div class="metric-line"><span>Remote primary</span><strong>${data.database.uses_remote ? "Yes" : "No"}</strong></div><div class="metric-line"><span>Waiting operations</span><strong>${data.database.waiting_operations || 0}</strong></div></section></div></details>
     <details class="admin-disclosure"><summary>Schema and delivery diagnostics</summary><div class="operations-grid"><section class="section-block"><h3>${conceptLabel("Schema versions", conceptHelp.schema)}</h3>${data.schemas.map((item) => `<div class="metric-line"><span>${esc(item.component)}</span><strong>v${item.schema_version}</strong></div>`).join("") || '<p class="muted">No schema metadata.</p>'}</section><section class="section-block"><h3>${conceptLabel("Identity integrity", conceptHelp.identityIntegrity)}</h3>${Object.entries(data.identity_repairs || {}).map(([status, item]) => `<div class="metric-line"><span>${esc(titleCase(status))}</span><strong>${item.records} records · ${item.rows_changed} rows</strong></div>`).join("") || '<p class="muted">No legacy snowflake repairs recorded.</p>'}</section><section class="section-block"><h3>${conceptLabel("Dead outbox entries", conceptHelp.outbox)}</h3><strong>${data.dead_outbox.length}</strong><p class="muted">Inspect correlation IDs before replaying side effects.</p></section></div></details>
-    ${config ? `<details class="admin-disclosure"><summary>Safe configuration</summary><div class="form-grid compact-form"><label>Stale claim threshold in hours<input id="config-stale" type="number" min="1" max="720" value="${config.configuration.claim_stale_hours}"></label><label class="checkbox-row"><input id="config-apps" type="checkbox" ${config.configuration.applications_open ? "checked" : ""}><span>Reviewer applications open</span></label><button class="button primary" data-action="config-save">Save configuration</button></div></details>` : ""}
+    ${config ? `<details class="admin-disclosure"><summary>Safe configuration</summary><div class="form-grid compact-form"><label>${conceptLabel("Stale claim threshold in hours", conceptHelp.staleClaim)}<input id="config-stale" type="number" min="1" max="720" value="${config.configuration.claim_stale_hours}"></label><label class="checkbox-row"><input id="config-apps" type="checkbox" ${config.configuration.applications_open ? "checked" : ""}><span>${conceptLabel("Application submissions enabled", "Emergency master switch for every application type. Existing drafts and submitted applications remain accessible when this is off.")}</span></label>${supports("application_type_availability") ? `<label class="checkbox-row"><input id="config-app-judge" type="checkbox" ${config.configuration.application_open_by_type?.judge !== false ? "checked" : ""}><span>Reviewer applications open</span></label><label class="checkbox-row"><input id="config-app-mod" type="checkbox" ${config.configuration.application_open_by_type?.mod !== false ? "checked" : ""}><span>Mod applications open</span></label>` : '<p class="inline-warning">Deploy Avenue Guard API v6 to manage each application type independently.</p>'}<button class="button primary" data-action="config-save">Save configuration</button></div></details>` : ""}
     <details class="admin-disclosure danger-zone"><summary>Recovery actions</summary><p class="muted">Use only after inspecting the relevant incident or worker state. Every action is audited.</p><div class="toolbar">${data.available_actions.map((action) => `<button class="button secondary" data-system-action="${esc(action)}">${esc(titleCase(action))}</button>`).join("")}</div></details>`;
 }
 
@@ -952,7 +1000,11 @@ document.addEventListener("click", async (event) => {
     return actionDialog({ title: "Add staff member", description: "The Discord member receives the selected managed role through Avenue Guard's durable delivery queue and immediately gets a portal profile record.", fields: [{ name: "user_id", label: "Discord user ID", discordId: true, required: true }, { name: "role", label: "Staff role", type: "select", options: [["reviewer","Reviewer"],["head_reviewer","Head Reviewer"],["admin","Admin"],["owner","Owner"]] }, { name: "reason", label: "Reason", type: "textarea", required: true }, { name: "confirmed", label: "I confirm this staff access change", type: "checkbox", required: true }], confirm: "Add staff", run: async (body) => { const result = await api("/api/staff/staff", { method: "POST", body }); state.staffAssignees = null; return result; } });
   }
   if (action === "new-note") return actionDialog({ title: "Create note", description: "Linked records are optional and help staff find context without exposing the note publicly.", fields: [{ name: "scope", label: "Visibility", type: "select", help: "Controls which staff groups can read this internal note.", options: [["private","Private"],["reviewer_team","Reviewer team"],["entity","Entity participants"],...(can("notes.head") ? [["head_judges","Head Reviewers"]] : []),...(can("notes.owner") ? [["owners","Owners"]] : [])] }, { name: "body", label: "Note", type: "textarea", required: true }, { name: "entity_type", label: "Linked record type", help: conceptHelp.linkedEntity }, { name: "entity_id", label: "Linked record ID", help: conceptHelp.linkedEntityId }], run: (body) => api("/api/staff/notes", { method: "POST", body }) });
-  if (action === "config-save") return api("/api/staff/configuration", { method: "PATCH", body: { claim_stale_hours: Number($("#config-stale").value), applications_open: $("#config-apps").checked } }).then(() => { showNotice("Configuration saved"); render(); }).catch((error) => showNotice(error.message, true));
+  if (action === "config-save") {
+    const body = { claim_stale_hours: Number($("#config-stale").value), applications_open: $("#config-apps").checked };
+    if (supports("application_type_availability")) body.application_open_by_type = { judge: $("#config-app-judge").checked, mod: $("#config-app-mod").checked };
+    return api("/api/staff/configuration", { method: "PATCH", body }).then(() => { showNotice("Configuration saved"); render(); }).catch((error) => showNotice(error.message, true));
+  }
   if (action === "audit-apply") {
     const query = new URLSearchParams({ actor: $("#audit-actor").value, action: $("#audit-action").value, entity: $("#audit-entity").value });
     loading(); try { const data = await api(`/api/staff/audit?${query}`); $("#content").innerHTML = `<p class="muted">${data.items.length} matching events. Clear filters with Refresh.</p>` + data.items.map((item) => `<div class="list-row"><div><strong>${esc(titleCase(item.event))}</strong><small>${esc(item.entity_id)}</small></div><small>${fmtTime(item.created_ts)}</small></div>`).join(""); } catch (error) { errorState(error); } return;
@@ -1087,6 +1139,15 @@ $("#profile-button").addEventListener("click", () => {
   if (!menu.hidden) menu.querySelector("button")?.focus();
 });
 document.addEventListener("click", (event) => {
+  const help = event.target.closest(".help-tip");
+  if (help) {
+    event.preventDefault();
+    event.stopPropagation();
+    if (activeHelpTrigger === help) hideHelpTooltip();
+    else showHelpTooltip(help);
+    return;
+  }
+  hideHelpTooltip();
   if (event.target.closest(".sidebar-profile-wrap")) return;
   $("#profile-menu").hidden = true;
   $("#profile-button").setAttribute("aria-expanded", "false");
@@ -1095,6 +1156,30 @@ document.addEventListener("click", (event) => {
     $("#global-search").setAttribute("aria-expanded", "false");
   }
 });
+document.addEventListener("pointerover", (event) => {
+  const help = event.target.closest(".help-tip");
+  if (help) showHelpTooltip(help);
+});
+document.addEventListener("pointerout", (event) => {
+  const help = event.target.closest(".help-tip");
+  if (help && !help.contains(event.relatedTarget) && document.activeElement !== help) hideHelpTooltip();
+});
+document.addEventListener("focusin", (event) => {
+  const help = event.target.closest(".help-tip");
+  if (help) showHelpTooltip(help);
+});
+document.addEventListener("focusout", (event) => {
+  if (event.target.closest(".help-tip") && !event.relatedTarget?.closest?.(".help-tip")) hideHelpTooltip();
+});
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape") hideHelpTooltip();
+  if ((event.key === "Enter" || event.key === " ") && event.target.closest(".help-tip")) {
+    event.preventDefault();
+    showHelpTooltip(event.target.closest(".help-tip"));
+  }
+});
+window.addEventListener("resize", positionHelpTooltip);
+window.addEventListener("scroll", positionHelpTooltip, true);
 $("#logout-button").addEventListener("click", async () => {
   try {
     await fetch("/api/auth/logout", { method: "POST", headers: { "X-CSRF-Token": decodeURIComponent(cookieValue("av_staff_csrf")) }, credentials: "same-origin" });
@@ -1127,7 +1212,7 @@ $("#global-search").addEventListener("input", (event) => {
     try {
       const data = await api(`/api/staff/search?q=${encodeURIComponent(term)}`);
       const box = $("#search-results");
-      box.innerHTML = data.items.length ? data.items.map((item) => `<button class="search-result" type="button" ${item.type === "level" ? `data-open-queue="${item.id}"` : `data-search-type="${esc(item.type)}" data-search-id="${esc(item.id)}"`}><strong>${esc(item.current_level_name || item.title || item.display_name || `Application #${item.id}`)}</strong><br><small>${esc(titleCase(item.role || item.type))}</small></button>`).join("") : '<div class="search-result">No matching staff records</div>';
+      box.innerHTML = data.items.length ? data.items.map((item) => `<button class="search-result" type="button" ${item.type === "level" ? `data-open-queue="${item.id}"` : `data-search-type="${esc(item.type)}" data-search-id="${esc(item.id)}"`}><strong>${esc(item.current_level_name || item.title || item.display_name || "Staff application")}</strong><br><small>${esc(titleCase(item.role || item.type))}</small></button>`).join("") : '<div class="search-result">No matching staff records</div>';
       box.hidden = false;
       $("#global-search").setAttribute("aria-expanded", "true");
     } catch { $("#search-results").hidden = true; }

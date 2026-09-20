@@ -130,11 +130,15 @@ test("task creation uses the authoritative staff directory and explains internal
   assert.doesNotMatch(script, /label: "Assignee Discord ID"/);
   assert.match(script, /const helpTip =/);
   assert.match(script, /class="help-tip"/);
+  assert.match(script, /<button class="help-tip" type="button"/);
+  assert.doesNotMatch(script, /class="help-tip"[^>]+title=/);
+  assert.match(script, /portal-help-tooltip/);
+  assert.match(script, /removeAttribute\("aria-describedby"\)/);
   assert.match(script, /conceptHelp\.linkedEntity/);
   assert.match(script, /conceptHelp\.outbox/);
   assert.match(script, /conceptHelp\.priority/);
-  assert.match(styles, /\.help-tip::after/);
-  assert.match(styles, /\.help-tip:hover::after, \.help-tip:focus-visible::after/);
+  assert.doesNotMatch(styles, /\.help-tip::after/);
+  assert.match(styles, /\.portal-help-tooltip/);
 });
 
 test("public applications render server-defined typed questions and review prompts", () => {
@@ -177,6 +181,12 @@ test("staff applications expose typed choices, cooldowns, timezone defaults, and
   assert.match(styles, /\.pill\.accepted, \.pill\.accepted_pending_role/);
   assert.match(styles, /\.form-grid textarea:focus-visible/);
   assert.match(styles, /box-shadow: inset 0 0 0 1px var\(--accent\)/);
+  assert.match(script, /application_open_by_type/);
+  assert.match(script, /config-app-mod/);
+  assert.match(script, /supports\("application_type_availability"\)/);
+  assert.match(script, /Deploy Avenue Guard API v6/);
+  assert.doesNotMatch(application, /Application #/);
+  assert.doesNotMatch(script, /Application #/);
 });
 
 test("application review workspace filters by type, status, and claim state", () => {
