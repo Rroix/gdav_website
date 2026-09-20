@@ -54,7 +54,9 @@ test("operational records use inspectors and compact queue columns", () => {
   assert.match(script, /function openApplication/);
   assert.match(script, /function openStaffInspector/);
   assert.match(script, /function openQAInspector/);
-  assert.match(script, /<th>Rank<\/th><th>Level<\/th><th>Tier<\/th><th>Creator<\/th><th>CP<\/th><th>W<\/th><th>Priority<\/th><th>State<\/th><th>Claim<\/th>/);
+  assert.match(script, /<th>Rank<\/th><th>Level<\/th><th>Tier<\/th><th>Creator<\/th><th>\$\{conceptLabel\("CP"/);
+  assert.match(script, /conceptLabel\("W", conceptHelp\.waiting\)/);
+  assert.match(script, /conceptLabel\("Claim", conceptHelp\.claim\)/);
   assert.match(script, /data-copy=/);
 });
 
@@ -112,6 +114,27 @@ test("team and application workflows expose the requested operational controls",
   assert.match(script, /Open Discord thread/);
   assert.match(script, /Open interview ticket/);
   assert.match(script, /supports\("staff_manual_management"\)/);
+});
+
+test("task creation uses the authoritative staff directory and explains internal concepts", () => {
+  assert.match(script, /api\("\/api\/staff\/assignees"\)/);
+  assert.match(script, /supports\("staff_assignee_directory"\)/);
+  assert.match(script, /supports\("task_recipient_dm"\)/);
+  assert.match(script, /type: "staff"/);
+  assert.match(script, /<datalist/);
+  assert.match(script, /Search the staff team/);
+  assert.match(script, /taskType\.value === "assigned"/);
+  assert.match(script, /Personal tasks belong to you/);
+  assert.match(script, /DM every included staff member/);
+  assert.match(script, /\["level","Level queue entry"\]/);
+  assert.doesNotMatch(script, /label: "Assignee Discord ID"/);
+  assert.match(script, /const helpTip =/);
+  assert.match(script, /class="help-tip"/);
+  assert.match(script, /conceptHelp\.linkedEntity/);
+  assert.match(script, /conceptHelp\.outbox/);
+  assert.match(script, /conceptHelp\.priority/);
+  assert.match(styles, /\.help-tip::after/);
+  assert.match(styles, /\.help-tip:hover::after, \.help-tip:focus-visible::after/);
 });
 
 test("public applications render server-defined typed questions and review prompts", () => {

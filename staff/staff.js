@@ -11,6 +11,7 @@ const state = {
   returnFocus: null,
   drawerReturnFocus: null,
   staffItems: [],
+  staffAssignees: null,
   applications: [],
   applicationFilters: { type: "all", status: "active", claim: "all" },
   qaItems: [],
@@ -61,6 +62,27 @@ const identityLabel = (identity, fallbackId = "") => {
   const name = identity?.display_name || identity?.portal_nickname || identity?.discord_display_name || identity?.global_display_name || identity?.username || "Reviewer";
   return id ? `${name} (${id})` : name;
 };
+const conceptHelp = {
+  claim: "A claim marks the staff member currently responsible for a queue item. It does not mean that outreach has happened.",
+  confirmedSubmission: "A confirmed submission means staff verified that the level actually reached a Geometry Dash moderator. An attempt alone is not a confirmed submission.",
+  correlation: "A correlation ID connects logs and durable workflow events from the same operation without exposing private content.",
+  cp: "Creator Points are the creator's current Geometry Dash Creator Points snapshot. Unknown values are never treated as zero.",
+  linkedEntity: "An optional connection to another internal portal record. Use it when the task belongs to a specific level queue entry, application, or task; leave it blank for ordinary work.",
+  linkedEntityId: "The internal portal record ID, not a Geometry Dash level ID or Discord ID.",
+  outbox: "The durable delivery queue Avenue Guard uses for Discord messages and role changes. Pending items retry automatically; dead items need staff review.",
+  pps: "The Priority Point System orders eligible recommended levels for outreach. It does not change review decisions or claim that moderator contact has occurred.",
+  priority: "The current Priority Point System total. It combines the configured prestige, creator, and waiting components when all required data is available.",
+  priorityCreator: "The creator component (G) used by the current Priority Point System model.",
+  priorityPrestige: "The recommendation-tier component (F) used by the current Priority Point System model.",
+  priorityWaiting: "The waiting component (H), which increases as an eligible level remains in later outreach cycles.",
+  roleDelivery: "Whether Avenue Guard has finished the queued Discord role change for this staff profile.",
+  schema: "A schema version identifies the database structure expected by each Avenue Guard subsystem.",
+  identityIntegrity: "Checks that large Discord IDs were preserved exactly through database migrations and repairs.",
+  staleClaim: "A claim older than the configured inactivity threshold. It may need reassignment or release.",
+  waiting: "Completed outreach waiting cycles for this level. This is the W input used by the Priority Point System.",
+};
+const helpTip = (text) => `<span class="help-tip" tabindex="0" role="note" aria-label="Help: ${esc(text)}" title="${esc(text)}" data-help="${esc(text)}">?</span>`;
+const conceptLabel = (label, help) => `<span class="concept-label">${esc(label)}${helpTip(help)}</span>`;
 const percent = (done, total) => total ? Math.round((Number(done) / Number(total)) * 100) : 0;
 const cookieValue = (name) => document.cookie.split(";").map((item) => item.trim()).find((item) => item.startsWith(`${name}=`))?.slice(name.length + 1) || "";
 const exactId = (value) => String(value ?? "");
@@ -92,6 +114,19 @@ async function api(path, options = {}) {
     throw error;
   }
   return data;
+}
+
+async function staffAssigneeOptions() {
+  if (!supports("staff_assignee_directory")) {
+    throw new Error("Deploy the matching Avenue Guard API to load the staff assignee directory.");
+  }
+  if (Array.isArray(state.staffAssignees)) return state.staffAssignees;
+  const data = await api("/api/staff/assignees");
+  state.staffAssignees = (data.items || []).map((item) => [
+    exactId(item.id),
+    `${item.display_name} — ${item.role_label || roleLabel(item.role)}`,
+  ]);
+  return state.staffAssignees;
 }
 
 function showNotice(message, error = false) {
@@ -269,7 +304,7 @@ async function renderQueue(query = "") {
     <select id="queue-tier" aria-label="Recommendation tier"><option value="">All tiers</option>${["rate","feature","epic","legendary","mythic"].map((value) => `<option value="${value}" ${params.get("tier") === value ? "selected" : ""}>${titleCase(value)}</option>`).join("")}</select>
     <button class="button secondary" data-action="queue-apply">Apply</button>
   </div>
-  ${data.items.length ? `<div class="table-wrap"><table class="data-table queue-table"><thead><tr><th>Rank</th><th>Level</th><th>Tier</th><th>Creator</th><th>CP</th><th>W</th><th>Priority</th><th>State</th><th>Claim</th></tr></thead><tbody>${data.items.map(queueRow).join("")}</tbody></table></div><p class="muted table-caption">Showing ${data.items.length} of ${data.total} entries</p>` : empty("No levels match this view", "Try another filter or search term.")}`;
+  ${data.items.length ? `<div class="table-wrap"><table class="data-table queue-table"><thead><tr><th>Rank</th><th>Level</th><th>Tier</th><th>Creator</th><th>${conceptLabel("CP", conceptHelp.cp)}</th><th>${conceptLabel("W", conceptHelp.waiting)}</th><th>${conceptLabel("Priority", conceptHelp.priority)}</th><th>State</th><th>${conceptLabel("Claim", conceptHelp.claim)}</th></tr></thead><tbody>${data.items.map(queueRow).join("")}</tbody></table></div><p class="muted table-caption">Showing ${data.items.length} of ${data.total} entries</p>` : empty("No levels match this view", "Try another filter or search term.")}`;
 }
 
 function queueRow(item) {
@@ -286,7 +321,7 @@ async function openQueue(id) {
     $("#drawer-content").innerHTML = `
       <div class="drawer-identity"><div><span>Level ID</span><strong class="secondary-id">${esc(item.level_id)}</strong></div>${copyButton(item.level_id)}</div><p class="muted">Created by ${esc(item.creator)}</p>
       <div class="detail-grid"><div class="detail-stat"><small>Tier</small><strong>${esc(titleCase(item.tier))}</strong></div><div class="detail-stat"><small>State</small><strong>${esc(titleCase(item.state))}</strong></div><div class="detail-stat"><small>Creator Points</small><strong>${item.cp ?? "Unknown"}</strong></div><div class="detail-stat"><small>Exact rank</small><strong>${item.rank ? `#${item.rank}` : "Unavailable"}</strong></div></div>
-      <details class="drawer-section" open><summary>Priority breakdown</summary><div class="detail-grid"><div class="detail-stat"><small>Prestige F</small><strong>${item.components.f ?? "-"}</strong></div><div class="detail-stat"><small>Creator G</small><strong>${item.components.g ?? "-"}</strong></div><div class="detail-stat"><small>Waiting H</small><strong>${item.components.h ?? "-"}</strong></div><div class="detail-stat"><small>Total P</small><strong>${item.components.complete ? Number(item.components.p).toFixed(2) : "Incomplete"}</strong></div></div></details>
+      <details class="drawer-section" open><summary>${conceptLabel("Priority breakdown", conceptHelp.priority)}</summary><div class="detail-grid"><div class="detail-stat"><small>${conceptLabel("Prestige F", conceptHelp.priorityPrestige)}</small><strong>${item.components.f ?? "-"}</strong></div><div class="detail-stat"><small>${conceptLabel("Creator G", conceptHelp.priorityCreator)}</small><strong>${item.components.g ?? "-"}</strong></div><div class="detail-stat"><small>${conceptLabel("Waiting H", conceptHelp.priorityWaiting)}</small><strong>${item.components.h ?? "-"}</strong></div><div class="detail-stat"><small>${conceptLabel("Total P", conceptHelp.priority)}</small><strong>${item.components.complete ? Number(item.components.p).toFixed(2) : "Incomplete"}</strong></div></div></details>
       <section class="drawer-section"><div class="panel-head"><h3>Actions</h3></div><div class="toolbar">
         ${item.state !== "hidden" && !item.claim && can("queue.claim") ? `<button class="button primary" data-queue-action="claim" data-id="${id}">Claim</button>` : ""}
         ${item.state !== "hidden" && item.claim && (item.claim.user_id === state.user.id || can("queue.reassign")) ? `<button class="button secondary" data-queue-action="release" data-id="${id}">Release</button>` : ""}
@@ -316,7 +351,9 @@ async function renderTasks() {
   const scope = can("tasks.manage_team") ? "team" : "mine";
   const data = await api(`/api/staff/tasks?scope=${scope}`);
   state.tasks = data.items;
-  return `<div class="panel-head"><div><h2>Tasks</h2><p class="muted">Personal, assigned, team, and generated attention work.</p></div><button class="button primary" data-action="new-task">New task</button></div>
+  const taskNotificationsReady = supports("task_recipient_dm");
+  return `<div class="panel-head"><div><h2>Tasks</h2><p class="muted">Personal, assigned, team, and generated attention work.</p></div><button class="button primary" data-action="new-task" ${taskNotificationsReady ? "" : 'disabled aria-disabled="true" title="Deploy the matching Avenue Guard API to create tasks"'}>New task</button></div>
+    ${taskNotificationsReady ? "" : '<p class="warning-text">Task creation is temporarily disabled until the portal and Avenue Guard use the same task notification API.</p>'}
     <section class="panel">${progress("Task progress", data.progress.done, data.progress.total)}</section>
     <div class="stack">${data.items.length ? data.items.map(taskRow).join("") : empty("No open tasks")}</div>`;
 }
@@ -330,7 +367,7 @@ function openTaskInspector(id) {
   if (!task) return showNotice("That task is no longer in this view", true);
   openDrawer("Task inspector", task.title, `<div class="drawer-meta">${pill(task.status)}${pill(task.priority)}${task.system_key ? '<span class="pill">System generated</span>' : ""}</div>
     ${task.description ? `<section class="drawer-section"><h3>Description</h3><p>${esc(task.description)}</p></section>` : ""}
-    <div class="detail-grid"><div class="detail-stat"><small>Due</small><strong>${task.due_ts ? fmtTime(task.due_ts) : "No due date"}</strong></div><div class="detail-stat"><small>Linked entity</small><strong>${esc(task.linked_entity_type ? `${task.linked_entity_type} ${task.linked_entity_id || ""}` : "None")}</strong></div></div>
+    <div class="detail-grid"><div class="detail-stat"><small>Due</small><strong>${task.due_ts ? fmtTime(task.due_ts) : "No due date"}</strong></div><div class="detail-stat"><small>${conceptLabel("Linked record", conceptHelp.linkedEntity)}</small><strong>${esc(task.linked_entity_type ? `${titleCase(task.linked_entity_type)} #${task.linked_entity_id || ""}` : "None")}</strong></div></div>
     ${task.status !== "done" ? `<section class="drawer-section"><button class="button primary" data-complete-task="${task.id}">Mark complete</button></section>` : ""}`);
 }
 
@@ -341,7 +378,7 @@ async function renderNotes() {
 
 async function renderTeamOverview() {
   const team = await api("/api/staff/team");
-  return `<div class="summary-band"><div><p class="eyebrow">Team operations</p><h2>Shared workload</h2><small>Progress uses real workflow denominators.</small></div><div><small>Active claims</small><strong>${team.claims.active}</strong></div><div><small>Stale claims</small><strong>${team.claims.stale}</strong></div><div><small>Queued</small><strong>${team.queue.queued || 0}</strong></div></div>
+  return `<div class="summary-band"><div><p class="eyebrow">Team operations</p><h2>Shared workload</h2><small>Progress uses real workflow denominators.</small></div><div><small>Active claims</small><strong>${team.claims.active}</strong></div><div><small>${conceptLabel("Stale claims", conceptHelp.staleClaim)}</small><strong>${team.claims.stale}</strong></div><div><small>Queued</small><strong>${team.queue.queued || 0}</strong></div></div>
     <div class="workspace-grid"><section class="panel">${progress("Current request wave", team.review_progress.done, team.review_progress.total)}<div class="detail-grid"><div class="detail-stat"><small>Outreach attempts this week</small><strong>${team.outreach_week.attempts}</strong></div><div class="detail-stat"><small>Confirmed submissions this week</small><strong>${team.outreach_week.submissions}</strong></div><div class="detail-stat"><small>Pending applications</small><strong>${team.pending_applications}</strong></div></div></section><section class="panel"><h2>Current claim workload</h2>${team.workload.length ? team.workload.map((item) => `<div class="metric-line"><span>${esc(identityLabel(item.identity, item.user_id))}</span><strong>${item.active_claims}</strong></div>`).join("") : '<p class="muted">No active claims.</p>'}</section></div>`;
 }
 
@@ -441,7 +478,7 @@ function openStaffInspector(id) {
   openDrawer("Staff inspector", member.display_name, `
     <div class="profile-hero">${member.avatar_url ? `<img src="${esc(member.avatar_url)}" alt="" width="64" height="64">` : ""}<div>${pill(member.role_label || roleLabel(member.role))}${pill(member.active ? "active" : "inactive")}</div></div>
     <div class="drawer-identity"><div><span>Exact Discord ID</span><strong class="secondary-id">${esc(exactId(member.id))}</strong></div>${copyButton(member.id)}</div>
-    <div class="detail-grid"><div class="detail-stat"><small>Reviews</small><strong>${member.reviews || 0}</strong></div><div class="detail-stat"><small>Active claims</small><strong>${member.workload || 0}</strong></div><div class="detail-stat"><small>Last activity</small><strong>${member.last_activity_ts ? ago(member.last_activity_ts) : "Unknown"}</strong></div><div class="detail-stat"><small>Role delivery</small><strong>${esc(titleCase(member.role_delivery_status || "current"))}</strong></div></div>
+    <div class="detail-grid"><div class="detail-stat"><small>Reviews</small><strong>${member.reviews || 0}</strong></div><div class="detail-stat"><small>Active claims</small><strong>${member.workload || 0}</strong></div><div class="detail-stat"><small>Last activity</small><strong>${member.last_activity_ts ? ago(member.last_activity_ts) : "Unknown"}</strong></div><div class="detail-stat"><small>${conceptLabel("Role delivery", conceptHelp.roleDelivery)}</small><strong>${esc(titleCase(member.role_delivery_status || "current"))}</strong></div></div>
     <section class="drawer-section"><h3>Portal identity</h3><p class="muted">The portal nickname does not change the Discord server nickname.</p><button class="button secondary" data-nickname-id="${esc(exactId(member.id))}" data-nickname-value="${esc(member.portal_nickname || "")}">Edit nickname</button></section>
     ${can("staff.manage_standard_roles") ? `<section class="drawer-section"><h3>Access</h3><button class="button secondary" data-staff-action="${esc(exactId(member.id))}" data-staff-role="${esc(member.role)}">Manage staff access</button></section>` : ""}`);
 }
@@ -484,7 +521,7 @@ async function renderSystem() {
   return `<div class="panel-head"><div><h2>System</h2><p class="muted">Sanitized engineering diagnostics. Secrets and raw environment values are never returned.</p></div></div>
     <div class="system-status-line">${countMetric("Runtime", data.runtime.ready ? "Ready" : "Degraded")}${countMetric("Database", data.database.connected ? "Connected" : "Unavailable")}${countMetric("Waiting operations", data.database.waiting_operations || 0)}${countMetric("Dead outbox", data.dead_outbox.length)}</div>
     <details class="admin-disclosure" open><summary>Runtime and database</summary><div class="operations-grid"><section class="section-block"><h3>Runtime</h3><div class="metric-line"><span>Heartbeat age</span><strong>${data.runtime.heartbeat_age_seconds ?? "Unknown"}s</strong></div><div class="metric-line"><span>Event-loop lag</span><strong>${data.runtime.event_loop_lag_ms ?? "Unknown"}ms</strong></div></section><section class="section-block"><h3>Database</h3><div class="metric-line"><span>Remote primary</span><strong>${data.database.uses_remote ? "Yes" : "No"}</strong></div><div class="metric-line"><span>Waiting operations</span><strong>${data.database.waiting_operations || 0}</strong></div></section></div></details>
-    <details class="admin-disclosure"><summary>Schema and delivery diagnostics</summary><div class="operations-grid"><section class="section-block"><h3>Schema versions</h3>${data.schemas.map((item) => `<div class="metric-line"><span>${esc(item.component)}</span><strong>v${item.schema_version}</strong></div>`).join("") || '<p class="muted">No schema metadata.</p>'}</section><section class="section-block"><h3>Identity integrity</h3>${Object.entries(data.identity_repairs || {}).map(([status, item]) => `<div class="metric-line"><span>${esc(titleCase(status))}</span><strong>${item.records} records · ${item.rows_changed} rows</strong></div>`).join("") || '<p class="muted">No legacy snowflake repairs recorded.</p>'}</section><section class="section-block"><h3>Dead outbox entries</h3><strong>${data.dead_outbox.length}</strong><p class="muted">Inspect correlation IDs before replaying side effects.</p></section></div></details>
+    <details class="admin-disclosure"><summary>Schema and delivery diagnostics</summary><div class="operations-grid"><section class="section-block"><h3>${conceptLabel("Schema versions", conceptHelp.schema)}</h3>${data.schemas.map((item) => `<div class="metric-line"><span>${esc(item.component)}</span><strong>v${item.schema_version}</strong></div>`).join("") || '<p class="muted">No schema metadata.</p>'}</section><section class="section-block"><h3>${conceptLabel("Identity integrity", conceptHelp.identityIntegrity)}</h3>${Object.entries(data.identity_repairs || {}).map(([status, item]) => `<div class="metric-line"><span>${esc(titleCase(status))}</span><strong>${item.records} records · ${item.rows_changed} rows</strong></div>`).join("") || '<p class="muted">No legacy snowflake repairs recorded.</p>'}</section><section class="section-block"><h3>${conceptLabel("Dead outbox entries", conceptHelp.outbox)}</h3><strong>${data.dead_outbox.length}</strong><p class="muted">Inspect correlation IDs before replaying side effects.</p></section></div></details>
     ${config ? `<details class="admin-disclosure"><summary>Safe configuration</summary><div class="form-grid compact-form"><label>Stale claim threshold in hours<input id="config-stale" type="number" min="1" max="720" value="${config.configuration.claim_stale_hours}"></label><label class="checkbox-row"><input id="config-apps" type="checkbox" ${config.configuration.applications_open ? "checked" : ""}><span>Reviewer applications open</span></label><button class="button primary" data-action="config-save">Save configuration</button></div></details>` : ""}
     <details class="admin-disclosure danger-zone"><summary>Recovery actions</summary><p class="muted">Use only after inspecting the relevant incident or worker state. Every action is audited.</p><div class="toolbar">${data.available_actions.map((action) => `<button class="button secondary" data-system-action="${esc(action)}">${esc(titleCase(action))}</button>`).join("")}</div></details>`;
 }
@@ -492,12 +529,12 @@ async function renderSystem() {
 async function renderPPS() {
   const data = await api("/api/staff/pps");
   const dashboard = data.dashboard || {};
-  return `<div class="panel-head"><div><h2>Priority Point System</h2><p class="muted">Existing PPS business logic and cycle state.</p></div><button class="button primary" data-action="pps-cycle">Manage cycle</button></div><div class="detail-grid"><div class="detail-stat"><small>Model version</small><strong>${esc(data.model_version)}</strong></div><div class="detail-stat"><small>Outcome window</small><strong>${Math.round(data.outcome_window_seconds / 86400)} days</strong></div></div><section class="panel"><h3>Dashboard snapshot</h3><pre>${esc(JSON.stringify(dashboard, null, 2))}</pre></section>`;
+  return `<div class="panel-head"><div><h2>${conceptLabel("Priority Point System", conceptHelp.pps)}</h2><p class="muted">Existing PPS business logic and cycle state.</p></div><button class="button primary" data-action="pps-cycle">Manage cycle</button></div><div class="detail-grid"><div class="detail-stat"><small>Model version</small><strong>${esc(data.model_version)}</strong></div><div class="detail-stat"><small>Outcome window</small><strong>${Math.round(data.outcome_window_seconds / 86400)} days</strong></div></div><section class="panel"><h3>Dashboard snapshot</h3><pre>${esc(JSON.stringify(dashboard, null, 2))}</pre></section>`;
 }
 
 async function renderAudit() {
   const data = await api("/api/staff/audit");
-  return `<div class="toolbar"><input id="audit-actor" placeholder="Actor ID"><input id="audit-action" placeholder="Action"><input id="audit-entity" placeholder="Entity"><button class="button secondary" data-action="audit-apply">Filter</button></div>${data.items.length ? `<table class="data-table"><thead><tr><th>When</th><th>Action</th><th>Entity</th><th>Actor</th></tr></thead><tbody>${data.items.map((item) => `<tr><td data-label="When">${fmtTime(item.created_ts)}</td><td data-label="Action">${esc(titleCase(item.event))}</td><td data-label="Entity">${esc(item.entity_id)}</td><td data-label="Actor">${esc(item.actor_id ? identityLabel(item.actor, item.actor_id) : "System")}</td></tr>`).join("")}</tbody></table>` : empty("No audit events match")}`;
+  return `<div class="toolbar"><label class="filter-field"><span>${conceptLabel("Actor", "The staff Discord identity that performed the operation.")}</span><input id="audit-actor" placeholder="Discord ID"></label><label class="filter-field"><span>${conceptLabel("Action", "The durable workflow event name recorded by Avenue Guard.")}</span><input id="audit-action" placeholder="Event name"></label><label class="filter-field"><span>${conceptLabel("Entity", "The internal record or workflow identity affected by the event.")}</span><input id="audit-entity" placeholder="Record reference"></label><button class="button secondary" data-action="audit-apply">Filter</button></div>${data.items.length ? `<table class="data-table"><thead><tr><th>When</th><th>Action</th><th>Entity</th><th>Actor</th></tr></thead><tbody>${data.items.map((item) => `<tr><td data-label="When">${fmtTime(item.created_ts)}</td><td data-label="Action">${esc(titleCase(item.event))}</td><td data-label="Entity">${esc(item.entity_id)}</td><td data-label="Actor">${esc(item.actor_id ? identityLabel(item.actor, item.actor_id) : "System")}</td></tr>`).join("")}</tbody></table>` : empty("No audit events match")}`;
 }
 
 const renderers = {
@@ -533,7 +570,7 @@ function closeDrawer() {
   state.drawerReturnFocus = null;
 }
 
-async function actionDialog({ title, description, fields = [], confirm = "Confirm", danger = false, showCancel = true, run }) {
+async function actionDialog({ title, description, fields = [], confirm = "Confirm", danger = false, showCancel = true, onReady, run }) {
   const dialog = $("#action-dialog");
   if (state.dialogCleanup) state.dialogCleanup();
   state.returnFocus = document.activeElement?.offsetParent !== null
@@ -549,12 +586,17 @@ async function actionDialog({ title, description, fields = [], confirm = "Confir
   $("#dialog-fields").innerHTML = fields.map((field) => {
     const required = field.required ? '<span class="required-marker" aria-hidden="true">*</span>' : "";
     const describedBy = `${field.name}-error`;
+    const label = `<span class="field-label">${esc(field.label)}${required}${field.help ? helpTip(field.help) : ""}</span>`;
     if (field.type === "display") return `<div class="profile-detail"><small>${esc(field.label)}</small><strong class="${field.monospace ? "secondary-id" : ""}">${esc(field.value || "Not available")}</strong></div>`;
-    if (field.type === "checkbox") return `<label class="checkbox-row"><input name="${esc(field.name)}" type="checkbox" ${field.checked ? "checked" : ""}> <span>${esc(field.label)}</span></label><small id="${esc(describedBy)}" class="field-error" data-field-error="${esc(field.name)}" hidden></small>`;
-    if (field.type === "select") return `<label>${esc(field.label)}${required}<select name="${esc(field.name)}" aria-describedby="${esc(describedBy)}">${field.options.map(([value,label]) => `<option value="${esc(value)}" ${String(field.value ?? "") === String(value) ? "selected" : ""}>${esc(label)}</option>`).join("")}</select><small id="${esc(describedBy)}" class="field-error" data-field-error="${esc(field.name)}" hidden></small></label>`;
+    if (field.type === "checkbox") return `<div data-field-wrapper="${esc(field.name)}"><label class="checkbox-row"><input name="${esc(field.name)}" type="checkbox" ${field.checked ? "checked" : ""}> <span>${esc(field.label)}${field.help ? helpTip(field.help) : ""}</span></label><small id="${esc(describedBy)}" class="field-error" data-field-error="${esc(field.name)}" hidden></small></div>`;
+    if (field.type === "select") return `<label data-field-wrapper="${esc(field.name)}">${label}<select name="${esc(field.name)}" aria-describedby="${esc(describedBy)}">${field.options.map(([value,optionLabel]) => `<option value="${esc(value)}" ${String(field.value ?? "") === String(value) ? "selected" : ""}>${esc(optionLabel)}</option>`).join("")}</select><small id="${esc(describedBy)}" class="field-error" data-field-error="${esc(field.name)}" hidden></small></label>`;
+    if (field.type === "staff") {
+      const listId = `${field.name}-staff-options`;
+      return `<label data-field-wrapper="${esc(field.name)}">${label}<input name="${esc(field.name)}" type="text" inputmode="numeric" autocomplete="off" list="${esc(listId)}" placeholder="Search the staff team" value="${esc(field.value || "")}" aria-describedby="${esc(describedBy)}"><datalist id="${esc(listId)}">${field.options.map(([value, optionLabel]) => `<option value="${esc(value)}" label="${esc(optionLabel)}"></option>`).join("")}</datalist><small class="field-help">Start typing a staff name, role, or Discord ID, then choose a result.</small><small id="${esc(describedBy)}" class="field-error" data-field-error="${esc(field.name)}" hidden></small></label>`;
+    }
     const element = field.type === "textarea" ? "textarea" : "input";
-    if (element === "textarea") return `<label>${esc(field.label)}${required}<textarea name="${esc(field.name)}" aria-describedby="${esc(describedBy)}">${esc(field.value || "")}</textarea><small id="${esc(describedBy)}" class="field-error" data-field-error="${esc(field.name)}" hidden></small></label>`;
-    return `<label>${esc(field.label)}${required}<input name="${esc(field.name)}" type="${esc(field.type || "text")}" inputmode="${field.discordId ? "numeric" : "text"}" value="${esc(field.value || "")}" ${field.min !== undefined ? `min="${field.min}"` : ""} aria-describedby="${esc(describedBy)}"><small id="${esc(describedBy)}" class="field-error" data-field-error="${esc(field.name)}" hidden></small></label>`;
+    if (element === "textarea") return `<label data-field-wrapper="${esc(field.name)}">${label}<textarea name="${esc(field.name)}" aria-describedby="${esc(describedBy)}">${esc(field.value || "")}</textarea><small id="${esc(describedBy)}" class="field-error" data-field-error="${esc(field.name)}" hidden></small></label>`;
+    return `<label data-field-wrapper="${esc(field.name)}">${label}<input name="${esc(field.name)}" type="${esc(field.type || "text")}" inputmode="${field.discordId ? "numeric" : "text"}" value="${esc(field.value || "")}" ${field.min !== undefined ? `min="${field.min}"` : ""} aria-describedby="${esc(describedBy)}"><small id="${esc(describedBy)}" class="field-error" data-field-error="${esc(field.name)}" hidden></small></label>`;
   }).join("");
   dialog.showModal();
   document.body.classList.add("modal-open");
@@ -569,7 +611,7 @@ async function actionDialog({ title, description, fields = [], confirm = "Confir
     for (const field of fields) {
       const control = form.elements[field.name];
       const error = $(`[data-field-error="${CSS.escape(field.name)}"]`, form);
-      if (!control || !error) continue;
+      if (!control || !error || control.disabled) continue;
       let message = "";
       if (field.required && field.type === "checkbox" && !control.checked) message = "Confirmation is required.";
       else if (field.required && !String(control.value || "").trim()) message = `${field.label.replace(/\s*\(.+\)$/, "")} is required.`;
@@ -615,6 +657,7 @@ async function actionDialog({ title, description, fields = [], confirm = "Confir
     if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
     else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
   };
+  const readyCleanup = typeof onReady === "function" ? onReady(form) : null;
   const cleanup = () => {
     form.removeEventListener("submit", onSubmit);
     dialog.removeEventListener("cancel", onCancel);
@@ -623,6 +666,7 @@ async function actionDialog({ title, description, fields = [], confirm = "Confir
     $("#dialog-close").removeEventListener("click", closeDialog);
     $("#dialog-cancel").removeEventListener("click", closeDialog);
     document.body.classList.remove("modal-open");
+    if (typeof readyCleanup === "function") readyCleanup();
     state.dialogCleanup = null;
     if (state.returnFocus instanceof HTMLElement) state.returnFocus.focus();
     state.returnFocus = null;
@@ -641,7 +685,14 @@ async function actionDialog({ title, description, fields = [], confirm = "Confir
 async function queueAction(action, id) {
   if (action === "claim") return api(`/api/staff/queue/${id}/claim`, { method: "POST", body: {} }).then(() => { showNotice("Claimed"); return openQueue(id); });
   if (action === "release") return actionDialog({ title: "Release claim", description: "The level will become available to other staff.", fields: [{ name: "reason", label: "Reason (required for another staff member)", type: "textarea" }], confirm: "Release", run: (body) => api(`/api/staff/queue/${id}/release`, { method: "POST", body }) });
-  if (action === "reassign") return actionDialog({ title: "Reassign claim", description: "Responsibility moves to the selected staff member and the change is audited.", fields: [{ name: "assignee_id", label: "New assignee Discord ID", type: "text", discordId: true, required: true }, { name: "reason", label: "Reason", type: "textarea", required: true }], confirm: "Reassign", run: (body) => api(`/api/staff/queue/${id}/reassign`, { method: "POST", body }) });
+  if (action === "reassign") {
+    try {
+      const options = await staffAssigneeOptions();
+      return actionDialog({ title: "Reassign claim", description: "Responsibility moves to the selected active staff member and the change is audited.", fields: [{ name: "assignee_id", label: "New assignee", type: "staff", options, discordId: true, required: true, help: "Only active members of the GD Avenue staff team can receive a queue claim." }, { name: "reason", label: "Reason", type: "textarea", required: true }], confirm: "Reassign", run: (body) => api(`/api/staff/queue/${id}/reassign`, { method: "POST", body }) });
+    } catch (error) {
+      return showNotice(error.message, true);
+    }
+  }
   if (action === "outreach") return outreachDialog(id);
   if (action === "state") return actionDialog({ title: "Change queue state", description: "This transition is durable and audited.", fields: [{ name: "state", label: "New state", type: "select", options: (can("pps.override") ? ["queued","paused","withdrawn","invalid","in_cycle","awaiting_outcome","rated"] : ["queued","paused","withdrawn"]).map((value) => [value,titleCase(value)]) }, { name: "reason", label: "Reason", type: "textarea", required: true }, { name: "confirmed", label: "I confirm this queue state change", type: "checkbox" }], run: (body) => api(`/api/staff/queue/${id}/state`, { method: "POST", body }) });
   if (action === "requeue") return actionDialog({ title: "Start a new outreach episode", description: "Previous outreach history remains intact and W resets to zero.", fields: [{ name: "reason", label: "Reason", type: "textarea", required: true }, { name: "confirmed", label: "I confirm this new outreach episode", type: "checkbox" }], confirm: "Start episode", run: (body) => api(`/api/staff/queue/${id}/requeue`, { method: "POST", body }) });
@@ -651,11 +702,65 @@ async function queueAction(action, id) {
   if (action === "restore") return actionDialog({ title: "Restore hidden level", description: "The level returns to the lifecycle state it had before it was hidden.", fields: [{ name: "reason", label: "Reason", type: "textarea", required: true }, { name: "confirmed", label: "I confirm this level should be restored", type: "checkbox", required: true }], confirm: "Restore level", run: (body) => api(`/api/staff/queue/${id}/restore`, { method: "POST", body }) });
 }
 
+async function newTaskDialog() {
+  try {
+    const canAssign = can("tasks.assign");
+    const assigneeOptions = canAssign ? await staffAssigneeOptions() : [];
+    const fields = [
+      { name: "title", label: "Title", required: true },
+      { name: "description", label: "Description", type: "textarea" },
+      { name: "priority", label: "Priority", type: "select", options: ["low","normal","high","urgent"].map((value) => [value,titleCase(value)]) },
+      { name: "task_type", label: "Type", type: "select", help: "Personal tasks belong to you, assigned tasks belong to one selected staff member, and team tasks belong to every active staff member.", options: [["personal","Personal"],...(canAssign ? [["assigned","Assigned"],["team","Team"]] : [])] },
+      ...(canAssign ? [{ name: "assignee_id", label: "Assignee", type: "staff", options: assigneeOptions, discordId: true, required: true, help: "Search the active GD Avenue staff directory. This is required only for assigned tasks." }] : []),
+      { name: "due_at", label: "Due date", type: "datetime-local" },
+      { name: "linked_entity_type", label: "Linked record", type: "select", help: conceptHelp.linkedEntity, options: [["","None"],["level","Level queue entry"],["application","Staff application"],["task","Staff task"]] },
+      { name: "linked_entity_id", label: "Linked record ID", help: conceptHelp.linkedEntityId },
+    ];
+    return actionDialog({
+      title: "Create task",
+      description: "Avenue Guard will DM every included staff member with the title, description, and due date, including you for a personal task.",
+      fields,
+      onReady: (form) => {
+        const taskType = form.elements.task_type;
+        const assignee = form.elements.assignee_id;
+        const assigneeWrapper = form.querySelector('[data-field-wrapper="assignee_id"]');
+        const linkedType = form.elements.linked_entity_type;
+        const linkedId = form.elements.linked_entity_id;
+        const linkedIdWrapper = form.querySelector('[data-field-wrapper="linked_entity_id"]');
+        const sync = () => {
+          if (assignee && assigneeWrapper) {
+            const assigned = taskType.value === "assigned";
+            assigneeWrapper.hidden = !assigned;
+            assignee.disabled = !assigned;
+            if (!assigned) assignee.value = "";
+          }
+          if (linkedId && linkedIdWrapper) {
+            const linked = Boolean(linkedType.value);
+            linkedIdWrapper.hidden = !linked;
+            linkedId.disabled = !linked;
+            if (!linked) linkedId.value = "";
+          }
+        };
+        taskType.addEventListener("change", sync);
+        linkedType.addEventListener("change", sync);
+        sync();
+        return () => {
+          taskType.removeEventListener("change", sync);
+          linkedType.removeEventListener("change", sync);
+        };
+      },
+      run: (body) => api("/api/staff/tasks", { method: "POST", body: { ...body, due_ts: body.due_at ? Math.floor(new Date(body.due_at).getTime() / 1000) : null } }),
+    });
+  } catch (error) {
+    return showNotice(error.message, true);
+  }
+}
+
 function outreachDialog(queueId = "") {
   return actionDialog({ title: "Record outreach", description: "Targets and notes are private. Confirmed submission means the level actually reached a GD moderator.", fields: [
-    { name: "queue_id", label: "Queue ID", type: "number", value: queueId, min: 1, required: true },
-    { name: "route", label: "Route", type: "select", options: ["direct","network","stream","event","other"].map((v) => [v,titleCase(v)]) },
-    { name: "event", label: "Event", type: "select", options: ["planned","attempted","failed","submitted_to_mod","follow_up"].map((v) => [v,titleCase(v)]) },
+    { name: "queue_id", label: "Queue ID", type: "number", value: queueId, min: 1, required: true, help: "The internal outreach queue record, not the Geometry Dash level ID." },
+    { name: "route", label: "Route", type: "select", help: "How staff tried to reach a Geometry Dash moderator.", options: ["direct","network","stream","event","other"].map((v) => [v,titleCase(v)]) },
+    { name: "event", label: "Event", type: "select", help: conceptHelp.confirmedSubmission, options: ["planned","attempted","failed","submitted_to_mod","follow_up"].map((v) => [v,titleCase(v)]) },
     { name: "target", label: "Private target", type: "text" },
     { name: "notes", label: "Private notes", type: "textarea" },
     { name: "confirmed", label: "I confirm that a submitted_to_mod event reached a moderator", type: "checkbox" },
@@ -693,7 +798,7 @@ async function showIncident(fingerprint) {
     const data = await api(`/api/staff/operations/incidents/${encodeURIComponent(fingerprint)}`);
     const item = data.incident;
     return actionDialog({ title: `${item.error_type} incident`, description: `${item.component} | ${item.occurrence_count} occurrence${item.occurrence_count === 1 ? "" : "s"}`, fields: [], confirm: "Close", run: async () => {}, danger: false }).then(() => {
-      $("#dialog-fields").innerHTML = `<div class="incident-meta"><span>First seen</span><strong>${fmtTime(item.first_seen_ts)}</strong><span>Last seen</span><strong>${fmtTime(item.last_seen_ts)}</strong><span>Correlation ID</span><code>${esc(item.correlation_id || "Not recorded")}</code></div><pre class="trace-block">${esc(item.trace)}</pre>`;
+      $("#dialog-fields").innerHTML = `<div class="incident-meta"><span>First seen</span><strong>${fmtTime(item.first_seen_ts)}</strong><span>Last seen</span><strong>${fmtTime(item.last_seen_ts)}</strong><span>${conceptLabel("Correlation ID", conceptHelp.correlation)}</span><code>${esc(item.correlation_id || "Not recorded")}</code></div><pre class="trace-block">${esc(item.trace)}</pre>`;
       $("#dialog-submit").textContent = "Close";
     });
   } catch (error) {
@@ -838,12 +943,15 @@ document.addEventListener("click", async (event) => {
     loading(); try { $("#content").innerHTML = await renderApplications(); } catch (error) { errorState(error); } return;
   }
   if (action === "new-outreach") return outreachDialog();
-  if (action === "new-task") return actionDialog({ title: "Create task", fields: [{ name: "title", label: "Title", required: true }, { name: "description", label: "Description", type: "textarea" }, { name: "priority", label: "Priority", type: "select", options: ["low","normal","high","urgent"].map((v) => [v,titleCase(v)]) }, { name: "task_type", label: "Type", type: "select", options: [["personal","Personal"],...(can("tasks.assign") ? [["assigned","Assigned"],["team","Team"]] : [])] }, ...(can("tasks.assign") ? [{ name: "assignee_id", label: "Assignee Discord ID", type: "text", discordId: true }] : []), { name: "due_at", label: "Due date", type: "datetime-local" }, { name: "linked_entity_type", label: "Linked entity type" }, { name: "linked_entity_id", label: "Linked entity ID" }], run: (body) => api("/api/staff/tasks", { method: "POST", body: { ...body, due_ts: body.due_at ? Math.floor(new Date(body.due_at).getTime() / 1000) : null } }) });
+  if (action === "new-task") {
+    if (!supports("task_recipient_dm")) return showNotice("Deploy the matching Avenue Guard API before creating tasks", true);
+    return newTaskDialog();
+  }
   if (action === "add-staff") {
     if (!supports("staff_manual_management")) return showNotice("Deploy the matching Avenue Guard API before using manual staff management", true);
-    return actionDialog({ title: "Add staff member", description: "The Discord member receives the selected managed role through Avenue Guard's durable delivery queue and immediately gets a portal profile record.", fields: [{ name: "user_id", label: "Discord user ID", discordId: true, required: true }, { name: "role", label: "Staff role", type: "select", options: [["reviewer","Reviewer"],["head_reviewer","Head Reviewer"],["admin","Admin"],["owner","Owner"]] }, { name: "reason", label: "Reason", type: "textarea", required: true }, { name: "confirmed", label: "I confirm this staff access change", type: "checkbox", required: true }], confirm: "Add staff", run: (body) => api("/api/staff/staff", { method: "POST", body }) });
+    return actionDialog({ title: "Add staff member", description: "The Discord member receives the selected managed role through Avenue Guard's durable delivery queue and immediately gets a portal profile record.", fields: [{ name: "user_id", label: "Discord user ID", discordId: true, required: true }, { name: "role", label: "Staff role", type: "select", options: [["reviewer","Reviewer"],["head_reviewer","Head Reviewer"],["admin","Admin"],["owner","Owner"]] }, { name: "reason", label: "Reason", type: "textarea", required: true }, { name: "confirmed", label: "I confirm this staff access change", type: "checkbox", required: true }], confirm: "Add staff", run: async (body) => { const result = await api("/api/staff/staff", { method: "POST", body }); state.staffAssignees = null; return result; } });
   }
-  if (action === "new-note") return actionDialog({ title: "Create note", fields: [{ name: "scope", label: "Visibility", type: "select", options: [["private","Private"],["reviewer_team","Reviewer team"],["entity","Entity participants"],...(can("notes.head") ? [["head_judges","Head Reviewers"]] : []),...(can("notes.owner") ? [["owners","Owners"]] : [])] }, { name: "body", label: "Note", type: "textarea", required: true }, { name: "entity_type", label: "Linked entity type" }, { name: "entity_id", label: "Linked entity ID" }], run: (body) => api("/api/staff/notes", { method: "POST", body }) });
+  if (action === "new-note") return actionDialog({ title: "Create note", description: "Linked records are optional and help staff find context without exposing the note publicly.", fields: [{ name: "scope", label: "Visibility", type: "select", help: "Controls which staff groups can read this internal note.", options: [["private","Private"],["reviewer_team","Reviewer team"],["entity","Entity participants"],...(can("notes.head") ? [["head_judges","Head Reviewers"]] : []),...(can("notes.owner") ? [["owners","Owners"]] : [])] }, { name: "body", label: "Note", type: "textarea", required: true }, { name: "entity_type", label: "Linked record type", help: conceptHelp.linkedEntity }, { name: "entity_id", label: "Linked record ID", help: conceptHelp.linkedEntityId }], run: (body) => api("/api/staff/notes", { method: "POST", body }) });
   if (action === "config-save") return api("/api/staff/configuration", { method: "PATCH", body: { claim_stale_hours: Number($("#config-stale").value), applications_open: $("#config-apps").checked } }).then(() => { showNotice("Configuration saved"); render(); }).catch((error) => showNotice(error.message, true));
   if (action === "audit-apply") {
     const query = new URLSearchParams({ actor: $("#audit-actor").value, action: $("#audit-action").value, entity: $("#audit-entity").value });
@@ -899,7 +1007,7 @@ document.addEventListener("click", async (event) => {
     const options = [["promote","Promote to Head Reviewer"],["demote","Demote to Reviewer"],["deactivate","Deactivate"],["restore","Restore Reviewer"]];
     if (can("staff.manage_all")) options.push(["set_admin","Grant Admin"],["revoke_admin","Revoke Admin"]);
     if (can("developer.access")) options.push(["set_owner","Grant Owner"],["revoke_owner","Revoke Owner"],["remove","Remove from team"]);
-    return actionDialog({ title: "Manage staff access", description: "Discord roles are changed through the durable outbox. Dev access is config-only.", fields: [{ name: "action", label: "Action", type: "select", options }, { name: "reason", label: "Reason", type: "textarea", required: true }, { name: "confirmed", label: "I confirm this staff access change", type: "checkbox", required: true }], run: (body) => api(`/api/staff/staff/${staff.dataset.staffAction}/action`, { method: "POST", body }) });
+    return actionDialog({ title: "Manage staff access", description: "Discord roles are changed through the durable outbox. Dev access is config-only.", fields: [{ name: "action", label: "Action", type: "select", options }, { name: "reason", label: "Reason", type: "textarea", required: true }, { name: "confirmed", label: "I confirm this staff access change", type: "checkbox", required: true }], run: async (body) => { const result = await api(`/api/staff/staff/${staff.dataset.staffAction}/action`, { method: "POST", body }); state.staffAssignees = null; return result; } });
   }
   const nickname = event.target.closest("[data-nickname-id]");
   if (nickname) return actionDialog({ title: "Edit portal nickname", description: "This affects the staff portal only, not the Discord server nickname.", fields: [{ name: "portal_nickname", label: "Portal nickname", value: nickname.dataset.nicknameValue || "" }, ...(nickname.dataset.nicknameId === state.user.id ? [] : [{ name: "reason", label: "Reason", type: "textarea", required: true }])], confirm: "Save nickname", run: (body) => api(`/api/staff/staff/${nickname.dataset.nicknameId}/nickname`, { method: "PATCH", body }) });

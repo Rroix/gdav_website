@@ -30,7 +30,7 @@ test("privacy policy covers applications, hidden records, task DMs, and Dev prev
   assert.match(policy, /private Discord interview ticket/);
   assert.match(policy, /Hiding a level removes it from normal and public workflows/);
   assert.match(policy, /preview mode is read-only/);
-  assert.match(policy, /notify staff about assigned tasks/);
+  assert.match(policy, /notify included staff about personal, assigned, and team tasks/);
 });
 
 test("authenticated entry points link to the privacy policy", () => {
