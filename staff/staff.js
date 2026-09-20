@@ -17,6 +17,8 @@ const state = {
   dialogSubmitting: false,
   viewMode: null,
   viewRole: "",
+  apiVersion: 0,
+  apiFeatures: new Set(),
 };
 
 const modules = {
@@ -35,6 +37,7 @@ const sectionNames = {
 const $ = (selector, root = document) => root.querySelector(selector);
 const esc = (value) => String(value ?? "").replace(/[&<>'"]/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" })[char]);
 const can = (capability) => state.user?.capabilities?.includes(capability);
+const supports = (feature) => state.apiFeatures.has(feature);
 const fmtTime = (ts) => ts ? new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" }).format(new Date(Number(ts) * 1000)) : "Not recorded";
 const localDateTimeValue = (ts) => {
   if (!ts) return "";
@@ -259,7 +262,7 @@ async function renderQueue(query = "") {
   const data = await api(`/api/staff/queue?${params}`);
   return `<div class="toolbar">
     <input id="queue-search" type="search" placeholder="Level ID, name, or creator" value="${esc(params.get("q") || "")}">
-    <select id="queue-filter" aria-label="Queue filter"><option value="all">All queue</option>${[["unclaimed","Unclaimed"],["mine","Mine"],["claimed","Claimed"],["top_priority","Top priority"],["cp_zero","CP 0"],["cp_unknown","CP unknown"],["waiting_3","W >= 3"],["outreach","In outreach"],["awaiting","Awaiting outcome"],["stale","Stale claims"],...(can("developer.access") ? [["hidden","Hidden"]] : [])].map(([value,label]) => `<option value="${value}" ${params.get("filter") === value ? "selected" : ""}>${label}</option>`).join("")}</select>
+    <select id="queue-filter" aria-label="Queue filter"><option value="all">All queue</option>${[["unclaimed","Unclaimed"],["mine","Mine"],["claimed","Claimed"],["top_priority","Top priority"],["cp_zero","CP 0"],["cp_unknown","CP unknown"],["waiting_3","W >= 3"],["outreach","In outreach"],["awaiting","Awaiting outcome"],["stale","Stale claims"],...(can("developer.access") && supports("hidden_queue_entries") ? [["hidden","Hidden"]] : [])].map(([value,label]) => `<option value="${value}" ${params.get("filter") === value ? "selected" : ""}>${label}</option>`).join("")}</select>
     <select id="queue-tier" aria-label="Recommendation tier"><option value="">All tiers</option>${["rate","feature","epic","legendary","mythic"].map((value) => `<option value="${value}" ${params.get("tier") === value ? "selected" : ""}>${titleCase(value)}</option>`).join("")}</select>
     <button class="button secondary" data-action="queue-apply">Apply</button>
   </div>
@@ -288,8 +291,8 @@ async function openQueue(id) {
         ${item.state !== "hidden" && can("outreach.record") ? `<button class="button secondary" data-queue-action="outreach" data-id="${id}">Record outreach</button>` : ""}
         ${item.state !== "hidden" && can("queue.manage_state") ? `<button class="button secondary" data-queue-action="state" data-id="${id}">Change state</button><button class="button secondary" data-queue-action="requeue" data-id="${id}">New episode</button>` : ""}
         ${item.state !== "hidden" && can("review.adjust_tier") ? `<button class="button secondary" data-queue-action="tier" data-id="${id}">Adjust tier</button>` : ""}
-        ${can("developer.access") && item.state !== "hidden" ? `<button class="button danger" data-queue-action="hide" data-id="${id}">Hide level</button>` : ""}
-        ${can("developer.access") && item.state === "hidden" ? `<button class="button primary" data-queue-action="restore" data-id="${id}">Restore level</button>` : ""}
+        ${can("developer.access") && supports("hidden_queue_entries") && item.state !== "hidden" ? `<button class="button danger" data-queue-action="hide" data-id="${id}">Hide level</button>` : ""}
+        ${can("developer.access") && supports("hidden_queue_entries") && item.state === "hidden" ? `<button class="button primary" data-queue-action="restore" data-id="${id}">Restore level</button>` : ""}
       </div></section>
       <details class="drawer-section"><summary>Outreach (${data.outreach.length})</summary>${data.outreach.length ? data.outreach.map((event) => `<div class="list-row"><div><strong>${esc(titleCase(event.status))}</strong><small>${esc(event.route_type)} · ${esc(event.private_target_label || "No target")}</small></div><small>${ago(event.event_ts)}</small></div>`).join("") : '<p class="muted">No outreach recorded.</p>'}</details>
       <details class="drawer-section"><summary>History (${data.history.length})</summary><ol class="timeline">${data.history.map((event) => `<li><strong>${esc(titleCase(event.event))}</strong><br><small class="muted">${fmtTime(event.created_ts)}</small></li>`).join("") || '<li>No history recorded.</li>'}</ol></details>
@@ -371,7 +374,7 @@ async function renderApplications() {
 async function renderStaff() {
   const data = await api("/api/staff/staff");
   state.staffItems = data.items;
-  return `<div class="panel-head"><div><h2>Staff access</h2><p class="muted">Discord roles remain authoritative. Portal names are separate and every access change is audited.</p></div>${can("developer.access") ? '<button class="button primary" data-action="add-staff">Add staff</button>' : ""}</div>${data.items.length ? `<div class="record-list">${data.items.map((member) => `<button class="record-row staff-record" type="button" data-open-staff="${esc(exactId(member.id))}"><span class="identity-row">${member.avatar_url ? `<img src="${esc(member.avatar_url)}" alt="" width="36" height="36">` : ""}<span><strong>${esc(member.display_name)}</strong><small>${esc(member.role_label || roleLabel(member.role))} · ${member.reviews} reviews · ${member.workload} active claims</small></span></span>${pill(member.active ? "active" : "inactive")}<span class="row-chevron" aria-hidden="true">View</span></button>`).join("")}</div>` : empty("No configured staff roles found")}`;
+  return `<div class="panel-head"><div><h2>Staff access</h2><p class="muted">Discord roles remain authoritative. Portal names are separate and every access change is audited.</p></div>${can("developer.access") && supports("staff_manual_management") ? '<button class="button primary" data-action="add-staff">Add staff</button>' : ""}</div>${can("developer.access") && !supports("staff_manual_management") ? '<p class="warning-text">Manual staff management is unavailable until Avenue Guard and the portal use the same API version.</p>' : ""}${data.items.length ? `<div class="record-list">${data.items.map((member) => `<button class="record-row staff-record" type="button" data-open-staff="${esc(exactId(member.id))}"><span class="identity-row">${member.avatar_url ? `<img src="${esc(member.avatar_url)}" alt="" width="36" height="36">` : ""}<span><strong>${esc(member.display_name)}</strong><small>${esc(member.role_label || roleLabel(member.role))} · ${member.reviews} reviews · ${member.workload} active claims</small></span></span>${pill(member.active ? "active" : "inactive")}<span class="row-chevron" aria-hidden="true">View</span></button>`).join("")}</div>` : empty("No configured staff roles found")}`;
 }
 
 function openApplication(id) {
@@ -590,6 +593,7 @@ async function queueAction(action, id) {
   if (action === "state") return actionDialog({ title: "Change queue state", description: "This transition is durable and audited.", fields: [{ name: "state", label: "New state", type: "select", options: (can("pps.override") ? ["queued","paused","withdrawn","invalid","in_cycle","awaiting_outcome","rated"] : ["queued","paused","withdrawn"]).map((value) => [value,titleCase(value)]) }, { name: "reason", label: "Reason", type: "textarea", required: true }, { name: "confirmed", label: "I confirm this queue state change", type: "checkbox" }], run: (body) => api(`/api/staff/queue/${id}/state`, { method: "POST", body }) });
   if (action === "requeue") return actionDialog({ title: "Start a new outreach episode", description: "Previous outreach history remains intact and W resets to zero.", fields: [{ name: "reason", label: "Reason", type: "textarea", required: true }, { name: "confirmed", label: "I confirm this new outreach episode", type: "checkbox" }], confirm: "Start episode", run: (body) => api(`/api/staff/queue/${id}/requeue`, { method: "POST", body }) });
   if (action === "tier") return actionDialog({ title: "Adjust recommendation tier", description: "The original recommendation remains in QA history and PPS is recalculated.", fields: [{ name: "tier", label: "New tier", type: "select", options: ["rate","feature","epic","legendary","mythic"].map((value) => [value,titleCase(value)]) }, { name: "reason", label: "Reason", type: "textarea", required: true }, { name: "confirmed", label: "I confirm this tier adjustment", type: "checkbox" }], run: (body) => api(`/api/staff/queue/${id}/tier`, { method: "POST", body }) });
+  if (["hide", "restore"].includes(action) && !supports("hidden_queue_entries")) return showNotice("Deploy the matching Avenue Guard API before changing hidden levels", true);
   if (action === "hide") return actionDialog({ title: "Hide level", description: "The level will disappear from public and staff workflows until a Dev restores it. Its audit history remains intact.", danger: true, fields: [{ name: "reason", label: "Reason", type: "textarea", required: true }, { name: "confirmed", label: "I confirm this level should be hidden", type: "checkbox", required: true }], confirm: "Hide level", run: (body) => api(`/api/staff/queue/${id}/hide`, { method: "POST", body }) });
   if (action === "restore") return actionDialog({ title: "Restore hidden level", description: "The level returns to the lifecycle state it had before it was hidden.", fields: [{ name: "reason", label: "Reason", type: "textarea", required: true }, { name: "confirmed", label: "I confirm this level should be restored", type: "checkbox", required: true }], confirm: "Restore level", run: (body) => api(`/api/staff/queue/${id}/restore`, { method: "POST", body }) });
 }
@@ -652,10 +656,12 @@ function showAuth(message = "Use Discord to verify your current server role and 
 
 function applySession(data) {
   state.user = data.user;
+  state.apiVersion = Number(data.api?.version || 0);
+  state.apiFeatures = new Set(data.api?.features || []);
   state.viewMode = data.view_mode || state.viewMode;
   const control = $("#view-mode-control");
   const select = $("#view-mode-select");
-  if (state.viewMode?.roles?.length) {
+  if (supports("view_role_preview") && state.viewMode?.roles?.length) {
     control.hidden = false;
     select.innerHTML = `<option value="">Actual Dev access</option>${state.viewMode.roles.filter((item) => item.key !== "dev").map((item) => `<option value="${esc(item.key)}" ${state.viewRole === item.key ? "selected" : ""}>${esc(item.label)}</option>`).join("")}`;
   } else {
@@ -764,7 +770,10 @@ document.addEventListener("click", async (event) => {
   }
   if (action === "new-outreach") return outreachDialog();
   if (action === "new-task") return actionDialog({ title: "Create task", fields: [{ name: "title", label: "Title", required: true }, { name: "description", label: "Description", type: "textarea" }, { name: "priority", label: "Priority", type: "select", options: ["low","normal","high","urgent"].map((v) => [v,titleCase(v)]) }, { name: "task_type", label: "Type", type: "select", options: [["personal","Personal"],...(can("tasks.assign") ? [["assigned","Assigned"],["team","Team"]] : [])] }, ...(can("tasks.assign") ? [{ name: "assignee_id", label: "Assignee Discord ID", type: "text", discordId: true }] : []), { name: "due_at", label: "Due date", type: "datetime-local" }, { name: "linked_entity_type", label: "Linked entity type" }, { name: "linked_entity_id", label: "Linked entity ID" }], run: (body) => api("/api/staff/tasks", { method: "POST", body: { ...body, due_ts: body.due_at ? Math.floor(new Date(body.due_at).getTime() / 1000) : null } }) });
-  if (action === "add-staff") return actionDialog({ title: "Add staff member", description: "The Discord member receives the selected managed role through Avenue Guard's durable delivery queue and immediately gets a portal profile record.", fields: [{ name: "user_id", label: "Discord user ID", discordId: true, required: true }, { name: "role", label: "Staff role", type: "select", options: [["reviewer","Reviewer"],["head_reviewer","Head Reviewer"],["admin","Admin"],["owner","Owner"]] }, { name: "reason", label: "Reason", type: "textarea", required: true }, { name: "confirmed", label: "I confirm this staff access change", type: "checkbox", required: true }], confirm: "Add staff", run: (body) => api("/api/staff/staff", { method: "POST", body }) });
+  if (action === "add-staff") {
+    if (!supports("staff_manual_management")) return showNotice("Deploy the matching Avenue Guard API before using manual staff management", true);
+    return actionDialog({ title: "Add staff member", description: "The Discord member receives the selected managed role through Avenue Guard's durable delivery queue and immediately gets a portal profile record.", fields: [{ name: "user_id", label: "Discord user ID", discordId: true, required: true }, { name: "role", label: "Staff role", type: "select", options: [["reviewer","Reviewer"],["head_reviewer","Head Reviewer"],["admin","Admin"],["owner","Owner"]] }, { name: "reason", label: "Reason", type: "textarea", required: true }, { name: "confirmed", label: "I confirm this staff access change", type: "checkbox", required: true }], confirm: "Add staff", run: (body) => api("/api/staff/staff", { method: "POST", body }) });
+  }
   if (action === "new-note") return actionDialog({ title: "Create note", fields: [{ name: "scope", label: "Visibility", type: "select", options: [["private","Private"],["reviewer_team","Reviewer team"],["entity","Entity participants"],...(can("notes.head") ? [["head_judges","Head Reviewers"]] : []),...(can("notes.owner") ? [["owners","Owners"]] : [])] }, { name: "body", label: "Note", type: "textarea", required: true }, { name: "entity_type", label: "Linked entity type" }, { name: "entity_id", label: "Linked entity ID" }], run: (body) => api("/api/staff/notes", { method: "POST", body }) });
   if (action === "config-save") return api("/api/staff/configuration", { method: "PATCH", body: { claim_stale_hours: Number($("#config-stale").value), applications_open: $("#config-apps").checked } }).then(() => { showNotice("Configuration saved"); render(); }).catch((error) => showNotice(error.message, true));
   if (action === "audit-apply") {

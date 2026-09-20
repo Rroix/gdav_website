@@ -1,4 +1,4 @@
-import { CSRF_COOKIE, SESSION_COOKIE, botRequest, cookie, cookies, json, secureEqual } from "./_shared/portal.mjs";
+import { CSRF_COOKIE, OAUTH_COOKIE, SESSION_COOKIE, botRequest, cookie, cookies, json, secureEqual } from "./_shared/portal.mjs";
 
 export async function handler(event) {
   const jar = cookies(event);
@@ -6,10 +6,8 @@ export async function handler(event) {
     return json(405, { error: "method_not_allowed", message: "Method not allowed" });
   }
   const suppliedCsrf = String(event.headers?.["x-csrf-token"] || event.headers?.["X-CSRF-Token"] || "");
-  if (!secureEqual(suppliedCsrf, jar[CSRF_COOKIE])) {
-    return json(403, { error: "csrf_failed", message: "This action could not be verified" });
-  }
-  if (jar[SESSION_COOKIE] && jar[CSRF_COOKIE]) {
+  const verified = secureEqual(suppliedCsrf, jar[CSRF_COOKIE]);
+  if (verified && jar[SESSION_COOKIE]) {
     try {
       await botRequest("/api/staff/session", {
         method: "DELETE",
@@ -26,6 +24,7 @@ export async function handler(event) {
       "Set-Cookie": [
         cookie(SESSION_COOKIE, "", { httpOnly: true, maxAge: 0 }),
         cookie(CSRF_COOKIE, "", { maxAge: 0 }),
+        cookie(OAUTH_COOKIE, "", { httpOnly: true, sameSite: "Lax", maxAge: 0 }),
       ],
     },
     headers: { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" },

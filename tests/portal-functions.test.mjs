@@ -276,16 +276,36 @@ test("application callback requests an application session instead of staff elev
 });
 
 test("revisited OAuth callback redirects an existing session without reusing the code", async () => {
+  process.env.AVENUE_GUARD_API_URL = "https://avenue-guard.example";
+  process.env.AVENUE_GUARD_API_TOKEN = "private-service-token";
   const state = createOAuthState("/staff");
-  let contacted = false;
-  globalThis.fetch = async () => { contacted = true; throw new Error("must not run"); };
+  const requests = [];
+  globalThis.fetch = async (url) => {
+    requests.push(String(url));
+    return jsonResponse(200, { user: { id: "101", role: "reviewer" } });
+  };
   const response = await callback({
     headers: { cookie: `${SESSION_COOKIE}=existing-session`, host: "gdavenue.netlify.app" },
     queryStringParameters: { state, code: "already-used-code" },
   });
   assert.equal(response.statusCode, 302);
   assert.equal(response.headers.Location, "/staff");
-  assert.equal(contacted, false);
+  assert.deepEqual(requests, ["https://avenue-guard.example/api/staff/session"]);
+});
+
+test("revisited OAuth callback clears a stale session instead of looping", async () => {
+  process.env.AVENUE_GUARD_API_URL = "https://avenue-guard.example";
+  process.env.AVENUE_GUARD_API_TOKEN = "private-service-token";
+  const state = createOAuthState("/apply");
+  globalThis.fetch = async () => jsonResponse(401, { error: { code: "session_expired" } });
+  const response = await callback({
+    headers: { cookie: `${SESSION_COOKIE}=stale-session`, host: "gdavenue.netlify.app" },
+    queryStringParameters: { state, code: "already-used-code" },
+  });
+  assert.equal(response.statusCode, 302);
+  assert.match(response.headers.Location, /^\/apply\?auth_error=/);
+  assert.equal(response.multiValueHeaders["Set-Cookie"].length, 3);
+  assert.ok(response.multiValueHeaders["Set-Cookie"].every((value) => value.includes("Max-Age=0")));
 });
 
 test("OAuth callback does not trust signed state without browser binding or a session", async () => {
@@ -329,7 +349,7 @@ test("missing OAuth environment secrets fail closed", async () => {
   assert.doesNotMatch(response.body, /OAUTH_STATE_SECRET|DISCORD_CLIENT_SECRET/);
 });
 
-test("logout is POST-only and requires the double-submit CSRF value", async () => {
+test("logout is POST-only and always clears stale browser credentials", async () => {
   const getResponse = await logout({ httpMethod: "GET", headers: {} });
   assert.equal(getResponse.statusCode, 405);
 
@@ -337,13 +357,14 @@ test("logout is POST-only and requires the double-submit CSRF value", async () =
     httpMethod: "POST",
     headers: { cookie: `${CSRF_COOKIE}=expected`, "x-csrf-token": "wrong" },
   });
-  assert.equal(rejected.statusCode, 403);
+  assert.equal(rejected.statusCode, 200);
+  assert.equal(rejected.multiValueHeaders["Set-Cookie"].length, 3);
 
   const accepted = await logout({
     httpMethod: "POST",
     headers: { cookie: `${CSRF_COOKIE}=expected`, "x-csrf-token": "expected" },
   });
   assert.equal(accepted.statusCode, 200);
-  assert.equal(accepted.multiValueHeaders["Set-Cookie"].length, 2);
+  assert.equal(accepted.multiValueHeaders["Set-Cookie"].length, 3);
   assert.ok(accepted.multiValueHeaders["Set-Cookie"].every((value) => value.includes("Max-Age=0")));
 });

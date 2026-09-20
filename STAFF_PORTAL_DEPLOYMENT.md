@@ -56,9 +56,15 @@ who leaves the guild or loses an authorized role receives HTTP 403 on the next
 authorization check. The browser cannot submit or select its own role.
 
 If a mobile or embedded browser revisits a callback after the first code exchange,
-the callback recognizes the already-created secure session and redirects to the
-clean destination instead of showing an expired-attempt page. A callback without
+the callback verifies the already-created secure session and redirects to the
+clean destination instead of showing an expired-attempt page. A stale session is
+cleared instead of being redirected repeatedly. A callback without
 either the matching one-time state cookie or an existing session still fails closed.
+
+Session responses include an Avenue Guard API version and explicit feature list.
+New portal controls stay hidden when the deployed bot does not advertise their
+route. This prevents misleading 404 actions during a website-first deployment,
+but does not replace the bot-first deployment order below.
 
 ## Deploy order
 
@@ -85,7 +91,10 @@ either the matching one-time state cookie or an existing session still fails clo
 - Record an attempt, submission, same-target follow-up, and different-target submission.
 - Confirm a Head Judge cannot adjust a tier after submission while the Owner can.
 - Accept a test application and confirm the status stays `accepted_pending_role` until the outbox grants the role.
-- Submit an application and confirm its configured question types and assigned review showcase appear in one private Discord forum thread.
+- Submit an application and confirm its configured question types and selected review showcase appear in one private Discord forum thread.
+- Confirm the selected review showcase is embedded on `/apply`, includes the level name and ID, and retains an external YouTube fallback link.
+- Revisit an already-used callback with a valid session and confirm it returns to a clean URL; repeat with an expired session and confirm all browser auth cookies are cleared without a redirect loop.
+- As a Dev applicant, use **Delete my application data**, enter `DELETE`, and confirm the stale application disappears while unrelated portal records remain intact.
 - Proceed with an interview and confirm one private ticket and one applicant DM are delivered, including after an outbox retry.
 - Confirm the applicant sees `accepted` after role delivery even before staff reopen Applications.
 - Add and remove a test staff profile by Discord ID as Dev, then confirm the role delivery and audit history.

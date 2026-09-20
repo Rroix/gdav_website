@@ -25,6 +25,10 @@ const viewRoles = [
   ["owner", "Owner", user.capabilities.filter((capability) => capability !== "developer.access")],
   ["dev", "Dev", user.capabilities],
 ];
+const api = {
+  version: 2,
+  features: ["application_data_reset", "application_interviews", "application_review_embeds", "application_review_threads", "hidden_queue_entries", "staff_manual_management", "task_assignment_dm", "view_role_preview"],
+};
 const queue = [
   { id: 1, rank: 1, level_id: "101935961", level_name: "Synergy", creator: "CreatorName", tier: "mythic", cp: 0, waiting_cycles: 2, components: { f: 17.9, g: 3.22, h: 4.24, p: 25.36, complete: true }, state: "queued", claim: null },
   { id: 2, rank: 2, level_id: "123456789", level_name: "Chromatic Path", creator: "Builder", tier: "epic", cp: null, waiting_cycles: 1, components: { f: 4.83, g: null, h: 1.5, p: null, complete: false }, state: "in_cycle", claim: { user_id: user.id, claimed_ts: now - 7200, stale: false } },
@@ -43,8 +47,8 @@ const publicLevels = queue.filter((item) => item.state !== "hidden").map((item) 
 }));
 
 const payloads = {
-  "/api/staff/session": { user, view_mode: { active: false, actual_role: "dev", roles: viewRoles.map(([key, label, capabilities]) => ({ key, label, capabilities })) } },
-  "/api/apply/session": { user: { ...user, role: "applicant", role_label: "Applicant", staff_access: false, capabilities: ["applications.self"] } },
+  "/api/staff/session": { user, api, view_mode: { active: false, actual_role: "dev", roles: viewRoles.map(([key, label, capabilities]) => ({ key, label, capabilities })) } },
+  "/api/apply/session": { user: { ...user, role: "applicant", role_label: "Applicant", staff_access: false, capabilities: ["applications.self"] }, api },
   "/api/apply/mine": { items: [] },
   "/api/apply/form": { application: { id: 15, application_type: "judge", status: "draft", answers: {} }, questions: [
     { key: "age", label: "How old are you?", type: "single_choice", required: true, options: ["12 or under", "13 to 15", "16 to 18", "19 or above"] },
@@ -53,7 +57,7 @@ const payloads = {
     { key: "improvements", label: "What could GD Avenue improve?", type: "long_text", required: true, options: [] },
     { key: "weekly_capacity", label: "How many levels can you review per week?", type: "single_choice", required: true, options: ["1-2", "3-6", "7-9", "10 or more"] },
     { key: "timezone", label: "What is your timezone?", type: "short_text", required: true, options: [], help_url: "https://www.checkmytimezone.com/" },
-    { key: "level_review", label: "Review Synergy (Level ID 101935961)", type: "long_text", required: true, options: [], review_prompt: { key: "synergy-101935961", name: "Synergy", level_id: "101935961", youtube_url: "https://www.youtube.com/watch?v=bfQj4ZU2nQM" } },
+    { key: "level_review", label: "Review Synergy (Level ID 101935961)", type: "long_text", required: true, options: [], review_prompt: { key: "synergy-101935961", name: "Synergy", level_id: "101935961", youtube_url: "https://www.youtube.com/watch?v=bfQj4ZU2nQM", youtube_embed_url: "https://www.youtube-nocookie.com/embed/bfQj4ZU2nQM" } },
   ] },
   "/api/staff/overview": { user, summary: { active_claims: 2, stale_claims: 1, tasks_remaining: 3, tasks_due: 1, followups_due: 1 }, progress: { reviews_month: 24, tasks_done: 6, tasks_total: 8, outreach_attempts: 4, confirmed_submissions: 2, active_days: 12, milestones: [{ key: "reviews_25", label: "25 reviews" }] }, pipeline: { queued: 17, in_cycle: 4, awaiting_outcome: 6, rated: 9 }, pending_applications: 2, recent_activity: [{ event: "claim_created", entity_id: "queue:1", created_ts: now - 900 }] },
   "/api/staff/outreach": { items: [{ queue_id: 2, current_level_name: "Chromatic Path", level_id: "123456789", status: "attempted", route_type: "network", private_target_label: "Private target", event_ts: now - 1800 }], pipeline: { active: 4, awaiting_outcome: 6, completed: 9 } },
@@ -84,7 +88,7 @@ http.createServer(async (request, response) => {
     const selected = viewRoles.find(([key]) => key === request.headers["x-staff-view-role"]);
     if (!selected) return json(response, payloads["/api/staff/session"]);
     const [role, label, capabilities] = selected;
-    return json(response, { user: { ...user, role, role_label: label, staff_access: capabilities.includes("staff.access"), capabilities }, view_mode: { active: true, actual_role: "dev", roles: viewRoles.map(([key, itemLabel, itemCapabilities]) => ({ key, label: itemLabel, capabilities: itemCapabilities })) } });
+    return json(response, { user: { ...user, role, role_label: label, staff_access: capabilities.includes("staff.access"), capabilities }, api, view_mode: { active: true, actual_role: "dev", roles: viewRoles.map(([key, itemLabel, itemCapabilities]) => ({ key, label: itemLabel, capabilities: itemCapabilities })) } });
   }
   if (url.pathname === "/api/levels") {
     const term = (url.searchParams.get("q") || "").trim().toLowerCase();

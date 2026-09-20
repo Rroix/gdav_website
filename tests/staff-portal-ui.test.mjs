@@ -94,6 +94,7 @@ test("Dev controls expose read-only role preview and reversible hidden levels", 
   assert.match(script, /\["hidden","Hidden"\]/);
   assert.match(script, /data-queue-action="hide"/);
   assert.match(script, /data-queue-action="restore"/);
+  assert.match(script, /supports\("hidden_queue_entries"\)/);
 });
 
 test("team and application workflows expose the requested operational controls", () => {
@@ -103,6 +104,7 @@ test("team and application workflows expose the requested operational controls",
   assert.match(script, /Accept without interview/);
   assert.match(script, /Open Discord thread/);
   assert.match(script, /Open interview ticket/);
+  assert.match(script, /supports\("staff_manual_management"\)/);
 });
 
 test("public applications render server-defined typed questions and review prompts", () => {
@@ -110,5 +112,13 @@ test("public applications render server-defined typed questions and review promp
   assert.match(application, /question\.type === "short_text"/);
   assert.match(application, /question\.review_prompt/);
   assert.match(application, /prompt\.youtube_url/);
+  assert.match(application, /prompt\.youtube_embed_url/);
+  assert.match(application, /supports\("application_review_embeds"\)/);
+  assert.match(application, /<iframe/);
+  assert.doesNotMatch(application, /Assigned level/i);
   assert.match(application, /\/api\/apply\/form/);
+  assert.match(application, /application_data_reset/);
+  assert.match(application, /method: "DELETE"/);
+  assert.match(application, /credentials: "same-origin"/);
+  assert.match(application, /sessionStorage\.getItem\(replayKey\)/);
 });

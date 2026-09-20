@@ -68,7 +68,7 @@
           <li>Tickets, support forms, appeals, reports, bug reports, transcripts, attachments or links you submit, staff responses, and satisfaction feedback.</li>
           <li>Activity totals, weekly rankings and streaks, reward status, anti-farming signals, and daily or weekly aggregate summaries.</li>
           <li>Moderation and workflow events, forum enforcement records, command actions, errors, health measurements, delivery state, impact reports, and backup or restore records.</li>
-          <li>Staff portal profiles and nicknames, manually managed team records, applications, age brackets, availability, timezone answers, written responses, assigned level-review prompts, internal notes, tasks, queue claims, quality checks, and security audit events.</li>
+          <li>Staff portal profiles and nicknames, manually managed team records, applications, age brackets, availability, timezone answers, written responses, selected level-review prompts, internal notes, tasks, queue claims, quality checks, and security audit events.</li>
         </ul>
         <p>
           A failed lookup is recorded as unavailable rather than silently treated as valid data. Present-day Geometry Dash snapshots are kept separate from historical facts where the system cannot reliably know what was true at the time of a request.
@@ -88,7 +88,7 @@
       <article class="privacy-section surface">
         <h2>Reviewer Applications</h2>
         <p>
-          Reviewer applications use configurable question types such as a selected age bracket, multiple-choice availability, short answers, long answers, and a written review of one randomly assigned public YouTube showcase. Submitted answers are copied into a private Discord review thread for authorized staff. Staff may reject the application, accept it, or create a private Discord interview ticket that the applicant and authorized staff can access. Decision and delivery events are retained for accountability and retry safety.
+          Reviewer applications use configurable question types such as a selected age bracket, multiple-choice availability, short answers, long answers, and a written review of one randomly selected public YouTube showcase. Submitted answers are copied into a private Discord review thread for authorized staff. Staff may reject the application, accept it, or create a private Discord interview ticket that the applicant and authorized staff can access. Decision and delivery events are retained for accountability and retry safety.
         </p>
         <p>
           Do not include precise birth dates, home addresses, school details, private credentials, or unrelated personal information. The age question asks only for a broad bracket.
@@ -118,7 +118,7 @@
       <article class="privacy-section surface">
         <h2>Retention And Backups</h2>
         <p>
-          Records are retained only while they remain useful for operations, safety, appeals, historical integrity, reporting, or legal obligations. Current automated retention settings keep health measurements for 365 days, workflow and error records for 730 days, delivery records for 90 days, cached Geometry Dash validation for 7 days, and impact snapshots for 1,095 days. Other core records, including reviews, applications, interview tickets, transcripts, moderation evidence, staff audits, and recommendation history, may be retained longer when continuity or accountability requires it. Hiding a level removes it from normal and public workflows but retains the reversible internal record and its audit history.
+          Records are retained only while they remain useful for operations, safety, appeals, historical integrity, reporting, or legal obligations. Current automated retention settings keep health measurements for 365 days, workflow and error records for 730 days, delivery records for 90 days, cached Geometry Dash validation for 7 days, and impact snapshots for 1,095 days. Other core records, including reviews, applications, interview tickets, transcripts, moderation evidence, staff audits, and recommendation history, may be retained longer when continuity or accountability requires it. A Dev applicant can remove their own stale application database record through a confirmed reset; already-created private Discord threads or interview channels may remain for audit integrity. Hiding a level removes it from normal and public workflows but retains the reversible internal record and its audit history.
         </p>
         <p>
           Turso is the durable source of truth. Encrypted transport, controlled database access, periodic backups, and restore checks reduce data-loss risk. Deletion from the live database may not immediately remove an item from limited backup copies, which expire or are replaced on their normal schedule.

@@ -152,6 +152,17 @@ progress { width: 100%; height: 8px; border: 0; border-radius: 0; accent-color: 
 .choice-option input { width: 16px; height: 16px; margin: 0; }
 .field-help { margin: 4px 0 8px; color: var(--muted); font-size: .88rem; font-weight: 400; }
 .field-help a { color: var(--accent); }
+.form-question { display: grid; gap: 5px; min-width: 0; }
+.form-question > label { color: var(--muted); font-size: .85rem; }
+.review-showcase { display: grid; gap: 10px; margin: 4px 0 8px; padding: 12px; background: var(--surface-2); border: 1px solid var(--line-strong); border-radius: var(--radius); }
+.review-showcase-head { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
+.review-showcase-head > div { display: grid; gap: 2px; min-width: 0; }
+.review-showcase-head strong { color: var(--text); font-size: 1rem; }
+.review-showcase-head span { color: var(--muted); font: .78rem/1.4 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+.review-showcase-head a { flex: 0 0 auto; color: var(--accent); font-size: .82rem; }
+.review-video { width: 100%; aspect-ratio: 16 / 9; overflow: hidden; background: #000; border: 1px solid var(--line); }
+.review-video iframe { display: block; width: 100%; height: 100%; border: 0; }
+.review-showcase p { margin: 0; color: var(--muted); font-size: .82rem; }
 .view-mode-control { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: .82rem; white-space: nowrap; }
 .view-mode-control select { min-width: 130px; }
 .view-mode-banner { padding: 8px 18px; color: #fff3cd; background: #4b3900; border-bottom: 1px solid #7d6200; text-align: center; font-size: .88rem; }

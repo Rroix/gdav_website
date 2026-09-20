@@ -26,7 +26,7 @@ test("privacy policy separates public recommendation data from private operation
 
 test("privacy policy covers applications, hidden records, task DMs, and Dev preview", () => {
   assert.match(policy, /age brackets/);
-  assert.match(policy, /assigned level-review prompts/);
+  assert.match(policy, /selected level-review prompts/);
   assert.match(policy, /private Discord interview ticket/);
   assert.match(policy, /Hiding a level removes it from normal and public workflows/);
   assert.match(policy, /preview mode is read-only/);
