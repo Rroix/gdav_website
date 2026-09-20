@@ -12,6 +12,7 @@ const state = {
   drawerReturnFocus: null,
   staffItems: [],
   applications: [],
+  applicationFilters: { type: "all", status: "active", claim: "all" },
   qaItems: [],
   tasks: [],
   dialogSubmitting: false,
@@ -368,9 +369,13 @@ async function renderQA() {
 }
 
 async function renderApplications() {
-  const data = await api("/api/staff/applications");
+  const query = new URLSearchParams(state.applicationFilters);
+  const data = await api(`/api/staff/applications?${query}`);
   state.applications = data.items;
-  return `<div class="panel-head"><div><h2>Reviewer applications</h2><p class="muted">Open an application to inspect answers, notes, and its durable decision history.</p></div></div>${data.items.length ? `<div class="record-list">${data.items.map((item) => `<button class="record-row" type="button" data-open-application="${item.id}"><span><strong>${esc(identityLabel(item.applicant, item.applicant_id))}</strong><small>Application #${item.id} · submitted ${ago(item.submitted_ts)}</small></span>${pill(item.status)}<span class="row-chevron" aria-hidden="true">View</span></button>`).join("")}</div>` : empty("No applications are waiting for review", "New reviewer applications will appear here.")}`;
+  const typeOptions = [["all", "All types"], ...(data.application_types || ["judge", "mod"]).map((value) => [value, value === "judge" ? "Reviewer" : titleCase(value)])];
+  const filter = (key, options) => `<label class="filter-field"><span>${esc(titleCase(key))}</span><select id="application-${esc(key)}-filter">${options.map(([value,label]) => `<option value="${esc(value)}" ${state.applicationFilters[key] === value ? "selected" : ""}>${esc(label)}</option>`).join("")}</select></label>`;
+  const controls = `<div class="toolbar application-filter-bar">${filter("type", typeOptions)}${filter("status", [["active","Active"],["all","All statuses"],["submitted","Submitted"],["under_review","Under review"],["interview","Interview"],["hold","Held"],["accepted_pending_role","Accepted, role pending"],["accepted","Accepted"],["rejected","Rejected"],["withdrawn","Withdrawn"]])}${filter("claim", [["all","All claims"],["unclaimed","Not claimed"],["claimed","Claimed"],["mine","Claimed by me"]])}<button class="button secondary" type="button" data-action="application-filter-apply">Apply filters</button></div>`;
+  return `<div class="panel-head"><div><h2>Staff applications</h2><p class="muted">Review Reviewer and Mod applications, assignment state, notes, and durable decision history.</p></div></div>${controls}${data.items.length ? `<div class="record-list">${data.items.map((item) => `<button class="record-row" type="button" data-open-application="${item.id}"><span><strong>${esc(identityLabel(item.applicant, item.applicant_id))}</strong><small>${esc(item.application_label || titleCase(item.application_type))} #${item.id} · submitted ${ago(item.submitted_ts)}</small></span><span class="record-tags">${pill(item.status)}${pill(item.claimed_by ? "claimed" : "unclaimed")}</span><span class="row-chevron" aria-hidden="true">View</span></button>`).join("")}</div>` : empty("No applications match these filters", "Change the status, claim, or application type filters to widen the view.")}`;
 }
 
 async function renderStaff() {
@@ -386,10 +391,10 @@ async function renderStaff() {
 function openApplication(id) {
   const item = state.applications.find((entry) => String(entry.id) === String(id));
   if (!item) return showNotice("That application is no longer in this view", true);
-  const terminal = ["accepted", "rejected", "withdrawn"].includes(item.status);
+  const terminal = ["accepted", "accepted_pending_role", "rejected", "withdrawn"].includes(item.status);
   openDrawer("Application inspector", `Application #${item.id}`, `
     <div class="drawer-identity"><div><span>Applicant</span><strong>${esc(identityLabel(item.applicant, item.applicant_id))}</strong><small class="secondary-id">${esc(exactId(item.applicant_id))}</small></div>${copyButton(item.applicant_id, "Copy Discord ID")}</div>
-    <div class="drawer-meta">${pill(item.status)}<span>Submitted ${fmtTime(item.submitted_ts)}</span>${item.review_thread_id ? `<a class="quiet-link" href="https://discord.com/channels/${esc(item.guild_id)}/${esc(item.review_thread_id)}" target="_blank" rel="noopener noreferrer">Open Discord thread</a>` : ""}${item.interview_ticket_channel_id ? `<a class="quiet-link" href="https://discord.com/channels/${esc(item.guild_id)}/${esc(item.interview_ticket_channel_id)}" target="_blank" rel="noopener noreferrer">Open interview ticket</a>` : ""}</div>
+    <div class="drawer-meta">${pill(item.status)}${pill(item.application_type === "judge" ? "reviewer" : item.application_type)}<span>Submitted ${fmtTime(item.submitted_ts)}</span>${item.claimed_by ? `<span>Claimed by ${esc(identityLabel(item.claimed_by_identity, item.claimed_by))}</span>` : ""}${item.review_thread_id ? `<a class="quiet-link" href="https://discord.com/channels/${esc(item.guild_id)}/${esc(item.review_thread_id)}" target="_blank" rel="noopener noreferrer">Open Discord thread</a>` : ""}${item.interview_ticket_channel_id ? `<a class="quiet-link" href="https://discord.com/channels/${esc(item.guild_id)}/${esc(item.interview_ticket_channel_id)}" target="_blank" rel="noopener noreferrer">Open interview ticket</a>` : ""}</div>
     <section class="drawer-section"><h3>Answers</h3><div class="answer-list">${Object.entries(item.answers || {}).map(([key, value]) => `<div><small>${esc(titleCase(key))}</small><p>${esc(value)}</p></div>`).join("") || '<p class="muted">No answers were stored.</p>'}</div></section>
     <details class="drawer-section" open><summary>Internal timeline (${item.timeline?.length || 0})</summary>${item.timeline?.length ? `<ol class="timeline">${item.timeline.map((event) => `<li><strong>${esc(titleCase(event.event))}</strong><br><small class="muted">${esc(identityLabel(event.actor, event.actor_id))} · ${fmtTime(event.created_ts)}</small></li>`).join("")}</ol>` : '<p class="muted">No staff activity yet.</p>'}</details>
     <details class="drawer-section"><summary>Internal notes (${item.internal_notes?.length || 0})</summary>${item.internal_notes?.map((note) => `<p>${esc(note.body)}<br><small class="muted">${esc(identityLabel(note.author, note.author_id))} · ${ago(note.created_ts)}</small></p>`).join("") || '<p class="muted">No internal notes.</p>'}<button class="button small secondary" data-app-note="${item.id}">Add note</button></details>
@@ -785,6 +790,10 @@ document.addEventListener("click", async (event) => {
     const query = new URLSearchParams({ q: $("#queue-search").value, filter: $("#queue-filter").value, tier: $("#queue-tier").value, limit: "50" });
     state.queueQuery = query.toString();
     loading(); try { $("#content").innerHTML = await renderQueue(state.queueQuery); } catch (error) { errorState(error); } return;
+  }
+  if (action === "application-filter-apply") {
+    state.applicationFilters = { type: $("#application-type-filter").value, status: $("#application-status-filter").value, claim: $("#application-claim-filter").value };
+    loading(); try { $("#content").innerHTML = await renderApplications(); } catch (error) { errorState(error); } return;
   }
   if (action === "new-outreach") return outreachDialog();
   if (action === "new-task") return actionDialog({ title: "Create task", fields: [{ name: "title", label: "Title", required: true }, { name: "description", label: "Description", type: "textarea" }, { name: "priority", label: "Priority", type: "select", options: ["low","normal","high","urgent"].map((v) => [v,titleCase(v)]) }, { name: "task_type", label: "Type", type: "select", options: [["personal","Personal"],...(can("tasks.assign") ? [["assigned","Assigned"],["team","Team"]] : [])] }, ...(can("tasks.assign") ? [{ name: "assignee_id", label: "Assignee Discord ID", type: "text", discordId: true }] : []), { name: "due_at", label: "Due date", type: "datetime-local" }, { name: "linked_entity_type", label: "Linked entity type" }, { name: "linked_entity_id", label: "Linked entity ID" }], run: (body) => api("/api/staff/tasks", { method: "POST", body: { ...body, due_ts: body.due_at ? Math.floor(new Date(body.due_at).getTime() / 1000) : null } }) });

@@ -1,9 +1,16 @@
 "use strict";
-const $ = (s) => document.querySelector(s);
+
+const $ = (selector) => document.querySelector(selector);
 const esc = (value) => String(value ?? "").replace(/[&<>'"]/g, (char) => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", "'":"&#39;", '"':"&quot;" })[char]);
 const cookieValue = (name) => document.cookie.split(";").map((item) => item.trim()).find((item) => item.startsWith(`${name}=`))?.slice(name.length + 1) || "";
+const activeStatuses = new Set(["draft", "submitted", "under_review", "interview", "hold", "accepted_pending_role"]);
+const terminalStatuses = new Set(["accepted", "rejected", "withdrawn"]);
+const withdrawableStatuses = new Set(["draft", "submitted", "under_review", "hold"]);
 let apiFeatures = new Set();
 let initialization = null;
+let applicationOptions = null;
+let ownApplications = [];
+let showChooser = false;
 const supports = (feature) => apiFeatures.has(feature);
 
 function applicationResetControl(label) {
@@ -55,67 +62,114 @@ async function api(path, options = {}) {
 
 function stage(status) {
   const stages = ["draft", "submitted", "under_review", "interview", "decision"];
-  const mapped = ["accepted", "accepted_pending_role", "rejected", "withdrawn"].includes(status)
-    ? "decision"
-    : status === "hold" ? "under_review" : status;
+  const mapped = ["accepted", "accepted_pending_role", "rejected", "withdrawn"].includes(status) ? "decision" : status === "hold" ? "under_review" : status;
   const active = Math.max(0, stages.indexOf(mapped));
   const labels = { draft: "Draft", submitted: "Submitted", under_review: "Review", interview: "Interview", decision: "Decision" };
   return `<ol class="application-stages">${stages.map((item,index) => `<li class="${index <= active ? "complete" : ""}"><span>${index + 1}</span>${labels[item]}</li>`).join("")}</ol>`;
 }
 
+function detectedTimezone() {
+  try { return Intl.DateTimeFormat().resolvedOptions().timeZone || ""; }
+  catch { return ""; }
+}
+
 function questionHtml(question, answers) {
-  const value = String(answers[question.key] || "");
+  const suggested = question.key === "timezone" ? detectedTimezone() : "";
+  const value = String(answers[question.key] || suggested || "");
   const required = question.required ? " required" : "";
   const prompt = question.review_prompt;
   const embeddedVideo = prompt && supports("application_review_embeds") && prompt.youtube_embed_url
     ? `<div class="review-video"><iframe src="${esc(prompt.youtube_embed_url)}" title="Showcase for ${esc(prompt.name)}" loading="lazy" referrerpolicy="strict-origin-when-cross-origin" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" sandbox="allow-scripts allow-same-origin allow-presentation allow-popups" allowfullscreen></iframe></div>`
     : "";
   const help = prompt
-    ? `<section class="review-showcase" aria-label="Level showcase">
-        <div class="review-showcase-head"><div><strong>${esc(prompt.name)}</strong><span>Level ID ${esc(prompt.level_id)}</span></div><a href="${esc(prompt.youtube_url)}" target="_blank" rel="noopener noreferrer">Open on YouTube</a></div>
-        ${embeddedVideo}<p>${embeddedVideo ? "Watch the showcase, then write your review below." : "Open the showcase on YouTube, then write your review below."}</p>
-      </section>`
+    ? `<section class="review-showcase" aria-label="Level showcase"><div class="review-showcase-head"><div><strong>${esc(prompt.name)}</strong><span>Level ID ${esc(prompt.level_id)}</span></div><a href="${esc(prompt.youtube_url)}" target="_blank" rel="noopener noreferrer">Open on YouTube</a></div>${embeddedVideo}<p>${embeddedVideo ? "Watch the showcase, then write your review below." : "Open the showcase on YouTube, then write your review below."}</p></section>`
     : question.help_url
-      ? `<p class="field-help"><a href="${esc(question.help_url)}" target="_blank" rel="noopener noreferrer">Find your timezone</a></p>`
+      ? `<p class="field-help">Detected as <strong>${esc(value || "unknown")}</strong>. <a href="${esc(question.help_url)}" target="_blank" rel="noopener noreferrer">Check your timezone</a></p>`
       : "";
   if (question.type === "single_choice") {
     return `<fieldset class="choice-question"><legend>${esc(question.label)}${question.required ? " *" : ""}</legend>${question.options.map((option, index) => `<label class="choice-option"><input type="radio" name="${esc(question.key)}" value="${esc(option)}" ${value === option ? "checked" : ""}${required && index === 0 ? " required" : ""}><span>${esc(option)}</span></label>`).join("")}${help}</fieldset>`;
   }
-  if (question.type === "short_text") {
-    const fieldId = `question-${question.key}`;
-    return `<div class="form-question"><label for="${esc(fieldId)}">${esc(question.label)}${question.required ? " *" : ""}</label><input id="${esc(fieldId)}" name="${esc(question.key)}" value="${esc(value)}" maxlength="4000"${required}>${help}</div>`;
-  }
   const fieldId = `question-${question.key}`;
+  if (question.type === "short_text") return `<div class="form-question"><label for="${esc(fieldId)}">${esc(question.label)}${question.required ? " *" : ""}</label><input id="${esc(fieldId)}" name="${esc(question.key)}" value="${esc(value)}" maxlength="4000"${required}>${help}</div>`;
   return `<div class="form-question"><label for="${esc(fieldId)}">${esc(question.label)}${question.required ? " *" : ""}</label>${help}<textarea id="${esc(fieldId)}" name="${esc(question.key)}" maxlength="4000"${required}>${esc(value)}</textarea></div>`;
 }
 
 function formHtml(formData) {
   const draft = formData.application || {};
+  const form = formData.form || { application_type: draft.application_type || "judge", label: "Reviewer application", description: "" };
   const answers = draft.answers || {};
-  return `${stage("draft")}<form id="judge-form" class="form-grid">
-    ${formData.questions.map((question) => questionHtml(question, answers)).join("")}
-    ${applicationCompatibilityNotice()}<div class="dialog-actions">${applicationResetControl("Delete application data")}<button class="button secondary" type="button" data-save="draft">Save draft</button><button class="button primary" type="submit">Submit application</button></div>
-    <p id="apply-status" role="status"></p>
-  </form>`;
+  $("#apply-title").textContent = form.label;
+  $("#apply-intro").textContent = form.description || "Save a draft, review your answers, then submit when you are ready.";
+  return `<button class="quiet-link application-back" type="button" data-application-chooser>Back to application types</button>${stage("draft")}<form id="application-form" class="form-grid" data-application-type="${esc(form.application_type)}">${formData.questions.map((question) => questionHtml(question, answers)).join("")}${applicationCompatibilityNotice()}<div class="dialog-actions">${applicationResetControl("Delete application data")}<button class="button secondary" type="button" data-save="draft">Save draft</button><button class="button primary" type="submit">Submit application</button></div><p id="apply-status" role="status"></p></form>`;
+}
+
+function statusHtml(application) {
+  const label = application.application_label || `${String(application.application_type || "staff").replaceAll("_", " ")} application`;
+  $("#apply-title").textContent = label;
+  $("#apply-intro").textContent = "Your application status and next step are shown below.";
+  const canWithdraw = withdrawableStatuses.has(application.status);
+  return `${stage(application.status)}<section class="panel"><div class="panel-head"><h2>Application #${application.id}</h2><span class="pill ${esc(application.status)}">${esc(application.status.replaceAll("_", " "))}</span></div><p>Your application is saved and its current stage is shown above.</p>${application.decision_reason ? `<p class="muted">Decision note: ${esc(application.decision_reason)}</p>` : ""}${applicationCompatibilityNotice()}<div class="dialog-actions">${canWithdraw ? `<button class="button secondary" data-withdraw="${application.id}">Withdraw application</button>` : ""}${terminalStatuses.has(application.status) ? '<button class="button secondary" type="button" data-application-chooser>View application types</button>' : ""}${applicationResetControl("Delete my application data")}</div></section>`;
+}
+
+function cooldownText(cooldown) {
+  if (!cooldown?.active || !cooldown.until_ts) return "All staff applications have a five-day cooldown after submission.";
+  const when = new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" }).format(new Date(Number(cooldown.until_ts) * 1000));
+  return `Your five-day application cooldown ends ${when}.`;
+}
+
+function chooserHtml(options, applications) {
+  $("#apply-title").textContent = "Staff applications";
+  $("#apply-intro").textContent = "Choose the team you want to apply for. You can keep one active application at a time.";
+  const locked = Boolean(options.active_application) || Boolean(options.cooldown?.active) || !options.applications_open;
+  const choices = options.items.map((item) => {
+    const disabled = !item.enabled || locked;
+    const note = !item.enabled ? "Coming later" : !options.applications_open ? "Applications closed" : options.active_application ? "Finish your current application" : options.cooldown?.active ? "Available after cooldown" : "Start application";
+    return `<button class="application-choice" type="button" data-application-type="${esc(item.application_type)}" ${disabled ? "disabled" : ""}><span><strong>${esc(item.label)}</strong><small>${esc(item.description)}</small></span><span class="application-choice-action">${esc(note)}</span></button>`;
+  }).join("");
+  const history = applications.filter((item) => item.status !== "draft").slice(0, 5);
+  return `<section class="application-chooser"><h2>Which application do you want to fill out?</h2><p class="muted">${esc(cooldownText(options.cooldown))}</p><div class="application-choice-list">${choices}</div>${history.length ? `<div class="application-history"><h3>Previous applications</h3>${history.map((item) => `<button type="button" class="application-history-row" data-view-application="${item.id}"><span>${esc(item.application_label || item.application_type)}</span><span class="pill ${esc(item.status)}">${esc(item.status.replaceAll("_", " "))}</span></button>`).join("")}</div>` : ""}</section>`;
+}
+
+async function loadOptions() {
+  if (supports("multi_type_applications")) return api("/api/apply/options");
+  return { items: [{ application_type: "judge", label: "Reviewer application", description: "Apply to join the GD Avenue review team.", enabled: true }, { application_type: "mod", label: "Mod application", description: "Deploy the matching Avenue Guard API to enable this application.", enabled: false }, { application_type: "appeal", label: "Appeal application", description: "This application will be added in a future update.", enabled: false }], applications_open: true, cooldown: { active: false, days: 5 }, active_application: null };
+}
+
+async function loadForm(applicationType) {
+  const path = supports("multi_type_applications") ? `/api/apply/form/${encodeURIComponent(applicationType)}` : "/api/apply/form";
+  const formData = await api(path);
+  if (applicationOptions && formData.application) applicationOptions.active_application = { id: formData.application.id, application_type: formData.application.application_type, status: formData.application.status };
+  if (formData.application && !ownApplications.some((item) => String(item.id) === String(formData.application.id))) ownApplications.unshift(formData.application);
+  $("#apply-content").innerHTML = formHtml(formData);
+}
+
+function cleanAuthError() {
+  const params = new URLSearchParams(location.search);
+  const authError = params.get("auth_error");
+  if (authError) {
+    params.delete("auth_error");
+    history.replaceState(null, "", `${location.pathname}${params.size ? `?${params}` : ""}${location.hash}`);
+  }
+  return authError;
 }
 
 async function initializeInner() {
-  const params = new URLSearchParams(location.search);
-  const authError = params.get("auth_error");
-  if (authError) history.replaceState(null, "", `${location.pathname}${location.hash}`);
+  const authError = cleanAuthError();
   try {
     const session = await api("/api/apply/session");
     sessionStorage.removeItem("av-apply-oauth-forward");
     apiFeatures = new Set(session.api?.features || []);
-    const data = await api("/api/apply/mine");
-    const active = data.items.find((item) => ["submitted","under_review","interview","hold","accepted_pending_role"].includes(item.status));
-    const visibleApplication = active || data.items.find((item) => item.status !== "draft");
-    if (visibleApplication) {
-      $("#apply-content").innerHTML = `${stage(visibleApplication.status)}<section class="panel"><div class="panel-head"><h2>Application #${visibleApplication.id}</h2><span class="pill">${esc(visibleApplication.status.replaceAll("_"," "))}</span></div><p>Your application is saved and its current stage is shown above.</p>${visibleApplication.decision_reason ? `<p class="muted">Decision note: ${esc(visibleApplication.decision_reason)}</p>` : ""}${applicationCompatibilityNotice()}<div class="dialog-actions">${!["accepted","rejected","withdrawn"].includes(visibleApplication.status) ? `<button class="button secondary" data-withdraw="${visibleApplication.id}">Withdraw application</button>` : ""}${applicationResetControl("Delete my application data")}</div></section>`;
-    } else {
-      const formData = await api("/api/apply/form");
-      $("#apply-content").innerHTML = formHtml(formData);
-    }
+    const [mine, options] = await Promise.all([api("/api/apply/mine"), loadOptions()]);
+    ownApplications = mine.items || [];
+    applicationOptions = options;
+    const active = ownApplications.find((item) => activeStatuses.has(item.status));
+    const selectedType = new URLSearchParams(location.search).get("type");
+    if (active?.status === "draft") return loadForm(active.application_type);
+    if (active) { $("#apply-content").innerHTML = statusHtml(active); return; }
+    if (selectedType && options.items.some((item) => item.application_type === selectedType && item.enabled) && !options.cooldown?.active && options.applications_open) return loadForm(selectedType);
+    const latest = ownApplications.find((item) => item.status !== "draft");
+    if (latest && !showChooser) { $("#apply-content").innerHTML = statusHtml(latest); return; }
+    $("#apply-content").innerHTML = chooserHtml(options, ownApplications);
   } catch (error) {
     if (authError || [401, 403].includes(error.status)) { $("#apply-content").hidden = true; $("#apply-auth").hidden = false; $("#apply-auth-message").textContent = authError || error.message; }
     else if (error.status === 404) { $("#apply-content").hidden = true; $("#apply-auth").hidden = false; $("#apply-auth-message").textContent = "The secure application service is unavailable in this preview."; }
@@ -129,34 +183,46 @@ function initialize() {
 }
 
 async function save(submit) {
-  const form = $("#judge-form");
-  if (submit && !form.reportValidity()) return;
+  const form = $("#application-form");
+  if (!form || (submit && !form.reportValidity())) return;
   const answers = Object.fromEntries(new FormData(form));
   const status = $("#apply-status");
   status.textContent = submit ? "Submitting..." : "Saving...";
   try {
-    await api(submit ? "/api/apply/submit" : "/api/apply/save", { method: "POST", body: { application_type: "judge", answers } });
+    await api(submit ? "/api/apply/submit" : "/api/apply/save", { method: "POST", body: { application_type: form.dataset.applicationType, answers } });
     status.textContent = submit ? "Application submitted." : "Draft saved.";
-    if (submit) await initialize();
+    if (submit) { showChooser = false; history.replaceState(null, "", location.pathname); await initialize(); }
   } catch (error) { status.textContent = error.message; }
 }
 
-document.addEventListener("submit", (event) => { if (event.target.id === "judge-form") { event.preventDefault(); save(true); } });
+document.addEventListener("submit", (event) => { if (event.target.id === "application-form") { event.preventDefault(); save(true); } });
 document.addEventListener("click", async (event) => {
   if (event.target.closest("[data-save='draft']")) save(false);
+  const typeButton = event.target.closest("[data-application-type]");
+  if (typeButton && !typeButton.disabled) {
+    showChooser = false;
+    const params = new URLSearchParams();
+    params.set("type", typeButton.dataset.applicationType);
+    history.replaceState(null, "", `${location.pathname}?${params}`);
+    await loadForm(typeButton.dataset.applicationType);
+  }
+  if (event.target.closest("[data-application-chooser]")) {
+    showChooser = true;
+    history.replaceState(null, "", location.pathname);
+    $("#apply-content").innerHTML = chooserHtml(applicationOptions, ownApplications);
+  }
+  const historyButton = event.target.closest("[data-view-application]");
+  if (historyButton) {
+    const application = ownApplications.find((item) => String(item.id) === historyButton.dataset.viewApplication);
+    if (application) { showChooser = false; $("#apply-content").innerHTML = statusHtml(application); }
+  }
   const withdraw = event.target.closest("[data-withdraw]");
-  if (withdraw && confirm("Withdraw this application?")) { await api(`/api/apply/${withdraw.dataset.withdraw}/withdraw`, { method: "POST", body: {} }); initialize(); }
+  if (withdraw && confirm("Withdraw this application?")) { await api(`/api/apply/${withdraw.dataset.withdraw}/withdraw`, { method: "POST", body: {} }); showChooser = false; await initialize(); }
   if (event.target.closest("[data-reset-application]")) {
     const confirmation = prompt("Enter DELETE to permanently remove your application data and start again.");
     if (confirmation !== "DELETE") return;
-    try {
-      await api("/api/apply/mine", { method: "DELETE", body: { confirmation } });
-      await initialize();
-    } catch (error) {
-      const status = $("#apply-status");
-      if (status) status.textContent = error.message;
-      else alert(error.message);
-    }
+    try { await api("/api/apply/mine", { method: "DELETE", body: { confirmation } }); showChooser = true; await initialize(); }
+    catch (error) { const status = $("#apply-status"); if (status) status.textContent = error.message; else alert(error.message); }
   }
   if (event.target.closest("#apply-clear-auth")) {
     await fetch("/api/auth/logout", { method: "POST", headers: { "X-CSRF-Token": decodeURIComponent(cookieValue("av_staff_csrf")) }, credentials: "same-origin" });
@@ -164,12 +230,10 @@ document.addEventListener("click", async (event) => {
     location.replace("/apply/");
   }
 });
+
 $("#apply-logout").addEventListener("click", async () => {
-  try {
-    await fetch("/api/auth/logout", { method: "POST", headers: { "X-CSRF-Token": decodeURIComponent(cookieValue("av_staff_csrf")) }, credentials: "same-origin" });
-  } finally {
-    sessionStorage.clear();
-    location.replace("/apply/");
-  }
+  try { await fetch("/api/auth/logout", { method: "POST", headers: { "X-CSRF-Token": decodeURIComponent(cookieValue("av_staff_csrf")) }, credentials: "same-origin" }); }
+  finally { sessionStorage.clear(); location.replace("/apply/"); }
 });
+
 if (!forwardLegacyOAuthCallback()) initialize();

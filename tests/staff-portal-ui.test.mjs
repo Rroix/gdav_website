@@ -126,6 +126,27 @@ test("public applications render server-defined typed questions and review promp
   assert.match(application, /sessionStorage\.removeItem\("av-apply-oauth-forward"\)/);
 });
 
+test("staff applications expose typed choices, cooldowns, timezone defaults, and final-state safety", () => {
+  assert.match(application, /Which application do you want to fill out\?/);
+  assert.match(application, /Reviewer application/);
+  assert.match(application, /Mod application/);
+  assert.match(application, /Appeal application/);
+  assert.match(application, /five-day application cooldown/i);
+  assert.match(application, /Intl\.DateTimeFormat\(\)\.resolvedOptions\(\)\.timeZone/);
+  assert.match(application, /withdrawableStatuses\.has\(application\.status\)/);
+  assert.doesNotMatch(application, /police/i);
+  assert.match(styles, /\.pill\.accepted, \.pill\.accepted_pending_role/);
+});
+
+test("application review workspace filters by type, status, and claim state", () => {
+  assert.match(script, /applicationFilters: \{ type: "all", status: "active", claim: "all" \}/);
+  assert.match(script, /application-status-filter/);
+  assert.match(script, /application-claim-filter/);
+  assert.match(script, /\["unclaimed","Not claimed"\]/);
+  assert.match(script, /\["interview","Interview"\]/);
+  assert.match(script, /\["hold","Held"\]/);
+});
+
 test("OAuth compatibility bridges are one-shot and clean callback parameters", () => {
   assert.match(script, /params\.delete\("code"\)/);
   assert.match(script, /params\.delete\("state"\)/);

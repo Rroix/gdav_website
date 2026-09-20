@@ -53,6 +53,19 @@ a { color: inherit; }
 .public-app-head .quiet-link { margin: 0; }
 .application-shell { width: min(780px, 100%); margin: 0 auto; padding: 28px; background: var(--surface); border: 1px solid var(--line); border-top: 3px solid var(--accent); border-radius: var(--radius); }
 .application-shell h1 { margin: 5px 0; font-size: clamp(1.8rem, 4vw, 2.7rem); letter-spacing: 0; }
+.application-back { margin: 22px 0 0; padding: 0; border: 0; background: transparent; cursor: pointer; }
+.application-chooser { margin-top: 28px; padding-top: 20px; border-top: 1px solid var(--line); }
+.application-chooser h2, .application-history h3 { margin: 0 0 6px; }
+.application-choice-list { display: grid; gap: 8px; margin-top: 18px; }
+.application-choice { width: 100%; min-height: 84px; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 20px; padding: 15px 16px; color: var(--text); background: var(--surface-2); border: 1px solid var(--line-strong); border-radius: var(--radius); text-align: left; cursor: pointer; }
+.application-choice:hover:not(:disabled), .application-choice:focus-visible:not(:disabled) { border-color: var(--accent); background: var(--surface-3); }
+.application-choice:disabled { cursor: not-allowed; opacity: .55; }
+.application-choice > span:first-child { display: grid; gap: 3px; }
+.application-choice small { color: var(--muted); }
+.application-choice-action { color: var(--accent); font-size: .82rem; font-weight: 700; white-space: nowrap; }
+.application-history { margin-top: 26px; padding-top: 18px; border-top: 1px solid var(--line); }
+.application-history-row { width: 100%; display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 11px 2px; color: var(--text); background: transparent; border: 0; border-bottom: 1px solid var(--line); text-align: left; cursor: pointer; }
+.application-history-row:hover { background: var(--surface-2); }
 .application-stages { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); margin: 28px 0; padding: 0; list-style: none; }
 .application-stages li { position: relative; display: grid; justify-items: center; gap: 5px; color: var(--muted); font-size: .75rem; text-transform: capitalize; }
 .application-stages li::before { content: ""; position: absolute; z-index: 0; top: 13px; right: 50%; width: 100%; height: 2px; background: var(--line-strong); }
@@ -193,6 +206,9 @@ progress { width: 100%; height: 8px; border: 0; border-radius: 0; accent-color: 
 .toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 14px; }
 .toolbar input, .toolbar select, .form-grid input, .form-grid select, .form-grid textarea { min-height: 38px; padding: 8px 10px; color: var(--text); background: var(--bg); border: 1px solid var(--line-strong); border-radius: 5px; }
 .toolbar input { min-width: min(290px, 100%); }
+.filter-field { display: grid; gap: 3px; color: var(--muted); font-size: .76rem; }
+.filter-field select { min-width: 150px; color: var(--text); font-size: .9rem; }
+.application-filter-bar { align-items: end; }
 .button { min-height: 36px; display: inline-flex; align-items: center; justify-content: center; padding: 7px 12px; border: 1px solid transparent; border-radius: 5px; font-weight: 700; text-decoration: none; cursor: pointer; }
 .button.primary { color: var(--accent-ink); background: var(--accent); }
 .button.secondary { color: var(--text); background: var(--surface-3); border-color: var(--line-strong); }
@@ -213,6 +229,11 @@ progress { width: 100%; height: 8px; border: 0; border-radius: 0; accent-color: 
 .pill { display: inline-flex; align-items: center; min-height: 24px; padding: 2px 8px; color: var(--muted); border: 1px solid var(--line-strong); border-radius: 12px; font-size: .75rem; white-space: nowrap; }
 .pill.rate { color: var(--rate); }.pill.feature { color: var(--feature); }.pill.epic { color: var(--epic); }.pill.legendary { color: var(--legendary); }.pill.mythic { color: var(--mythic); }
 .pill.warning { color: var(--warning); border-color: #6c5930; }
+.pill.accepted, .pill.accepted_pending_role { color: var(--success); border-color: #315c50; background: #102721; }
+.pill.interview, .pill.claimed { color: var(--info); border-color: #31547a; background: #101f31; }
+.pill.unclaimed { color: var(--muted); }
+.pill.hold { color: var(--warning); border-color: #6c5930; background: #211b10; }
+.pill.rejected, .pill.withdrawn { color: var(--danger); border-color: #6d3434; background: #2b1515; }
 .pill.reviewer { color: var(--muted); }.pill.head_reviewer { color: var(--info); }.pill.admin { color: var(--warning); }.pill.owner { color: var(--accent); }.pill.dev { color: var(--mythic); border-color: #31727b; }
 .distribution-row { display: grid; grid-template-columns: minmax(100px, .7fr) minmax(100px, 1.5fr) auto; align-items: center; gap: 10px; margin: 11px 0; }
 .empty-state, .loading-state, .error-state { min-height: 300px; display: grid; place-content: center; justify-items: center; gap: 10px; color: var(--muted); text-align: center; }
@@ -228,6 +249,7 @@ progress { width: 100%; height: 8px; border: 0; border-radius: 0; accent-color: 
 .record-row:hover, .record-row:focus-visible { background: var(--surface-1); }
 .record-row > span:first-child, .record-row > span:first-child > span { display: grid; min-width: 0; }
 .record-row small { color: var(--muted); }
+.record-tags { display: flex; align-items: center; justify-content: flex-end; gap: 6px; }
 .row-chevron { color: var(--muted); font-size: .78rem; }
 
 .detail-drawer { position: fixed; z-index: 60; inset: 0 0 0 auto; width: min(520px, 100%); padding: 20px 24px 38px; overflow-y: auto; background: var(--surface); border-left: 1px solid var(--line-strong); transform: translateX(102%); transition: transform .18s ease; }
@@ -335,6 +357,8 @@ dialog form { display: grid; grid-template-rows: auto auto minmax(0, 1fr) auto a
   .application-page { padding: 0; }
   .public-app-head { padding: 14px; margin: 0; }
   .application-shell { min-height: calc(100vh - 54px); padding: 22px 14px; border-left: 0; border-right: 0; border-bottom: 0; }
+  .application-choice { grid-template-columns: 1fr; gap: 8px; }
+  .application-choice-action { white-space: normal; }
   dialog { width: calc(100% - 12px); max-height: calc(100dvh - 12px); }
   dialog form { padding: 16px; }
   .incident-row { grid-template-columns: 1fr; }

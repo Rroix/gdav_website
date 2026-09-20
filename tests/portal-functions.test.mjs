@@ -92,6 +92,14 @@ test("production staff and application rewrites resolve without query splats", a
     resolveProxyRoute({ path: "/.netlify/functions/api-proxy/apply/mine" }),
     { scope: "apply", tail: "mine" },
   );
+  assert.deepEqual(
+    resolveProxyRoute({ rawUrl: "https://gdavenue.netlify.app/api/apply/options" }),
+    { scope: "apply", tail: "options" },
+  );
+  assert.deepEqual(
+    resolveProxyRoute({ path: "/.netlify/functions/api-proxy/apply/form/mod" }),
+    { scope: "apply", tail: "form/mod" },
+  );
   assert.equal(resolveProxyRoute({ rawUrl: "https://gdavenue.netlify.app/api/staff/../private" }), null);
   assert.equal(resolveProxyRoute({ rawUrl: "https://gdavenue.netlify.app/api/staff/%E0%A4%A" }), null);
 });
