@@ -53,7 +53,8 @@ a { color: inherit; }
 .public-app-head .quiet-link { margin: 0; }
 .application-shell { width: min(780px, 100%); margin: 0 auto; padding: 28px; background: var(--surface); border: 1px solid var(--line); border-top: 3px solid var(--accent); border-radius: var(--radius); }
 .application-shell h1 { margin: 5px 0; font-size: clamp(1.8rem, 4vw, 2.7rem); letter-spacing: 0; }
-.application-back { margin: 22px 0 0; padding: 0; border: 0; background: transparent; cursor: pointer; }
+.application-view-nav { display: flex; margin: 18px 0 4px; }
+.application-menu-button { display: inline-flex; align-items: center; gap: 7px; border-color: var(--line-strong); }
 .application-chooser { margin-top: 28px; padding-top: 20px; border-top: 1px solid var(--line); }
 .application-chooser h2, .application-history h3 { margin: 0 0 6px; }
 .application-choice-list { display: grid; gap: 8px; margin-top: 18px; }

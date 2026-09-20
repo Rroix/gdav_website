@@ -102,7 +102,13 @@ test("team and application workflows expose the requested operational controls",
   assert.match(script, /Add staff is preserved but temporarily disabled/);
   assert.match(script, /\["remove","Remove from team"\]/);
   assert.match(script, /Proceed to interview/);
+  assert.match(script, /Do another interview/);
   assert.match(script, /Accept without interview/);
+  assert.match(script, /Accept user/);
+  assert.match(script, /DM applicant/);
+  assert.match(script, /application_staff_dm/);
+  assert.match(script, /item\.available_actions/);
+  assert.match(script, /const hasInterview = Boolean\(item\.interview_ticket_channel_id\);/);
   assert.match(script, /Open Discord thread/);
   assert.match(script, /Open interview ticket/);
   assert.match(script, /supports\("staff_manual_management"\)/);
@@ -134,6 +140,12 @@ test("staff applications expose typed choices, cooldowns, timezone defaults, and
   assert.match(application, /Each application type has its own five-day cooldown/i);
   assert.match(application, /cooldownForType/);
   assert.match(application, /application\.application_type === item\.application_type/);
+  assert.match(application, /Return to draft/);
+  assert.match(application, /applicationTypesNav/);
+  assert.match(application, /aria-label="Application navigation"/);
+  assert.match(application, /Return to application types/);
+  assert.match(application, /const selectedType = new URLSearchParams\(location\.search\)\.get\("type"\)/);
+  assert.doesNotMatch(application, /if \(active\?\.status === "draft"\) return loadForm/);
   assert.match(application, /closest\("button\[data-application-type\]"\)/);
   assert.doesNotMatch(application, /closest\("\[data-application-type\]"\)/);
   assert.match(application, /Intl\.DateTimeFormat\(\)\.resolvedOptions\(\)\.timeZone/);

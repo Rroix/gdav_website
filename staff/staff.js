@@ -391,14 +391,48 @@ async function renderStaff() {
 function openApplication(id) {
   const item = state.applications.find((entry) => String(entry.id) === String(id));
   if (!item) return showNotice("That application is no longer in this view", true);
-  const terminal = ["accepted", "accepted_pending_role", "rejected", "withdrawn"].includes(item.status);
+  const fallbackActions = {
+    submitted: ["claim", "interview", "hold", "accept", "reject"],
+    under_review: ["interview", "hold", "accept", "reject"],
+    hold: ["claim", "interview", "accept", "reject"],
+    interview: ["interview", "hold", "accept", "reject"],
+    accepted_pending_role: ["accept"],
+  };
+  const actions = Array.isArray(item.available_actions)
+    ? item.available_actions
+    : [...(fallbackActions[item.status] || []), ...(supports("application_staff_dm") ? ["message"] : [])];
+  const hasInterview = Boolean(item.interview_ticket_channel_id);
+  const labels = {
+    claim: item.status === "hold" ? "Resume review" : "Claim",
+    interview: hasInterview
+      ? "Do another interview"
+      : item.status === "interview"
+        ? "Retry interview setup"
+        : "Proceed to interview",
+    hold: item.status === "interview" ? "Pause application" : "Hold",
+    accept: item.status === "accepted_pending_role"
+      ? "Retry role delivery"
+      : hasInterview
+        ? "Accept user"
+        : "Accept without interview",
+    reject: "Reject",
+    message: "DM applicant",
+  };
+  const actionButtons = actions.map((action) => {
+    const style = action === "reject" ? "danger" : action === "accept" ? "primary" : "secondary";
+    const label = labels[action] || titleCase(action);
+    return `<button class="button small ${style}" data-app-action="${esc(action)}" data-app-action-label="${esc(label)}" data-id="${item.id}">${esc(label)}</button>`;
+  }).join("");
+  const interviewDelivery = ["pending", "processing", "failed"].includes(item.interview_delivery_status)
+    ? pill(`interview setup ${item.interview_delivery_status}`, item.interview_delivery_status === "failed" ? "warning" : "")
+    : "";
   openDrawer("Application inspector", `Application #${item.id}`, `
     <div class="drawer-identity"><div><span>Applicant</span><strong>${esc(identityLabel(item.applicant, item.applicant_id))}</strong><small class="secondary-id">${esc(exactId(item.applicant_id))}</small></div>${copyButton(item.applicant_id, "Copy Discord ID")}</div>
-    <div class="drawer-meta">${pill(item.status)}${pill(item.application_type === "judge" ? "reviewer" : item.application_type)}<span>Submitted ${fmtTime(item.submitted_ts)}</span>${item.claimed_by ? `<span>Claimed by ${esc(identityLabel(item.claimed_by_identity, item.claimed_by))}</span>` : ""}${item.review_thread_id ? `<a class="quiet-link" href="https://discord.com/channels/${esc(item.guild_id)}/${esc(item.review_thread_id)}" target="_blank" rel="noopener noreferrer">Open Discord thread</a>` : ""}${item.interview_ticket_channel_id ? `<a class="quiet-link" href="https://discord.com/channels/${esc(item.guild_id)}/${esc(item.interview_ticket_channel_id)}" target="_blank" rel="noopener noreferrer">Open interview ticket</a>` : ""}</div>
+    <div class="drawer-meta">${pill(item.status)}${pill(item.application_type === "judge" ? "reviewer" : item.application_type)}${interviewDelivery}<span>Submitted ${fmtTime(item.submitted_ts)}</span>${item.claimed_by ? `<span>Claimed by ${esc(identityLabel(item.claimed_by_identity, item.claimed_by))}</span>` : ""}${item.review_thread_id ? `<a class="quiet-link" href="https://discord.com/channels/${esc(item.guild_id)}/${esc(item.review_thread_id)}" target="_blank" rel="noopener noreferrer">Open Discord thread</a>` : ""}${item.interview_ticket_channel_id ? `<a class="quiet-link" href="https://discord.com/channels/${esc(item.guild_id)}/${esc(item.interview_ticket_channel_id)}" target="_blank" rel="noopener noreferrer">Open interview ticket</a>` : ""}</div>
     <section class="drawer-section"><h3>Answers</h3><div class="answer-list">${Object.entries(item.answers || {}).map(([key, value]) => `<div><small>${esc(titleCase(key))}</small><p>${esc(value)}</p></div>`).join("") || '<p class="muted">No answers were stored.</p>'}</div></section>
     <details class="drawer-section" open><summary>Internal timeline (${item.timeline?.length || 0})</summary>${item.timeline?.length ? `<ol class="timeline">${item.timeline.map((event) => `<li><strong>${esc(titleCase(event.event))}</strong><br><small class="muted">${esc(identityLabel(event.actor, event.actor_id))} · ${fmtTime(event.created_ts)}</small></li>`).join("")}</ol>` : '<p class="muted">No staff activity yet.</p>'}</details>
     <details class="drawer-section"><summary>Internal notes (${item.internal_notes?.length || 0})</summary>${item.internal_notes?.map((note) => `<p>${esc(note.body)}<br><small class="muted">${esc(identityLabel(note.author, note.author_id))} · ${ago(note.created_ts)}</small></p>`).join("") || '<p class="muted">No internal notes.</p>'}<button class="button small secondary" data-app-note="${item.id}">Add note</button></details>
-    ${terminal ? "" : `<section class="drawer-section"><h3>Decision</h3><div class="toolbar application-actions"><button class="button small secondary" data-app-action="claim" data-id="${item.id}">Claim</button><button class="button small secondary" data-app-action="interview" data-id="${item.id}">Proceed to interview</button><button class="button small secondary" data-app-action="hold" data-id="${item.id}">Hold</button><button class="button small primary" data-app-action="accept" data-id="${item.id}">Accept without interview</button><button class="button small danger" data-app-action="reject" data-id="${item.id}">Reject</button></div></section>`}`);
+    ${actionButtons ? `<section class="drawer-section"><h3>Actions</h3><div class="toolbar application-actions">${actionButtons}</div></section>` : ""}`);
 }
 
 function openStaffInspector(id) {
@@ -556,7 +590,15 @@ async function actionDialog({ title, description, fields = [], confirm = "Confir
     $("#dialog-submit").disabled = true;
     $("#dialog-cancel").disabled = true;
     $("#dialog-close").disabled = true;
-    try { await run(data); state.dialogSubmitting = false; dialog.close(); cleanup(); showNotice("Action completed"); await render(); }
+    try {
+      await run(data);
+      state.dialogSubmitting = false;
+      dialog.close();
+      cleanup();
+      if ($("#detail-drawer").classList.contains("open")) closeDrawer();
+      showNotice("Action completed");
+      await render();
+    }
     catch (error) { $("#dialog-error").textContent = error.message; $("#dialog-error").hidden = false; }
     finally { state.dialogSubmitting = false; $("#dialog-submit").disabled = false; $("#dialog-cancel").disabled = false; $("#dialog-close").disabled = false; }
   };
@@ -829,7 +871,27 @@ document.addEventListener("click", async (event) => {
   const qa = event.target.closest("[data-qa]");
   if (qa) return actionDialog({ title: "Review QA action", description: "Tier adjustments require a reason and confirmation. They remain auditable and preserve the original tier.", fields: [{ name: "action", label: "Outcome", type: "select", options: [["ok","Reviewed OK"],["discussion","Needs discussion"],["rereview","Re-review requested"],["adjust","Adjust recommendation tier"]] }, { name: "tier", label: "Tier (used only for adjustment)", type: "select", options: ["rate","feature","epic","legendary","mythic"].map((value) => [value,titleCase(value)]) }, { name: "reason", label: "Reason", type: "textarea" }, { name: "confirmed", label: "I confirm this tier adjustment when selected", type: "checkbox" }], run: (body) => api(`/api/staff/qa/${qa.dataset.qa}`, { method: "POST", body }) });
   const app = event.target.closest("[data-app-action]");
-  if (app) return actionDialog({ title: `${titleCase(app.dataset.appAction)} application`, description: "The decision and any resulting Discord role, DM, thread, or interview ticket is delivered through the durable workflow.", fields: [{ name: "reason", label: "Reason", type: "textarea", required: ["hold","accept","reject"].includes(app.dataset.appAction) }, ...(["interview","accept","reject"].includes(app.dataset.appAction) ? [{ name: "confirmed", label: "I confirm this application decision", type: "checkbox", required: true }] : [])], danger: app.dataset.appAction === "reject", run: (body) => api(`/api/staff/applications/${app.dataset.id}/action`, { method: "POST", body: { ...body, action: app.dataset.appAction } }) });
+  if (app) {
+    const action = app.dataset.appAction;
+    const label = app.dataset.appActionLabel || `${titleCase(action)} application`;
+    if (action === "message") return actionDialog({
+      title: "DM applicant",
+      description: "Avenue Guard will deliver this private message through the durable Discord queue. The application status will not change.",
+      fields: [{ name: "message", label: "Message", type: "textarea", required: true }],
+      confirm: "Send DM",
+      run: (body) => api(`/api/staff/applications/${app.dataset.id}/action`, { method: "POST", body: { ...body, action } }),
+    });
+    return actionDialog({
+      title: label,
+      description: action === "interview" && label === "Do another interview"
+        ? "Avenue Guard will create a new private interview ticket and notify the applicant."
+        : "The decision and any resulting Discord role, DM, thread, or interview ticket is delivered through the durable workflow.",
+      fields: [{ name: "reason", label: "Reason", type: "textarea", required: ["hold","accept","reject"].includes(action) }, ...(["interview","accept","reject"].includes(action) ? [{ name: "confirmed", label: "I confirm this application action", type: "checkbox", required: true }] : [])],
+      confirm: label,
+      danger: action === "reject",
+      run: (body) => api(`/api/staff/applications/${app.dataset.id}/action`, { method: "POST", body: { ...body, action } }),
+    });
+  }
   const appNote = event.target.closest("[data-app-note]");
   if (appNote) return actionDialog({ title: "Add internal application note", description: "Applicants cannot see internal notes.", fields: [{ name: "body", label: "Note", type: "textarea", required: true }], confirm: "Add note", run: (body) => api(`/api/staff/applications/${appNote.dataset.appNote}/note`, { method: "POST", body }) });
   const staff = event.target.closest("[data-staff-action]");

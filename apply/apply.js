@@ -99,7 +99,11 @@ function formHtml(formData) {
   const answers = draft.answers || {};
   $("#apply-title").textContent = form.label;
   $("#apply-intro").textContent = form.description || "Save a draft, review your answers, then submit when you are ready.";
-  return `<button class="quiet-link application-back" type="button" data-application-chooser>Back to application types</button>${stage("draft")}<form id="application-form" class="form-grid" data-application-type="${esc(form.application_type)}">${formData.questions.map((question) => questionHtml(question, answers)).join("")}${applicationCompatibilityNotice()}<div class="dialog-actions">${applicationResetControl("Delete application data")}<button class="button secondary" type="button" data-save="draft">Save draft</button><button class="button primary" type="submit">Submit application</button></div><p id="apply-status" role="status"></p></form>`;
+  return `${applicationTypesNav()}${stage("draft")}<form id="application-form" class="form-grid" data-application-type="${esc(form.application_type)}">${formData.questions.map((question) => questionHtml(question, answers)).join("")}${applicationCompatibilityNotice()}<div class="dialog-actions">${applicationResetControl("Delete application data")}<button class="button secondary" type="button" data-save="draft">Save draft</button><button class="button primary" type="submit">Submit application</button></div><p id="apply-status" role="status"></p></form>`;
+}
+
+function applicationTypesNav() {
+  return '<nav class="application-view-nav" aria-label="Application navigation"><button class="button secondary application-menu-button" type="button" data-application-chooser><span aria-hidden="true">&larr;</span> Return to application types</button></nav>';
 }
 
 function statusHtml(application) {
@@ -107,7 +111,7 @@ function statusHtml(application) {
   $("#apply-title").textContent = label;
   $("#apply-intro").textContent = "Your application status and next step are shown below.";
   const canWithdraw = withdrawableStatuses.has(application.status);
-  return `${stage(application.status)}<section class="panel"><div class="panel-head"><h2>Application #${application.id}</h2><span class="pill ${esc(application.status)}">${esc(application.status.replaceAll("_", " "))}</span></div><p>Your application is saved and its current stage is shown above.</p>${application.decision_reason ? `<p class="muted">Decision note: ${esc(application.decision_reason)}</p>` : ""}${applicationCompatibilityNotice()}<div class="dialog-actions">${canWithdraw ? `<button class="button secondary" data-withdraw="${application.id}">Withdraw application</button>` : ""}<button class="button secondary" type="button" data-application-chooser>View application types</button>${applicationResetControl("Delete my application data")}</div></section>`;
+  return `${applicationTypesNav()}${stage(application.status)}<section class="panel"><div class="panel-head"><h2>Application #${application.id}</h2><span class="pill ${esc(application.status)}">${esc(application.status.replaceAll("_", " "))}</span></div><p>Your application is saved and its current stage is shown above.</p>${application.decision_reason ? `<p class="muted">Decision note: ${esc(application.decision_reason)}</p>` : ""}${applicationCompatibilityNotice()}<div class="dialog-actions">${canWithdraw ? `<button class="button secondary" data-withdraw="${application.id}">Withdraw application</button>` : ""}${applicationResetControl("Delete my application data")}</div></section>`;
 }
 
 function cooldownForType(options, applicationType) {
@@ -129,9 +133,12 @@ function chooserHtml(options, applications) {
   const choices = options.items.map((item) => {
     const active = applications.find((application) => application.application_type === item.application_type && activeStatuses.has(application.status));
     const cooldown = cooldownForType(options, item.application_type);
-    const disabled = !item.enabled || !options.applications_open || Boolean(active) || Boolean(cooldown.active);
-    const note = !item.enabled ? "Coming later" : !options.applications_open ? "Applications closed" : active ? "Application in progress" : cooldownText(cooldown);
-    return `<button class="application-choice" type="button" data-application-type="${esc(item.application_type)}" ${disabled ? "disabled" : ""}><span><strong>${esc(item.label)}</strong><small>${esc(item.description)}</small></span><span class="application-choice-action">${esc(note)}</span></button>`;
+    const disabled = !item.enabled || (!active && (!options.applications_open || Boolean(cooldown.active)));
+    const note = !item.enabled ? "Coming later" : active?.status === "draft" ? "Return to draft" : active ? "View application" : !options.applications_open ? "Applications closed" : cooldownText(cooldown);
+    const action = active && active.status !== "draft"
+      ? `data-view-application="${esc(active.id)}"`
+      : `data-application-type="${esc(item.application_type)}"`;
+    return `<button class="application-choice" type="button" ${action} ${disabled ? "disabled" : ""}><span><strong>${esc(item.label)}</strong><small>${esc(item.description)}</small></span><span class="application-choice-action">${esc(note)}</span></button>`;
   }).join("");
   const history = applications.filter((item) => item.status !== "draft").slice(0, 5);
   return `<section class="application-chooser"><h2>Which application do you want to fill out?</h2><p class="muted">Each application type has its own five-day cooldown after submission.</p><div class="application-choice-list">${choices}</div>${history.length ? `<div class="application-history"><h3>Previous applications</h3>${history.map((item) => `<button type="button" class="application-history-row" data-view-application="${item.id}"><span>${esc(item.application_label || item.application_type)}</span><span class="pill ${esc(item.status)}">${esc(item.status.replaceAll("_", " "))}</span></button>`).join("")}</div>` : ""}</section>`;
@@ -174,19 +181,13 @@ async function initializeInner() {
     const [mine, options] = await Promise.all([api("/api/apply/mine"), loadOptions()]);
     ownApplications = mine.items || [];
     applicationOptions = options;
-    const active = ownApplications.find((item) => activeStatuses.has(item.status));
     const selectedType = new URLSearchParams(location.search).get("type");
-    if (showChooser) { $("#apply-content").innerHTML = chooserHtml(options, ownApplications); return; }
-    if (selectedType && options.items.some((item) => item.application_type === selectedType && item.enabled) && options.applications_open) {
+    if (selectedType && options.items.some((item) => item.application_type === selectedType && item.enabled)) {
       const selectedActive = ownApplications.find((item) => item.application_type === selectedType && activeStatuses.has(item.status));
       if (selectedActive?.status === "draft") return loadForm(selectedType);
       if (selectedActive) { $("#apply-content").innerHTML = statusHtml(selectedActive); return; }
-      if (!cooldownForType(options, selectedType).active) return loadForm(selectedType);
+      if (options.applications_open && !cooldownForType(options, selectedType).active) return loadForm(selectedType);
     }
-    if (active?.status === "draft") return loadForm(active.application_type);
-    if (active) { $("#apply-content").innerHTML = statusHtml(active); return; }
-    const latest = ownApplications.find((item) => item.status !== "draft");
-    if (latest) { $("#apply-content").innerHTML = statusHtml(latest); return; }
     $("#apply-content").innerHTML = chooserHtml(options, ownApplications);
   } catch (error) {
     if (authError || [401, 403].includes(error.status)) { $("#apply-content").hidden = true; $("#apply-auth").hidden = false; $("#apply-auth-message").textContent = authError || error.message; }
@@ -209,7 +210,12 @@ async function save(submit) {
   try {
     await api(submit ? "/api/apply/submit" : "/api/apply/save", { method: "POST", body: { application_type: form.dataset.applicationType, answers } });
     status.textContent = submit ? "Application submitted." : "Draft saved.";
-    if (submit) { showChooser = false; history.replaceState(null, "", location.pathname); await initialize(); }
+    if (submit) {
+      showChooser = false;
+      const params = new URLSearchParams({ type: form.dataset.applicationType });
+      history.replaceState(null, "", `${location.pathname}?${params}`);
+      await initialize();
+    }
   } catch (error) { status.textContent = error.message; }
 }
 
