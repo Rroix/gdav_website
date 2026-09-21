@@ -203,6 +203,46 @@ test("application review workspace filters by type, status, and claim state", ()
   assert.match(script, /\["hold","Held"\]/);
 });
 
+test("application v2 forms autosave by section and require a final immutable review", () => {
+  assert.match(application, /function formSections/);
+  assert.match(application, /Estimated time:/);
+  assert.match(application, /No automated personality or AI detection/);
+  assert.match(application, /function scheduleAutosave/);
+  assert.match(application, /window\.setTimeout\(\(\) => save\(false, currentDraftAnswers\), 800\)/);
+  assert.match(application, /Saving\.\.\./);
+  assert.match(application, /Could not save:/);
+  assert.match(application, /function submissionReviewHtml/);
+  assert.match(application, /immutable review snapshot/);
+  assert.match(application, /data-confirm-submit/);
+  assert.match(application, /I confirm these answers are accurate/);
+  assert.match(application, /Back to edit/);
+  assert.match(application, /question\.recommended_words/);
+  assert.match(styles, /\.application-form-section/);
+  assert.match(styles, /\.application-save-row/);
+  assert.match(styles, /\.submission-review/);
+});
+
+test("staff application review uses evidence rubrics, calibration, interviews, and probation", () => {
+  assert.match(script, /Add my assessment/);
+  assert.match(script, /Update my assessment/);
+  assert.match(script, /Score every dimension from 1 to 5/);
+  assert.match(script, /evidence_\$\{dimension\.key\}/);
+  assert.match(script, /Resolve calibration/);
+  assert.match(script, /Questions to clarify \(one per line\)/);
+  assert.match(script, /Record interview outcome/);
+  assert.match(script, /data-interview-outcome/);
+  assert.match(script, /I confirm the interview is complete/);
+  assert.match(script, /Private staff rationale/);
+  assert.match(script, /Optional respectful message to applicant/);
+  assert.match(script, /Probation checkpoint/);
+  assert.match(script, /data-probation-action/);
+  assert.match(script, /Application process/);
+  assert.match(script, /not an applicant or staff leaderboard/);
+  assert.match(styles, /\.rubric-dimension/);
+  assert.match(styles, /\.application-process-grid/);
+  assert.match(styles, /\.rubric-dimension/);
+});
+
 test("OAuth compatibility bridges are one-shot and clean callback parameters", () => {
   assert.match(script, /params\.delete\("code"\)/);
   assert.match(script, /params\.delete\("state"\)/);

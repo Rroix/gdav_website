@@ -10,6 +10,11 @@ let initialization = null;
 let applicationOptions = null;
 let ownApplications = [];
 let showChooser = false;
+let currentFormData = null;
+let currentDraftAnswers = {};
+let autosaveTimer = null;
+let saveQueue = Promise.resolve();
+let saveRevision = 0;
 const supports = (feature) => apiFeatures.has(feature);
 
 function applicationResetControl(label) {
@@ -85,21 +90,53 @@ function questionHtml(question, answers) {
     : question.help_url
       ? `<p class="field-help">Detected as <strong>${esc(value || "unknown")}</strong>. <a href="${esc(question.help_url)}" target="_blank" rel="noopener noreferrer">Check your timezone</a></p>`
       : "";
+  const guidance = question.guidance ? `<p class="field-guidance">${esc(question.guidance)}</p>` : "";
+  const length = Number(question.recommended_words) > 0 ? `<small class="answer-guidance">Suggested length: about ${Number(question.recommended_words)} words</small>` : "";
   if (question.type === "single_choice") {
-    return `<fieldset class="choice-question"><legend>${esc(question.label)}${question.required ? " *" : ""}</legend>${question.options.map((option, index) => `<label class="choice-option"><input type="radio" name="${esc(question.key)}" value="${esc(option)}" ${value === option ? "checked" : ""}${required && index === 0 ? " required" : ""}><span>${esc(option)}</span></label>`).join("")}${help}</fieldset>`;
+    return `<fieldset class="choice-question" data-question-key="${esc(question.key)}"><legend>${esc(question.label)}${question.required ? " *" : ""}</legend>${guidance}${question.options.map((option, index) => `<label class="choice-option"><input type="radio" name="${esc(question.key)}" value="${esc(option)}" ${value === option ? "checked" : ""}${required && index === 0 ? " required" : ""}><span>${esc(option)}</span></label>`).join("")}${help}${length}</fieldset>`;
   }
   const fieldId = `question-${question.key}`;
-  if (question.type === "short_text") return `<div class="form-question"><label for="${esc(fieldId)}">${esc(question.label)}${question.required ? " *" : ""}</label><input id="${esc(fieldId)}" name="${esc(question.key)}" value="${esc(value)}" maxlength="4000"${required}>${help}</div>`;
-  return `<div class="form-question"><label for="${esc(fieldId)}">${esc(question.label)}${question.required ? " *" : ""}</label>${help}<textarea id="${esc(fieldId)}" name="${esc(question.key)}" maxlength="4000"${required}>${esc(value)}</textarea></div>`;
+  if (question.type === "short_text") return `<div class="form-question" data-question-key="${esc(question.key)}"><label for="${esc(fieldId)}">${esc(question.label)}${question.required ? " *" : ""}</label>${guidance}<input id="${esc(fieldId)}" name="${esc(question.key)}" value="${esc(value)}" maxlength="4000"${required}>${help}${length}</div>`;
+  return `<div class="form-question" data-question-key="${esc(question.key)}"><label for="${esc(fieldId)}">${esc(question.label)}${question.required ? " *" : ""}</label>${guidance}${help}<textarea id="${esc(fieldId)}" name="${esc(question.key)}" maxlength="4000"${required}>${esc(value)}</textarea>${length}</div>`;
 }
 
-function formHtml(formData) {
+function formSections(formData, answers) {
+  const grouped = new Map();
+  for (const question of formData.questions || []) {
+    const section = question.section || "Application";
+    if (!grouped.has(section)) grouped.set(section, []);
+    grouped.get(section).push(question);
+  }
+  const preferred = formData.form?.sections || [];
+  const names = [...preferred.filter((name) => grouped.has(name)), ...[...grouped.keys()].filter((name) => !preferred.includes(name))];
+  return names.map((name, index) => `<section class="application-form-section" aria-labelledby="application-section-${index}"><header><span>${index + 1}</span><div><h2 id="application-section-${index}">${esc(name)}</h2><p>${grouped.get(name).length} question${grouped.get(name).length === 1 ? "" : "s"}</p></div></header>${grouped.get(name).map((question) => questionHtml(question, answers)).join("")}</section>`).join("");
+}
+
+function formHtml(formData, answerOverride = null) {
   const draft = formData.application || {};
   const form = formData.form || { application_type: draft.application_type || "judge", label: "Reviewer application", description: "" };
-  const answers = draft.answers || {};
+  const answers = answerOverride || draft.answers || {};
+  currentFormData = formData;
+  currentDraftAnswers = { ...answers };
   $("#apply-title").textContent = form.label;
   $("#apply-intro").textContent = form.description || "Save a draft, review your answers, then submit when you are ready.";
-  return `${applicationTypesNav()}${stage("draft")}<form id="application-form" class="form-grid" data-application-type="${esc(form.application_type)}">${formData.questions.map((question) => questionHtml(question, answers)).join("")}${applicationCompatibilityNotice()}<div class="dialog-actions">${applicationResetControl("Delete application data")}<button class="button secondary" type="button" data-save="draft">Save draft</button><button class="button primary" type="submit">Submit application</button></div><p id="apply-status" role="status"></p></form>`;
+  return `${applicationTypesNav()}<div class="application-form-meta"><span>Estimated time: ${Number(form.estimated_minutes) || 10} minutes</span><span>Drafts are private</span><span>No automated personality or AI detection</span></div>${stage("draft")}<form id="application-form" class="form-grid" data-application-type="${esc(form.application_type)}" novalidate>${formSections(formData, answers)}${applicationCompatibilityNotice()}<div class="application-save-row"><p id="apply-status" class="save-status" role="status" aria-live="polite">Saved</p><div class="dialog-actions">${applicationResetControl("Delete application data")}<button class="button secondary" type="button" data-save="draft">Save now</button><button class="button primary" type="submit">Review application</button></div></div></form>`;
+}
+
+function collectAnswers(form = $("#application-form")) {
+  return form ? Object.fromEntries(new FormData(form)) : { ...currentDraftAnswers };
+}
+
+function submissionReviewHtml(answers) {
+  const questions = currentFormData?.questions || [];
+  const missing = questions.filter((question) => question.required && !String(answers[question.key] || "").trim());
+  const sections = new Map();
+  for (const question of questions) {
+    const section = question.section || "Application";
+    if (!sections.has(section)) sections.set(section, []);
+    sections.get(section).push(question);
+  }
+  return `${applicationTypesNav()}${stage("draft")}<section class="submission-review"><div class="panel-head"><div><p class="eyebrow">Final check</p><h2>Review your application</h2><p class="muted">Your submitted answers become an immutable review snapshot. Staff notes and scores remain private.</p></div></div>${missing.length ? `<div class="review-warning" role="alert"><strong>${missing.length} required answer${missing.length === 1 ? " is" : "s are"} missing</strong><ul>${missing.map((question) => `<li>${esc(question.label)}</li>`).join("")}</ul></div>` : '<p class="review-ready">All required answers are complete.</p>'}${[...sections.entries()].map(([section, items]) => `<section class="review-section"><h3>${esc(section)}</h3>${items.map((question) => `<div class="review-answer"><small>${esc(question.label)}</small><p>${esc(answers[question.key] || "No answer provided")}</p></div>`).join("")}</section>`).join("")}<label class="checkbox-row submission-confirm"><input id="submission-confirmation" type="checkbox" ${missing.length ? "disabled" : ""}><span>I confirm these answers are accurate and ready for staff review.</span></label><div class="dialog-actions"><button class="button secondary" type="button" data-back-to-form>Back to edit</button><button class="button primary" type="button" data-confirm-submit ${missing.length ? "disabled" : ""}>Confirm and submit</button></div><p id="apply-status" class="save-status" role="status" aria-live="polite"></p></section>`;
 }
 
 function applicationTypesNav() {
@@ -111,7 +148,7 @@ function statusHtml(application) {
   $("#apply-title").textContent = label;
   $("#apply-intro").textContent = "Your application status and next step are shown below.";
   const canWithdraw = withdrawableStatuses.has(application.status);
-  return `${applicationTypesNav()}${stage(application.status)}<section class="panel"><div class="panel-head"><h2>Your application</h2><span class="pill ${esc(application.status)}">${esc(application.status.replaceAll("_", " "))}</span></div><p>Your application is saved and its current stage is shown above.</p>${application.decision_reason ? `<p class="muted">Decision note: ${esc(application.decision_reason)}</p>` : ""}${applicationCompatibilityNotice()}<div class="dialog-actions">${canWithdraw ? `<button class="button secondary" data-withdraw="${application.id}">Withdraw application</button>` : ""}${applicationResetControl("Delete my application data")}</div></section>`;
+  return `${applicationTypesNav()}${stage(application.status)}<section class="panel"><div class="panel-head"><h2>Your application</h2><span class="pill ${esc(application.status)}">${esc(application.status.replaceAll("_", " "))}</span></div><p>Your application is saved and its current stage is shown above.</p>${application.applicant_message ? `<p class="muted">${esc(application.applicant_message)}</p>` : ""}${applicationCompatibilityNotice()}<div class="dialog-actions">${canWithdraw ? `<button class="button secondary" data-withdraw="${application.id}">Withdraw application</button>` : ""}${applicationResetControl("Delete my application data")}</div></section>`;
 }
 
 function applicationTypeOpen(options, item) {
@@ -209,27 +246,73 @@ function initialize() {
   return initialization;
 }
 
-async function save(submit) {
+async function save(submit, answerOverride = null) {
   const form = $("#application-form");
-  if (!form || (submit && !form.reportValidity())) return;
-  const answers = Object.fromEntries(new FormData(form));
+  const answers = answerOverride || collectAnswers(form);
+  if (!currentFormData || !Object.keys(answers).length && !(currentFormData.questions || []).length) return false;
+  currentDraftAnswers = { ...answers };
   const status = $("#apply-status");
   status.textContent = submit ? "Submitting..." : "Saving...";
-  try {
-    await api(submit ? "/api/apply/submit" : "/api/apply/save", { method: "POST", body: { application_type: form.dataset.applicationType, answers } });
-    status.textContent = submit ? "Application submitted." : "Draft saved.";
-    if (submit) {
-      showChooser = false;
-      const params = new URLSearchParams({ type: form.dataset.applicationType });
-      history.replaceState(null, "", `${location.pathname}?${params}`);
-      await initialize();
+  const revision = ++saveRevision;
+  const applicationType = currentFormData.form?.application_type || currentFormData.application?.application_type || "judge";
+  const operation = async () => {
+    try {
+      await api(submit ? "/api/apply/submit" : "/api/apply/save", { method: "POST", body: { application_type: applicationType, answers } });
+      const liveStatus = $("#apply-status");
+      if (liveStatus && (submit || revision === saveRevision)) liveStatus.textContent = submit ? "Application submitted." : "Saved";
+      if (submit) {
+        showChooser = false;
+        const params = new URLSearchParams({ type: applicationType });
+        history.replaceState(null, "", `${location.pathname}?${params}`);
+        await initialize();
+      }
+      return true;
+    } catch (error) {
+      const liveStatus = $("#apply-status");
+      if (liveStatus) liveStatus.textContent = `Could not save: ${error.message}`;
+      return false;
     }
-  } catch (error) { status.textContent = error.message; }
+  };
+  saveQueue = saveQueue.catch(() => false).then(operation);
+  return saveQueue;
 }
 
-document.addEventListener("submit", (event) => { if (event.target.id === "application-form") { event.preventDefault(); save(true); } });
+function scheduleAutosave() {
+  const form = $("#application-form");
+  if (!form) return;
+  currentDraftAnswers = collectAnswers(form);
+  const status = $("#apply-status");
+  if (status) status.textContent = "Saving...";
+  window.clearTimeout(autosaveTimer);
+  autosaveTimer = window.setTimeout(() => save(false, currentDraftAnswers), 800);
+}
+
+async function showSubmissionReview() {
+  const answers = collectAnswers();
+  currentDraftAnswers = { ...answers };
+  window.clearTimeout(autosaveTimer);
+  const saved = await save(false, answers);
+  if (!saved) return;
+  $("#apply-content").innerHTML = submissionReviewHtml(answers);
+}
+
+document.addEventListener("input", (event) => { if (event.target.closest("#application-form")) scheduleAutosave(); });
+document.addEventListener("change", (event) => { if (event.target.closest("#application-form")) scheduleAutosave(); });
+document.addEventListener("submit", (event) => { if (event.target.id === "application-form") { event.preventDefault(); showSubmissionReview(); } });
 document.addEventListener("click", async (event) => {
   if (event.target.closest("[data-save='draft']")) save(false);
+  if (event.target.closest("[data-back-to-form]")) {
+    $("#apply-content").innerHTML = formHtml(currentFormData, currentDraftAnswers);
+  }
+  if (event.target.closest("[data-confirm-submit]")) {
+    const confirmation = $("#submission-confirmation");
+    const status = $("#apply-status");
+    if (!confirmation?.checked) {
+      if (status) status.textContent = "Confirm that your answers are ready before submitting.";
+      return;
+    }
+    await save(true, currentDraftAnswers);
+  }
   const typeButton = event.target.closest("button[data-application-type]");
   if (typeButton && !typeButton.disabled) {
     showChooser = false;
@@ -239,6 +322,7 @@ document.addEventListener("click", async (event) => {
     await loadForm(typeButton.dataset.applicationType);
   }
   if (event.target.closest("[data-application-chooser]")) {
+    if ($("#application-form")) await save(false);
     showChooser = true;
     history.replaceState(null, "", location.pathname);
     $("#apply-content").innerHTML = chooserHtml(applicationOptions, ownApplications);

@@ -55,6 +55,13 @@ const ago = (ts) => {
   if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
   return `${Math.floor(seconds / 86400)}d ago`;
 };
+const duration = (seconds) => {
+  const value = Math.max(0, Number(seconds) || 0);
+  if (!value) return "Not enough data";
+  if (value < 3600) return `${Math.round(value / 60)}m`;
+  if (value < 86400) return `${Math.round(value / 3600)}h`;
+  return `${Math.round(value / 86400)}d`;
+};
 const titleCase = (value) => String(value || "unknown").replaceAll("_", " ").replace(/\b\w/g, (char) => char.toUpperCase());
 const roleLabel = (role) => ({ reviewer: "Reviewer", head_reviewer: "Head Reviewer", admin: "Admin", owner: "Owner", dev: "Dev" })[role] || titleCase(role);
 const identityLabel = (identity, fallbackId = "") => {
@@ -471,12 +478,14 @@ async function renderStatistics() {
   state.staffItems = staff.items;
   const reviewTotal = Object.values(data.results).reduce((sum, value) => sum + Number(value), 0);
   const queueTotal = Object.values(data.queue).reduce((sum, value) => sum + Number(value), 0);
+  const process = data.application_process || {};
   return `<section class="progress-strip" aria-label="Team statistics summary">${countMetric("Reviews", reviewTotal)}${countMetric("Queue", queueTotal)}${countMetric("Outreach", data.outreach.attempts)}${countMetric("Applications", data.pending_applications ?? "-")}</section>
     <div class="workspace-grid"><section class="section-block"><div class="panel-head"><div><h2>${data.scope === "team" ? "Reviewer activity" : "My review activity"}</h2><p class="muted">Review counts and real median turnaround.</p></div></div>${data.reviewers.map((item) => {
       const known = state.staffItems.some((member) => exactId(member.id) === exactId(item.reviewed_by));
       const content = `<div><strong>${esc(item.identity?.display_name || "Unresolved staff identity")}</strong><small class="secondary-id">${esc(exactId(item.reviewed_by || item.identity?.id || "Unknown"))}</small><small>Median turnaround: ${item.median_turnaround ? `${Math.round(item.median_turnaround / 3600)}h` : "Unavailable"}</small></div><strong>${item.reviews} reviews</strong>`;
       return known ? `<button class="list-row row-button human-row" data-open-staff="${esc(exactId(item.reviewed_by))}">${content}</button>` : `<div class="list-row human-row">${content}</div>`;
     }).join("") || empty("No review statistics yet")}</section><section class="section-block"><h2>Queue and outreach</h2><div class="detail-grid"><div class="detail-stat"><small>Attempts</small><strong>${data.outreach.attempts}</strong></div><div class="detail-stat"><small>Confirmed</small><strong>${data.outreach.submissions}</strong></div><div class="detail-stat"><small>Follow-ups</small><strong>${data.outreach.followups}</strong></div><div class="detail-stat"><small>Stale claims</small><strong>${data.stale_claims}</strong></div></div>${data.outreach.routes.map((route) => `<div class="metric-line"><span>${esc(titleCase(route.route_type))}</span><strong>${route.submissions || 0} / ${route.attempts}</strong></div>`).join("")}${Object.entries(data.queue).map(([queueState, count]) => `<div class="metric-line"><span>${esc(titleCase(queueState))}</span><strong>${count}</strong></div>`).join("")}</section></div>
+    <section class="section-block"><div class="panel-head"><div><h2>Application process</h2><p class="muted">Private operational health, not an applicant or staff leaderboard.</p></div></div><div class="application-process-grid"><div><span>First review</span><strong>${esc(duration(process.average_first_review_seconds))}</strong><small>average</small></div><div><span>Decision time</span><strong>${esc(duration(process.average_decision_seconds))}</strong><small>average</small></div><div><span>Interviewed</span><strong>${Number(process.interview_rate_percent || 0)}%</strong><small>${Number(process.interviewed || 0)} applications</small></div><div><span>Rubric disagreement</span><strong>${Number(process.rubric_disagreement_percent || 0)}%</strong><small>${Number(process.rubric_disagreements || 0)} of ${Number(process.rubric_comparable || 0)}</small></div></div><div class="statistics-grid"><div><h3>Outcomes by type</h3>${(process.outcomes_by_type || []).map((item) => `<div class="metric-line"><span>${esc(titleCase(item.application_type))} · ${esc(titleCase(item.status))}</span><strong>${item.c}</strong></div>`).join("") || '<p class="muted">No submitted applications yet.</p>'}</div><div><h3>Decision reasons</h3>${Object.entries(process.reason_breakdown || {}).map(([reason,count]) => `<div class="metric-line"><span>${esc(titleCase(reason))}</span><strong>${count}</strong></div>`).join("") || '<p class="muted">No categorized decisions yet.</p>'}<h3>Probation</h3>${Object.entries(process.probation || {}).map(([status,count]) => `<div class="metric-line"><span>${esc(titleCase(status))}</span><strong>${count}</strong></div>`).join("") || '<p class="muted">No probation records yet.</p>'}</div></div></section>
     <div class="statistics-grid"><section class="section-block"><h2>Review decisions</h2>${Object.entries(data.results).map(([result,count]) => `<div class="distribution-row"><span>${esc(titleCase(result))}</span><progress aria-label="${esc(titleCase(result))} decisions" aria-valuemin="0" aria-valuemax="${Math.max(1, reviewTotal)}" aria-valuenow="${count}" max="${Math.max(1, reviewTotal)}" value="${count}"></progress><strong>${count}</strong></div>`).join("") || '<p class="muted">No reviewed levels yet.</p>'}</section><section class="section-block"><h2>Recommendation tiers</h2>${Object.entries(data.tiers).map(([tier,count]) => `<div class="metric-line"><span>${pill(tier)}</span><strong>${count}</strong></div>`).join("") || '<p class="muted">No tier data yet.</p>'}<h3>Distributions</h3><p class="muted">Waiting: ${esc(Object.entries(data.waiting_distribution).map(([key,value]) => `W${key}: ${value}`).join(" | ") || "None")}</p><p class="muted">Creator Points: ${esc(Object.entries(data.cp_distribution).map(([key,value]) => `${key}: ${value}`).join(" | ") || "None")}</p></section></div>`;
 }
 
@@ -510,10 +519,10 @@ function openApplication(id) {
   const item = state.applications.find((entry) => String(entry.id) === String(id));
   if (!item) return showNotice("That application is no longer in this view", true);
   const fallbackActions = {
-    submitted: ["claim", "interview", "hold", "accept", "reject"],
-    under_review: ["interview", "hold", "accept", "reject"],
-    hold: ["claim", "interview", "accept", "reject"],
-    interview: ["interview", "hold", "accept", "reject"],
+    submitted: ["claim", "assess", "interview", "hold", "accept", "reject"],
+    under_review: ["assess", "interview", "hold", "accept", "reject"],
+    hold: ["claim", "assess", "interview", "accept", "reject"],
+    interview: ["assess", "interview", "hold", "accept", "reject"],
     accepted_pending_role: ["accept"],
   };
   const actions = Array.isArray(item.available_actions)
@@ -522,6 +531,8 @@ function openApplication(id) {
   const hasInterview = Boolean(item.interview_ticket_channel_id);
   const labels = {
     claim: item.status === "hold" ? "Resume review" : "Claim",
+    assess: (item.assessments || []).some((assessment) => exactId(assessment.reviewer_id) === exactId(state.user.id)) ? "Update my assessment" : "Add my assessment",
+    calibrate: "Resolve calibration",
     interview: hasInterview
       ? "Do another interview"
       : item.status === "interview"
@@ -537,7 +548,7 @@ function openApplication(id) {
     message: "DM applicant",
   };
   const actionButtons = actions.map((action) => {
-    const style = action === "reject" ? "danger" : action === "accept" ? "primary" : "secondary";
+    const style = action === "reject" ? "danger" : ["accept", "assess"].includes(action) ? "primary" : "secondary";
     const label = labels[action] || titleCase(action);
     return `<button class="button small ${style}" data-app-action="${esc(action)}" data-app-action-label="${esc(label)}" data-id="${item.id}">${esc(label)}</button>`;
   }).join("");
@@ -545,10 +556,34 @@ function openApplication(id) {
     ? pill(`interview setup ${item.interview_delivery_status}`, item.interview_delivery_status === "failed" ? "warning" : "")
     : "";
   const applicantName = item.applicant?.display_name || item.applicant?.username || "Applicant";
+  const questions = (item.questions || []).length
+    ? item.questions
+    : Object.keys(item.answers || {}).map((key) => ({ key, label: titleCase(key), section: "Application" }));
+  const answerSections = new Map();
+  for (const question of questions) {
+    const section = question.section || "Application";
+    if (!answerSections.has(section)) answerSections.set(section, []);
+    answerSections.get(section).push(question);
+  }
+  const answerHtml = [...answerSections.entries()].map(([section, sectionQuestions]) => `<div class="answer-section"><h4>${esc(section)}</h4>${sectionQuestions.map((question) => `<div><small>${esc(question.label || titleCase(question.key))}</small><p>${esc(item.answers?.[question.key] || "No answer provided")}</p></div>`).join("")}</div>`).join("");
+  const rubricDimensions = item.rubric?.dimensions || [];
+  const assessmentSummary = item.assessment_summary || { count: 0, minimum: 2 };
+  const assessmentsHtml = (item.assessments || []).map((assessment) => `<article class="rubric-assessment"><h4>${esc(identityLabel(assessment.reviewer, assessment.reviewer_id))} · ${esc(titleCase(assessment.recommendation))}</h4>${rubricDimensions.map((dimension) => `<div class="rubric-dimension"><span>${esc(dimension.label)}</span><strong>${esc(assessment.scores?.[dimension.key] ?? "-")}/5</strong><small>${esc(assessment.evidence?.[dimension.key] || "No evidence note")}</small></div>`).join("")}</article>`).join("");
+  const calibration = assessmentSummary.calibration_required
+    ? '<p class="inline-warning"><strong>Calibration required</strong><span>Independent assessments disagree. Resolve the differences or interview the applicant before a final decision.</span></p>'
+    : assessmentSummary.disagreement
+      ? '<p class="muted">Scoring differences were resolved through calibration or interview.</p>'
+      : "";
+  const interviewHtml = (item.interviews || []).map((interview) => `<article class="list-row"><div><strong>Interview record</strong><small>${esc(interview.reason)}</small>${(interview.questions || []).length ? `<ol>${interview.questions.map((question) => `<li>${esc(question)}</li>`).join("")}</ol>` : ""}${interview.notes ? `<p><strong>Outcome notes:</strong> ${esc(interview.notes)}</p>` : ""}${interview.recommendation ? `<small>Current recommendation: ${esc(titleCase(interview.recommendation))}</small>` : ""}${interview.completed_by_identity ? `<small>Completed by ${esc(identityLabel(interview.completed_by_identity, interview.completed_by))} · ${fmtTime(interview.completed_ts)}</small>` : ""}</div><div class="row-actions">${pill(interview.status)}${interview.status === "open" ? `<button class="button secondary small" type="button" data-interview-outcome="${interview.id}" data-application-id="${item.id}">Record outcome</button>` : ""}</div></article>`).join("");
+  const probation = item.probation;
+  const probationHtml = probation ? `<section class="drawer-section"><h3>Probation checkpoint</h3><div class="detail-grid"><div class="detail-stat"><small>Status</small><strong>${esc(titleCase(probation.status))}</strong></div><div class="detail-stat"><small>Due</small><strong>${fmtTime(probation.due_ts)}</strong></div></div>${probation.status === "active" && can("applications.review_all") ? `<div class="toolbar"><button class="button small primary" data-probation-action="complete" data-id="${item.id}">Complete probation</button><button class="button small secondary" data-probation-action="extend" data-id="${item.id}">Extend</button><button class="button small danger" data-probation-action="end" data-id="${item.id}">End early</button></div>` : ""}</section>` : "";
   openDrawer("Application inspector", `${applicantName}'s application`, `
     <div class="drawer-identity"><div><span>Applicant</span><strong>${esc(identityLabel(item.applicant, item.applicant_id))}</strong><small class="secondary-id">${esc(exactId(item.applicant_id))}</small></div>${copyButton(item.applicant_id, "Copy Discord ID")}</div>
     <div class="drawer-meta">${pill(item.status)}${pill(item.application_type === "judge" ? "reviewer" : item.application_type)}${interviewDelivery}<span>Submitted ${fmtTime(item.submitted_ts)}</span>${item.claimed_by ? `<span>Claimed by ${esc(identityLabel(item.claimed_by_identity, item.claimed_by))}</span>` : ""}${item.review_thread_id ? `<a class="quiet-link" href="https://discord.com/channels/${esc(item.guild_id)}/${esc(item.review_thread_id)}" target="_blank" rel="noopener noreferrer">Open Discord thread</a>` : ""}${item.interview_ticket_channel_id ? `<a class="quiet-link" href="https://discord.com/channels/${esc(item.guild_id)}/${esc(item.interview_ticket_channel_id)}" target="_blank" rel="noopener noreferrer">Open interview ticket</a>` : ""}</div>
-    <section class="drawer-section"><h3>Answers</h3><div class="answer-list">${Object.entries(item.answers || {}).map(([key, value]) => `<div><small>${esc(titleCase(key))}</small><p>${esc(value)}</p></div>`).join("") || '<p class="muted">No answers were stored.</p>'}</div></section>
+    <section class="drawer-section"><h3>Submitted answers</h3><div class="answer-list">${answerHtml || '<p class="muted">No answers were stored.</p>'}</div></section>
+    <section class="drawer-section"><div class="panel-head"><div><h3>Independent assessments</h3><p class="muted">${Number(assessmentSummary.count || 0)} of ${Number(assessmentSummary.minimum || 2)} required assessments recorded.</p></div></div>${calibration}<div class="rubric-summary">${assessmentsHtml || '<p class="muted">No rubric assessments yet.</p>'}</div></section>
+    ${(item.interviews || []).length ? `<section class="drawer-section"><h3>Interview history</h3>${interviewHtml}</section>` : ""}
+    ${probationHtml}
     <details class="drawer-section" open><summary>Internal timeline (${item.timeline?.length || 0})</summary>${item.timeline?.length ? `<ol class="timeline">${item.timeline.map((event) => `<li><strong>${esc(titleCase(event.event))}</strong><br><small class="muted">${esc(identityLabel(event.actor, event.actor_id))} · ${fmtTime(event.created_ts)}</small></li>`).join("")}</ol>` : '<p class="muted">No staff activity yet.</p>'}</details>
     <details class="drawer-section"><summary>Internal notes (${item.internal_notes?.length || 0})</summary>${item.internal_notes?.map((note) => `<p>${esc(note.body)}<br><small class="muted">${esc(identityLabel(note.author, note.author_id))} · ${ago(note.created_ts)}</small></p>`).join("") || '<p class="muted">No internal notes.</p>'}<button class="button small secondary" data-app-note="${item.id}">Add note</button></details>
     ${actionButtons ? `<section class="drawer-section"><h3>Actions</h3><div class="toolbar application-actions">${actionButtons}</div></section>` : ""}`);
@@ -1085,10 +1120,48 @@ document.addEventListener("click", async (event) => {
   if (complete) return api(`/api/staff/tasks/${complete.dataset.completeTask}`, { method: "PATCH", body: { status: "done" } }).then(() => { showNotice("Task completed"); return render(); }).catch((error) => showNotice(error.message, true));
   const qa = event.target.closest("[data-qa]");
   if (qa) return actionDialog({ title: "Review QA action", description: "Tier adjustments require a reason and confirmation. They remain auditable and preserve the original tier.", fields: [{ name: "action", label: "Outcome", type: "select", options: [["ok","Reviewed OK"],["discussion","Needs discussion"],["rereview","Re-review requested"],["adjust","Adjust recommendation tier"]] }, { name: "tier", label: "Tier (used only for adjustment)", type: "select", options: ["rate","feature","epic","legendary","mythic"].map((value) => [value,titleCase(value)]) }, { name: "reason", label: "Reason", type: "textarea" }, { name: "confirmed", label: "I confirm this tier adjustment when selected", type: "checkbox" }], run: (body) => api(`/api/staff/qa/${qa.dataset.qa}`, { method: "POST", body }) });
+  const interviewOutcome = event.target.closest("[data-interview-outcome]");
+  if (interviewOutcome) return actionDialog({
+    title: "Record interview outcome",
+    description: "Document what the interview clarified. This private record resolves any open rubric calibration but does not decide the application by itself.",
+    fields: [
+      { name: "notes", label: "Interview outcome notes", type: "textarea", required: true },
+      { name: "recommendation", label: "Current recommendation", type: "select", options: [["hold","Hold"],["accept","Accept"],["reject","Reject"]] },
+      { name: "confirmed", label: "I confirm the interview is complete", type: "checkbox", required: true },
+    ],
+    confirm: "Complete interview",
+    run: (body) => api(`/api/staff/applications/${interviewOutcome.dataset.applicationId}/interview`, { method: "POST", body: { ...body, interview_id: Number(interviewOutcome.dataset.interviewOutcome) } }),
+  });
   const app = event.target.closest("[data-app-action]");
   if (app) {
     const action = app.dataset.appAction;
     const label = app.dataset.appActionLabel || `${titleCase(action)} application`;
+    const application = state.applications.find((item) => String(item.id) === String(app.dataset.id));
+    if (!application) return showNotice("That application is no longer available", true);
+    if (action === "assess") {
+      const current = (application.assessments || []).find((assessment) => exactId(assessment.reviewer_id) === exactId(state.user.id));
+      const dimensions = application.rubric?.dimensions || [];
+      const fields = dimensions.flatMap((dimension) => [
+        { name: `score_${dimension.key}`, label: `${dimension.label} score`, type: "select", value: current?.scores?.[dimension.key] || "3", options: [1,2,3,4,5].map((value) => [String(value), `${value} / 5`]) },
+        { name: `evidence_${dimension.key}`, label: `${dimension.label} evidence`, type: "textarea", value: current?.evidence?.[dimension.key] || "", required: true },
+      ]);
+      fields.push({ name: "recommendation", label: "Current recommendation", type: "select", value: current?.recommendation || "hold", options: [["hold","Hold"],["interview","Interview"],["accept","Accept"],["reject","Reject"]] });
+      return actionDialog({
+        title: current ? "Update my assessment" : "Add my assessment",
+        description: "Score every dimension from 1 to 5 and record the evidence behind each score. The portal never turns these dimensions into an unexplained overall score.",
+        fields,
+        confirm: "Save assessment",
+        run: (body) => {
+          const scores = {};
+          const evidence = {};
+          for (const dimension of dimensions) {
+            scores[dimension.key] = Number(body[`score_${dimension.key}`]);
+            evidence[dimension.key] = body[`evidence_${dimension.key}`];
+          }
+          return api(`/api/staff/applications/${app.dataset.id}/assessment`, { method: "POST", body: { scores, evidence, recommendation: body.recommendation } });
+        },
+      });
+    }
     if (action === "message") return actionDialog({
       title: "DM applicant",
       description: "Avenue Guard will deliver this private message through the durable Discord queue. The application status will not change.",
@@ -1096,15 +1169,48 @@ document.addEventListener("click", async (event) => {
       confirm: "Send DM",
       run: (body) => api(`/api/staff/applications/${app.dataset.id}/action`, { method: "POST", body: { ...body, action } }),
     });
+    if (action === "calibrate") return actionDialog({
+      title: "Resolve calibration",
+      description: "Document how the independent assessments were reconciled. This note is internal and the original assessments remain unchanged.",
+      fields: [{ name: "reason", label: "Calibration note", type: "textarea", required: true }, { name: "confirmed", label: "I confirm the scoring disagreement has been discussed", type: "checkbox", required: true }],
+      confirm: "Resolve calibration",
+      run: (body) => api(`/api/staff/applications/${app.dataset.id}/action`, { method: "POST", body: { ...body, action } }),
+    });
+    const decisionCategories = (application.decision_categories?.[action] || []).map((value) => [value, titleCase(value)]);
+    const fields = action === "interview"
+      ? [
+          { name: "reason", label: "Internal reason for interview", type: "textarea", required: true },
+          { name: "clarification_questions", label: "Questions to clarify (one per line)", type: "textarea", required: true },
+          { name: "recommendation", label: "Current recommendation", type: "select", options: [["hold","Hold"],["accept","Accept"],["reject","Reject"]] },
+          { name: "confirmed", label: "I confirm this application action", type: "checkbox", required: true },
+        ]
+      : [
+          ...(decisionCategories.length ? [{ name: "category", label: "Internal reason category", type: "select", options: decisionCategories }] : []),
+          { name: "reason", label: "Private staff rationale", type: "textarea", required: ["hold","accept","reject"].includes(action) },
+          ...(["accept","reject"].includes(action) ? [{ name: "applicant_message", label: "Optional respectful message to applicant", type: "textarea" }] : []),
+          ...(["accept","reject"].includes(action) ? [{ name: "confirmed", label: "I confirm this application action", type: "checkbox", required: true }] : []),
+        ];
     return actionDialog({
       title: label,
       description: action === "interview" && label === "Do another interview"
         ? "Avenue Guard will create a new private interview ticket and notify the applicant."
         : "The decision and any resulting Discord role, DM, thread, or interview ticket is delivered through the durable workflow.",
-      fields: [{ name: "reason", label: "Reason", type: "textarea", required: ["hold","accept","reject"].includes(action) }, ...(["interview","accept","reject"].includes(action) ? [{ name: "confirmed", label: "I confirm this application action", type: "checkbox", required: true }] : [])],
+      fields,
       confirm: label,
       danger: action === "reject",
       run: (body) => api(`/api/staff/applications/${app.dataset.id}/action`, { method: "POST", body: { ...body, action } }),
+    });
+  }
+  const probation = event.target.closest("[data-probation-action]");
+  if (probation) {
+    const action = probation.dataset.probationAction;
+    return actionDialog({
+      title: action === "complete" ? "Complete probation" : action === "extend" ? "Extend probation" : "End probation early",
+      description: "This checkpoint is private, audited, and delivered to the staff member through Avenue Guard.",
+      danger: action === "end",
+      fields: [...(action === "extend" ? [{ name: "days", label: "Additional days", type: "number", min: 1, value: "7", required: true }] : []), { name: "reason", label: "Documented outcome", type: "textarea", required: true }, { name: "confirmed", label: "I confirm this probation outcome", type: "checkbox", required: true }],
+      confirm: action === "complete" ? "Complete" : action === "extend" ? "Extend" : "End probation",
+      run: (body) => api(`/api/staff/applications/${probation.dataset.id}/probation`, { method: "POST", body: { ...body, action } }),
     });
   }
   const appNote = event.target.closest("[data-app-note]");
