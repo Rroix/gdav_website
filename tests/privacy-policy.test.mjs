@@ -35,10 +35,12 @@ test("privacy policy covers applications, hidden records, task DMs, and Dev prev
 
 test("privacy policy explains punishment appeal evidence and communication", () => {
   assert.match(policy, /Punishment Appeals/);
-  assert.match(policy, /GD Avenue's current ban list/i);
+  assert.match(policy, /active server ban/i);
+  assert.match(policy, /timeout or one of GD Avenue's configured restriction roles/i);
   assert.match(policy, /audit-log/i);
   assert.match(policy, /Sapphire/i);
-  assert.match(policy, /45 days/i);
+  assert.match(policy, /applicant-reported/i);
+  assert.match(policy, /cannot by themselves authorize an automatic moderation action/i);
   assert.match(policy, /private portal message/i);
 });
 

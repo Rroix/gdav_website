@@ -12,6 +12,7 @@ let ownApplications = [];
 let showChooser = false;
 let currentFormData = null;
 let currentDraftAnswers = {};
+let currentManualPunishment = {};
 let autosaveTimer = null;
 let saveQueue = Promise.resolve();
 let saveRevision = 0;
@@ -128,6 +129,31 @@ function formSections(formData, answers) {
   return names.map((name, index) => `<section class="application-form-section" aria-labelledby="application-section-${index}"><header><span>${index + 1}</span><div><h2 id="application-section-${index}">${esc(name)}</h2><p>${grouped.get(name).length} question${grouped.get(name).length === 1 ? "" : "s"}</p></div></header>${grouped.get(name).map((question) => questionHtml(question, answers)).join("")}</section>`).join("");
 }
 
+function punishmentTypeLabel(type) {
+  return ({ ban: "Server ban", timeout: "Timeout or mute", restriction_role: "Restriction role", other: "Other punishment" })[type] || "Punishment";
+}
+
+function collectManualPunishment() {
+  const read = (id, key) => document.getElementById(id)?.value ?? currentManualPunishment[key] ?? "";
+  return {
+    type: read("manual-type", "type"),
+    role_id: read("manual-role-id", "role_id"),
+    reason: read("manual-reason", "reason"),
+    issued_date: read("manual-issued-date", "issued_date"),
+    details: read("manual-details", "details"),
+  };
+}
+
+function manualPunishmentHtml(formData) {
+  const entry = formData.manual_entry;
+  if (!entry?.allowed) return "";
+  const value = { ...(entry.value || {}), ...currentManualPunishment };
+  const required = Boolean(entry.required);
+  if (!required && !entry.reason_missing && !entry.issued_date_missing) return "";
+  const roleOptions = (entry.role_options || []).map((item) => `<option value="${esc(item.id)}" ${String(value.role_id || "") === String(item.id) ? "selected" : ""}>${esc(item.label)}</option>`).join("");
+  return `<section class="manual-punishment ${required ? "required" : "supplemental"}"><div><p class="eyebrow">${required ? "Applicant-reported record" : "Missing record details"}</p><h2>${required ? "Tell us which punishment you are appealing" : "Add context Discord no longer shows"}</h2><p class="muted">${esc(entry.notice || "Staff will verify applicant-supplied information before taking action.")}</p></div><div class="manual-punishment-grid"><label>Punishment type<select id="manual-type" ${required ? "required" : ""}><option value="">Choose one</option>${[["ban","Server ban"],["timeout","Timeout or mute"],["restriction_role","Restriction role"],["other","Other punishment"]].map(([key,label]) => `<option value="${key}" ${value.type === key ? "selected" : ""}>${label}</option>`).join("")}</select></label><label id="manual-role-field" ${value.type === "restriction_role" ? "" : "hidden"}>Restriction role<select id="manual-role-id"><option value="">Choose the role</option>${roleOptions}</select></label><label class="wide">Reason shown or given to you<textarea id="manual-reason" maxlength="1000" ${required ? "required" : ""}>${esc(value.reason || "")}</textarea></label><label>Approximate date<input id="manual-issued-date" type="date" value="${esc(value.issued_date || "")}"></label><label class="wide">Anything else staff should use to identify it<textarea id="manual-details" maxlength="2000">${esc(value.details || "")}</textarea></label></div><p class="record-provenance">Applicant-entered details are marked unverified and cannot automatically remove a Discord punishment.</p></section>`;
+}
+
 function formHtml(formData, answerOverride = null) {
   const draft = formData.application || {};
   const form = formData.form || { application_type: draft.application_type || "judge", label: "Reviewer application", description: "" };
@@ -138,11 +164,12 @@ function formHtml(formData, answerOverride = null) {
   $("#apply-intro").textContent = form.description || "Save a draft, review your answers, then submit when you are ready.";
   const isAppeal = form.application_type === "appeal";
   const punishment = formData.punishment;
-  const punishmentTitle = punishment?.lookup_status === "found" ? "Active server ban" : punishment?.lookup_status === "not_banned" ? "No active server ban found" : "Ban status could not be verified";
-  const punishmentCard = isAppeal && punishment ? `<section class="punishment-summary ${punishment.lookup_status !== "found" ? "warning" : ""}"><div class="panel-head"><div><p class="eyebrow">Discord record</p><h2>${punishmentTitle}</h2></div><span class="pill ${punishment.active ? "hold" : "withdrawn"}">${esc(punishment.lookup_status.replaceAll("_", " "))}</span></div><dl><div><dt>Original reason</dt><dd>${esc(punishment.reason || "No reason is present in Discord's ban record")}</dd></div><div><dt>Reason source</dt><dd>${esc((punishment.reason_source || "unknown").replaceAll("_", " "))}</dd></div><div><dt>Issued</dt><dd>${punishment.issued_ts ? new Date(Number(punishment.issued_ts) * 1000).toLocaleString() : "Date unavailable (Discord audit entries expire)"}</dd></div></dl>${punishment.reason_conflict ? '<p class="warning-text">Discord currently exposes conflicting reason fields. Staff will see both sources during review.</p>' : ""}</section>` : "";
+  currentManualPunishment = { ...(formData.manual_entry?.value || {}), ...currentManualPunishment };
+  const punishmentTitle = punishment?.lookup_status === "found" ? `Active ${punishmentTypeLabel(punishment.type).toLowerCase()}` : punishment?.lookup_status === "applicant_reported" ? "Applicant-reported punishment" : "No active Discord punishment found";
+  const punishmentCard = isAppeal && punishment ? `<section class="punishment-summary ${punishment.lookup_status !== "found" ? "warning" : ""}"><div class="panel-head"><div><p class="eyebrow">${punishment.verified ? "Discord record" : "Lookup result"}</p><h2>${punishmentTitle}</h2></div><span class="pill ${punishment.active ? "hold" : "withdrawn"}">${esc(punishment.lookup_status.replaceAll("_", " "))}</span></div><dl><div><dt>Type</dt><dd>${esc(punishmentTypeLabel(punishment.type))}${punishment.display_name ? ` · ${esc(punishment.display_name)}` : ""}</dd></div><div><dt>Original reason</dt><dd>${esc(punishment.reason || "No reason is available in Discord's current record")}</dd></div><div><dt>Reason source</dt><dd>${esc((punishment.reason_source || "unknown").replaceAll("_", " "))}</dd></div><div><dt>Issued</dt><dd>${punishment.issued_ts ? new Date(Number(punishment.issued_ts) * 1000).toLocaleDateString() : "Date unavailable (Discord audit entries expire)"}</dd></div>${punishment.ends_ts ? `<div><dt>Ends</dt><dd>${new Date(Number(punishment.ends_ts) * 1000).toLocaleString()}</dd></div>` : ""}</dl>${punishment.reason_conflict ? '<p class="warning-text">Discord currently exposes conflicting reason fields. Staff will see both sources during review.</p>' : ""}</section>` : "";
   const eligible = !isAppeal || formData.eligibility?.eligible;
-  const eligibility = !eligible ? `<div class="review-warning" role="alert"><strong>This appeal cannot be submitted yet.</strong><p>${formData.eligibility?.cooldown_until_ts ? `A previous appeal is on cooldown until ${new Date(Number(formData.eligibility.cooldown_until_ts) * 1000).toLocaleString()}.` : "Avenue Guard could not verify an active GD Avenue ban for this Discord account. Try again later if Discord was temporarily unavailable."}</p></div>` : "";
-  return `${applicationTypesNav()}${punishmentCard}${eligibility}<div class="application-form-meta"><span>Estimated time: ${Number(form.estimated_minutes) || 10} minutes</span><span>Drafts are private</span><span>No automated personality or AI detection</span></div>${stage("draft")}<form id="application-form" class="form-grid" data-application-type="${esc(form.application_type)}" novalidate>${formSections(formData, answers)}${!isAppeal ? applicationCompatibilityNotice() : ""}<div class="application-save-row"><p id="apply-status" class="save-status" role="status" aria-live="polite">${eligible ? "Saved" : "Verification required"}</p><div class="dialog-actions">${!isAppeal ? applicationResetControl("Delete application data") : ""}<button class="button secondary" type="button" data-save="draft" ${eligible ? "" : "disabled"}>Save now</button><button class="button primary" type="submit" ${eligible ? "" : "disabled"}>${isAppeal ? "Review appeal" : "Review application"}</button></div></div></form>`;
+  const eligibility = !eligible ? `<div class="review-warning" role="alert"><strong>This appeal cannot be submitted yet.</strong><p>A previous appeal is on cooldown until ${new Date(Number(formData.eligibility.cooldown_until_ts) * 1000).toLocaleString()}.</p></div>` : "";
+  return `${applicationTypesNav()}${punishmentCard}${eligibility}<div class="application-form-meta"><span>Estimated time: ${Number(form.estimated_minutes) || 10} minutes</span><span>Drafts are private</span><span>No automated personality or AI detection</span></div>${stage("draft")}<form id="application-form" class="form-grid" data-application-type="${esc(form.application_type)}" novalidate>${isAppeal ? manualPunishmentHtml(formData) : ""}${formSections(formData, answers)}${!isAppeal ? applicationCompatibilityNotice() : ""}<div class="application-save-row"><p id="apply-status" class="save-status" role="status" aria-live="polite">${eligible ? "Saved" : "Cooldown active"}</p><div class="dialog-actions">${!isAppeal ? applicationResetControl("Delete application data") : ""}<button class="button secondary" type="button" data-save="draft" ${eligible ? "" : "disabled"}>Save now</button><button class="button primary" type="submit" ${eligible ? "" : "disabled"}>${isAppeal ? "Review appeal" : "Review application"}</button></div></div></form>`;
 }
 
 function collectAnswers(form = $("#application-form")) {
@@ -152,6 +179,12 @@ function collectAnswers(form = $("#application-form")) {
 function submissionReviewHtml(answers) {
   const questions = currentFormData?.questions || [];
   const missing = questions.filter((question) => question.required && !String(answers[question.key] || "").trim());
+  const manual = currentFormData?.form?.application_type === "appeal" ? collectManualPunishment() : null;
+  if (currentFormData?.manual_entry?.required) {
+    if (!manual?.type) missing.push({ label: "Punishment type" });
+    if (!manual?.reason) missing.push({ label: "Punishment reason" });
+    if (manual?.type === "restriction_role" && !manual?.role_id) missing.push({ label: "Restriction role" });
+  }
   const sections = new Map();
   for (const question of questions) {
     const section = question.section || "Application";
@@ -159,7 +192,8 @@ function submissionReviewHtml(answers) {
     sections.get(section).push(question);
   }
   const noun = currentFormData?.form?.application_type === "appeal" ? "appeal" : "application";
-  return `${applicationTypesNav()}${stage("draft")}<section class="submission-review"><div class="panel-head"><div><p class="eyebrow">Final check</p><h2>Review your ${noun}</h2><p class="muted">Your submitted answers become an immutable review snapshot. For appeals, the punishment evidence snapshot is preserved with them. Internal staff notes remain private.</p></div></div>${missing.length ? `<div class="review-warning" role="alert"><strong>${missing.length} required answer${missing.length === 1 ? " is" : "s are"} missing</strong><ul>${missing.map((question) => `<li>${esc(question.label)}</li>`).join("")}</ul></div>` : '<p class="review-ready">All required answers are complete.</p>'}${[...sections.entries()].map(([section, items]) => `<section class="review-section"><h3>${esc(section)}</h3>${items.filter((question) => !question.show_for || (question.show_for[Object.keys(question.show_for)[0]] || []).includes(answers[Object.keys(question.show_for)[0]])).map((question) => `<div class="review-answer"><small>${esc(question.label)}</small><p>${esc(answers[question.key] || "No answer provided")}</p></div>`).join("")}</section>`).join("")}<label class="checkbox-row submission-confirm"><input id="submission-confirmation" type="checkbox" ${missing.length ? "disabled" : ""}><span>I confirm these answers are accurate and ready for staff review.</span></label><div class="dialog-actions"><button class="button secondary" type="button" data-back-to-form>Back to edit</button><button class="button primary" type="button" data-confirm-submit ${missing.length ? "disabled" : ""}>Confirm and submit</button></div><p id="apply-status" class="save-status" role="status" aria-live="polite"></p></section>`;
+  const manualReview = manual && (currentFormData?.manual_entry?.required || manual.reason || manual.issued_date || manual.details) ? `<section class="review-section"><h3>${currentFormData.manual_entry?.required ? "Applicant-reported punishment" : "Additional punishment context"}</h3><div class="review-answer"><small>Type</small><p>${esc(punishmentTypeLabel(manual.type))}</p></div><div class="review-answer"><small>Reason</small><p>${esc(manual.reason || "Not provided")}</p></div><div class="review-answer"><small>Approximate date</small><p>${esc(manual.issued_date || "Not provided")}</p></div></section>` : "";
+  return `${applicationTypesNav()}${stage("draft")}<section class="submission-review"><div class="panel-head"><div><p class="eyebrow">Final check</p><h2>Review your ${noun}</h2><p class="muted">Your submitted answers become an immutable review snapshot. For appeals, the punishment evidence snapshot is preserved with them. Internal staff notes remain private.</p></div></div>${missing.length ? `<div class="review-warning" role="alert"><strong>${missing.length} required answer${missing.length === 1 ? " is" : "s are"} missing</strong><ul>${missing.map((question) => `<li>${esc(question.label)}</li>`).join("")}</ul></div>` : '<p class="review-ready">All required answers are complete.</p>'}${manualReview}${[...sections.entries()].map(([section, items]) => `<section class="review-section"><h3>${esc(section)}</h3>${items.filter((question) => !question.show_for || (question.show_for[Object.keys(question.show_for)[0]] || []).includes(answers[Object.keys(question.show_for)[0]])).map((question) => `<div class="review-answer"><small>${esc(question.label)}</small><p>${esc(answers[question.key] || "No answer provided")}</p></div>`).join("")}</section>`).join("")}<label class="checkbox-row submission-confirm"><input id="submission-confirmation" type="checkbox" ${missing.length ? "disabled" : ""}><span>I confirm these answers are accurate and ready for staff review.</span></label><div class="dialog-actions"><button class="button secondary" type="button" data-back-to-form>Back to edit</button><button class="button primary" type="button" data-confirm-submit ${missing.length ? "disabled" : ""}>Confirm and submit</button></div><p id="apply-status" class="save-status" role="status" aria-live="polite"></p></section>`;
 }
 
 function applicationTypesNav() {
@@ -178,13 +212,14 @@ function statusHtml(application) {
 function appealStatusHtml(application) {
   const messages = application.messages || [];
   const canWithdraw = ["draft", "submitted", "triage", "under_review", "awaiting_information", "second_review"].includes(application.status);
-  const unban = application.unban_status ? `<p class="muted">Discord unban delivery: <strong>${esc(application.unban_status)}</strong></p>` : "";
+  const unban = application.unban_status ? `<p class="muted">Discord removal delivery: <strong>${esc(application.unban_status)}</strong></p>` : "";
+  const punishmentLabel = punishmentTypeLabel(application.punishment?.type).toLowerCase();
   const punishmentState = application.punishment?.active === true
-    ? "Active ban"
+    ? `Active ${punishmentLabel}`
     : application.punishment?.active === false
-      ? "Ban no longer active"
-      : "Ban verification unavailable";
-  return `${applicationTypesNav()}${stage(application.status)}<section class="panel appeal-status"><div class="panel-head"><div><p class="eyebrow">Private case</p><h2>Your punishment appeal</h2></div><span class="pill ${esc(application.status)}">${esc(application.status.replaceAll("_", " "))}</span></div>${application.punishment ? `<p><strong>${punishmentState}:</strong> ${esc(application.punishment.reason || "No Discord reason available")}</p>` : ""}${application.applicant_message ? `<div class="appeal-decision"><strong>Decision</strong><p>${esc(application.applicant_message)}</p></div>` : ""}${unban}<section class="appeal-chat"><h3>Messages</h3><div class="appeal-message-list">${messages.length ? messages.map((message) => `<article class="appeal-message ${esc(message.author_type)}"><strong>${esc(message.author)}</strong><p>${esc(message.body)}</p><small>${new Date(Number(message.created_ts) * 1000).toLocaleString()}</small></article>`).join("") : '<p class="muted">No messages yet. Staff replies will appear here even if Discord DMs are unavailable.</p>'}</div>${application.status !== "withdrawn" ? `<form id="appeal-message-form" data-appeal-id="${application.id}"><label for="appeal-message">Message the appeals team</label><textarea id="appeal-message" maxlength="1800" required></textarea><button class="button secondary" type="submit">Send message</button><p id="appeal-message-status" class="save-status" role="status"></p></form>` : ""}</section><div class="dialog-actions">${canWithdraw ? `<button class="button secondary" data-withdraw-appeal="${application.id}">Withdraw appeal</button>` : ""}</div></section>`;
+      ? "Punishment no longer active"
+      : application.punishment?.lookup_status === "applicant_reported" ? "Applicant-reported punishment" : "Punishment verification unavailable";
+  return `${applicationTypesNav()}${stage(application.status)}<section class="panel appeal-status"><div class="panel-head"><div><p class="eyebrow">Private case</p><h2>Your punishment appeal</h2></div><span class="pill ${esc(application.status)}">${esc(application.status.replaceAll("_", " "))}</span></div>${application.punishment ? `<p><strong>${punishmentState}:</strong> ${esc(application.punishment.reason || "No reason available")}</p>` : ""}${application.applicant_message ? `<div class="appeal-decision"><strong>Decision</strong><p>${esc(application.applicant_message)}</p></div>` : ""}${unban}<section class="appeal-chat"><h3>Messages</h3><div class="appeal-message-list">${messages.length ? messages.map((message) => `<article class="appeal-message ${esc(message.author_type)}"><strong>${esc(message.author)}</strong><p>${esc(message.body)}</p><small>${new Date(Number(message.created_ts) * 1000).toLocaleString()}</small></article>`).join("") : '<p class="muted">No messages yet. Staff replies will appear here even if Discord DMs are unavailable.</p>'}</div>${application.status !== "withdrawn" ? `<form id="appeal-message-form" data-appeal-id="${application.id}"><label for="appeal-message">Message the appeals team</label><textarea id="appeal-message" maxlength="1800" required></textarea><button class="button secondary" type="submit">Send message</button><p id="appeal-message-status" class="save-status" role="status"></p></form>` : ""}</section><div class="dialog-actions">${canWithdraw ? `<button class="button secondary" data-withdraw-appeal="${application.id}">Withdraw appeal</button>` : ""}</div></section>`;
 }
 
 function applicationTypeOpen(options, item) {
@@ -209,7 +244,7 @@ function cooldownText(cooldown) {
 
 function chooserHtml(options, applications) {
   $("#apply-title").textContent = "Applications and appeals";
-  $("#apply-intro").textContent = "Choose a staff application or ask GD Avenue to review an active server ban.";
+  $("#apply-intro").textContent = "Choose a staff application or ask GD Avenue to review a server punishment.";
   const choices = options.items.map((item) => {
     const active = applications.find((application) => application.application_type === item.application_type && activeStatuses.has(application.status));
     const cooldown = cooldownForType(options, item.application_type);
@@ -233,6 +268,7 @@ async function loadOptions() {
 async function loadForm(applicationType) {
   const path = supports("multi_type_applications") ? `/api/apply/form/${encodeURIComponent(applicationType)}` : "/api/apply/form";
   const formData = await api(path);
+  currentManualPunishment = applicationType === "appeal" ? { ...(formData.manual_entry?.value || {}) } : {};
   if (applicationOptions && formData.application) {
     const active = { id: formData.application.id, application_type: formData.application.application_type, status: formData.application.status };
     applicationOptions.active_applications = (applicationOptions.active_applications || []).filter((item) => item.application_type !== active.application_type);
@@ -293,9 +329,11 @@ async function save(submit, answerOverride = null) {
   status.textContent = submit ? "Submitting..." : "Saving...";
   const revision = ++saveRevision;
   const applicationType = currentFormData.form?.application_type || currentFormData.application?.application_type || "judge";
+  const manualPunishment = applicationType === "appeal" ? collectManualPunishment() : null;
+  if (manualPunishment) currentManualPunishment = { ...manualPunishment };
   const operation = async () => {
     try {
-      await api(submit ? "/api/apply/submit" : "/api/apply/save", { method: "POST", body: { application_type: applicationType, answers } });
+      await api(submit ? "/api/apply/submit" : "/api/apply/save", { method: "POST", body: { application_type: applicationType, answers, ...(manualPunishment ? { manual_punishment: manualPunishment } : {}) } });
       const liveStatus = $("#apply-status");
       if (liveStatus && (submit || revision === saveRevision)) liveStatus.textContent = submit ? "Application submitted." : "Saved";
       if (submit) {
@@ -335,7 +373,15 @@ async function showSubmissionReview() {
 }
 
 document.addEventListener("input", (event) => { if (event.target.closest("#application-form")) scheduleAutosave(); });
-document.addEventListener("change", (event) => { if (event.target.closest("#application-form")) { updateConditionalQuestions(); scheduleAutosave(); } });
+document.addEventListener("change", (event) => {
+  if (!event.target.closest("#application-form")) return;
+  if (event.target.id === "manual-type") {
+    const roleField = document.getElementById("manual-role-field");
+    if (roleField) roleField.hidden = event.target.value !== "restriction_role";
+  }
+  updateConditionalQuestions();
+  scheduleAutosave();
+});
 document.addEventListener("submit", async (event) => {
   if (event.target.id === "application-form") { event.preventDefault(); showSubmissionReview(); }
   if (event.target.id === "appeal-message-form") {

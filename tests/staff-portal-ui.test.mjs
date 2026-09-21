@@ -199,18 +199,21 @@ test("staff applications expose typed choices, cooldowns, timezone defaults, and
   assert.doesNotMatch(script, /Application #/);
 });
 
-test("punishment appeals keep evidence, messaging, review, and unban controls explicit", () => {
+test("punishment appeals keep evidence, manual fallback, messaging, and removal controls explicit", () => {
   assert.match(application, /item\.application_type === "appeal"/);
   assert.match(application, /Your punishment appeal/);
   assert.match(application, /Message the appeals team/);
-  assert.match(application, /No Discord reason available/);
+  assert.match(application, /No reason available/);
+  assert.match(application, /Applicant-entered details are marked unverified/);
+  assert.match(application, /Timeout or mute/);
+  assert.match(application, /Restriction role/);
   assert.match(application, /Review appeal/);
   assert.match(application, /Review application/);
-  assert.match(script, /Discord punishment evidence/);
+  assert.match(script, /Punishment evidence/);
   assert.match(script, /Reason source/);
   assert.match(script, /Reason conflict/);
   assert.match(script, /independent assessments/i);
-  assert.match(script, /execute_unban/);
+  assert.match(script, /execute_removal/);
   assert.match(script, /Punishment appeals open/);
   assert.match(script, /notify_dm/);
 });
