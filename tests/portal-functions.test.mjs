@@ -245,7 +245,13 @@ test("OAuth callback exchanges identity server-side and creates a clean staff se
   assert.ok(cookies.some((value) => value.startsWith(`${SESSION_COOKIE}=`) && value.includes("HttpOnly") && value.includes("Secure")));
   assert.ok(cookies.some((value) => value.startsWith(`${CSRF_COOKIE}=`) && !value.includes("HttpOnly")));
   const backend = requests.find((request) => request.url.endsWith("/api/staff/auth/session"));
-  assert.deepEqual(JSON.parse(backend.options.body), { user_id: "101", purpose: "staff" });
+  assert.deepEqual(JSON.parse(backend.options.body), {
+    user_id: "101",
+    purpose: "staff",
+    username: "Reviewer",
+    global_name: "",
+    avatar_url: "",
+  });
   assert.equal(backend.options.headers["X-Avenue-Portal-Key"], "private-service-token");
   assert.doesNotMatch(response.body, /discord-access-token|discord-client-secret|private-service-token/);
 });
@@ -290,14 +296,25 @@ test("application callback requests an application session instead of staff elev
   let backendBody;
   globalThis.fetch = async (url, options = {}) => {
     if (String(url).includes("/oauth2/token")) return jsonResponse(200, { access_token: "discord-access-token" });
-    if (String(url).includes("/users/@me")) return jsonResponse(200, { id: "999" });
+    if (String(url).includes("/users/@me")) return jsonResponse(200, {
+      id: "999",
+      username: "outside-user",
+      global_name: "Outside User",
+      avatar: "avatar-hash",
+    });
     backendBody = JSON.parse(options.body);
     return jsonResponse(201, { session_token: "session", csrf_token: "csrf", expires_ts: Math.floor(Date.now() / 1000) + 3600 });
   };
   const response = await callback(oauthEvent(state, "/apply"));
   assert.equal(response.statusCode, 303);
   assert.equal(response.headers.Location, "https://gdavenue.netlify.app/apply/");
-  assert.deepEqual(backendBody, { user_id: "999", purpose: "apply" });
+  assert.deepEqual(backendBody, {
+    user_id: "999",
+    purpose: "apply",
+    username: "outside-user",
+    global_name: "Outside User",
+    avatar_url: "https://cdn.discordapp.com/avatars/999/avatar-hash.webp?size=128",
+  });
 });
 
 test("revisited OAuth callback redirects an existing session without reusing the code", async () => {

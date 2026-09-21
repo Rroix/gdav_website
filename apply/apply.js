@@ -3,7 +3,7 @@
 const $ = (selector) => document.querySelector(selector);
 const esc = (value) => String(value ?? "").replace(/[&<>'"]/g, (char) => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", "'":"&#39;", '"':"&quot;" })[char]);
 const cookieValue = (name) => document.cookie.split(";").map((item) => item.trim()).find((item) => item.startsWith(`${name}=`))?.slice(name.length + 1) || "";
-const activeStatuses = new Set(["draft", "submitted", "under_review", "interview", "hold", "accepted_pending_role"]);
+const activeStatuses = new Set(["draft", "submitted", "triage", "under_review", "awaiting_information", "second_review", "interview", "hold", "accepted_pending_role"]);
 const withdrawableStatuses = new Set(["draft", "submitted", "under_review", "hold"]);
 let apiFeatures = new Set();
 let initialization = null;
@@ -66,7 +66,9 @@ async function api(path, options = {}) {
 
 function stage(status) {
   const stages = ["draft", "submitted", "under_review", "interview", "decision"];
-  const mapped = ["accepted", "accepted_pending_role", "rejected", "withdrawn"].includes(status) ? "decision" : status === "hold" ? "under_review" : status;
+  const mapped = ["accepted", "accepted_pending_role", "rejected", "withdrawn", "decided", "ineligible", "duplicate", "expired_no_action"].includes(status)
+    ? "decision"
+    : ["triage", "awaiting_information", "second_review", "hold"].includes(status) ? "under_review" : status;
   const active = Math.max(0, stages.indexOf(mapped));
   const labels = { draft: "Draft", submitted: "Submitted", under_review: "Review", interview: "Interview", decision: "Decision" };
   return `<ol class="application-stages">${stages.map((item,index) => `<li class="${index <= active ? "complete" : ""}"><span>${index + 1}</span>${labels[item]}</li>`).join("")}</ol>`;
@@ -92,12 +94,26 @@ function questionHtml(question, answers) {
       : "";
   const guidance = question.guidance ? `<p class="field-guidance">${esc(question.guidance)}</p>` : "";
   const length = Number(question.recommended_words) > 0 ? `<small class="answer-guidance">Suggested length: about ${Number(question.recommended_words)} words</small>` : "";
+  const condition = question.show_for ? ` data-show-key="${esc(Object.keys(question.show_for)[0])}" data-show-values="${esc(JSON.stringify(Object.values(question.show_for)[0] || []))}"` : "";
   if (question.type === "single_choice") {
-    return `<fieldset class="choice-question" data-question-key="${esc(question.key)}"><legend>${esc(question.label)}${question.required ? " *" : ""}</legend>${guidance}${question.options.map((option, index) => `<label class="choice-option"><input type="radio" name="${esc(question.key)}" value="${esc(option)}" ${value === option ? "checked" : ""}${required && index === 0 ? " required" : ""}><span>${esc(option)}</span></label>`).join("")}${help}${length}</fieldset>`;
+    return `<fieldset class="choice-question" data-question-key="${esc(question.key)}"${condition}><legend>${esc(question.label)}${question.required ? " *" : ""}</legend>${guidance}${question.options.map((option, index) => `<label class="choice-option"><input type="radio" name="${esc(question.key)}" value="${esc(option)}" ${value === option ? "checked" : ""}${required && index === 0 ? " required" : ""}><span>${esc(option)}</span></label>`).join("")}${help}${length}</fieldset>`;
   }
   const fieldId = `question-${question.key}`;
-  if (question.type === "short_text") return `<div class="form-question" data-question-key="${esc(question.key)}"><label for="${esc(fieldId)}">${esc(question.label)}${question.required ? " *" : ""}</label>${guidance}<input id="${esc(fieldId)}" name="${esc(question.key)}" value="${esc(value)}" maxlength="4000"${required}>${help}${length}</div>`;
-  return `<div class="form-question" data-question-key="${esc(question.key)}"><label for="${esc(fieldId)}">${esc(question.label)}${question.required ? " *" : ""}</label>${guidance}${help}<textarea id="${esc(fieldId)}" name="${esc(question.key)}" maxlength="4000"${required}>${esc(value)}</textarea>${length}</div>`;
+  if (question.type === "short_text") return `<div class="form-question" data-question-key="${esc(question.key)}"${condition}><label for="${esc(fieldId)}">${esc(question.label)}${question.required ? " *" : ""}</label>${guidance}<input id="${esc(fieldId)}" name="${esc(question.key)}" value="${esc(value)}" maxlength="4000"${required}>${help}${length}</div>`;
+  return `<div class="form-question" data-question-key="${esc(question.key)}"${condition}><label for="${esc(fieldId)}">${esc(question.label)}${question.required ? " *" : ""}</label>${guidance}${help}<textarea id="${esc(fieldId)}" name="${esc(question.key)}" maxlength="4000"${required}>${esc(value)}</textarea>${length}</div>`;
+}
+
+function updateConditionalQuestions() {
+  const form = $("#application-form");
+  if (!form) return;
+  const answers = collectAnswers(form);
+  form.querySelectorAll("[data-show-key]").forEach((field) => {
+    let values = [];
+    try { values = JSON.parse(field.dataset.showValues || "[]"); } catch { values = []; }
+    const visible = values.includes(answers[field.dataset.showKey]);
+    field.hidden = !visible;
+    field.querySelectorAll("input, textarea, select").forEach((control) => { control.disabled = !visible; });
+  });
 }
 
 function formSections(formData, answers) {
@@ -120,7 +136,13 @@ function formHtml(formData, answerOverride = null) {
   currentDraftAnswers = { ...answers };
   $("#apply-title").textContent = form.label;
   $("#apply-intro").textContent = form.description || "Save a draft, review your answers, then submit when you are ready.";
-  return `${applicationTypesNav()}<div class="application-form-meta"><span>Estimated time: ${Number(form.estimated_minutes) || 10} minutes</span><span>Drafts are private</span><span>No automated personality or AI detection</span></div>${stage("draft")}<form id="application-form" class="form-grid" data-application-type="${esc(form.application_type)}" novalidate>${formSections(formData, answers)}${applicationCompatibilityNotice()}<div class="application-save-row"><p id="apply-status" class="save-status" role="status" aria-live="polite">Saved</p><div class="dialog-actions">${applicationResetControl("Delete application data")}<button class="button secondary" type="button" data-save="draft">Save now</button><button class="button primary" type="submit">Review application</button></div></div></form>`;
+  const isAppeal = form.application_type === "appeal";
+  const punishment = formData.punishment;
+  const punishmentTitle = punishment?.lookup_status === "found" ? "Active server ban" : punishment?.lookup_status === "not_banned" ? "No active server ban found" : "Ban status could not be verified";
+  const punishmentCard = isAppeal && punishment ? `<section class="punishment-summary ${punishment.lookup_status !== "found" ? "warning" : ""}"><div class="panel-head"><div><p class="eyebrow">Discord record</p><h2>${punishmentTitle}</h2></div><span class="pill ${punishment.active ? "hold" : "withdrawn"}">${esc(punishment.lookup_status.replaceAll("_", " "))}</span></div><dl><div><dt>Original reason</dt><dd>${esc(punishment.reason || "No reason is present in Discord's ban record")}</dd></div><div><dt>Reason source</dt><dd>${esc((punishment.reason_source || "unknown").replaceAll("_", " "))}</dd></div><div><dt>Issued</dt><dd>${punishment.issued_ts ? new Date(Number(punishment.issued_ts) * 1000).toLocaleString() : "Date unavailable (Discord audit entries expire)"}</dd></div></dl>${punishment.reason_conflict ? '<p class="warning-text">Discord currently exposes conflicting reason fields. Staff will see both sources during review.</p>' : ""}</section>` : "";
+  const eligible = !isAppeal || formData.eligibility?.eligible;
+  const eligibility = !eligible ? `<div class="review-warning" role="alert"><strong>This appeal cannot be submitted yet.</strong><p>${formData.eligibility?.cooldown_until_ts ? `A previous appeal is on cooldown until ${new Date(Number(formData.eligibility.cooldown_until_ts) * 1000).toLocaleString()}.` : "Avenue Guard could not verify an active GD Avenue ban for this Discord account. Try again later if Discord was temporarily unavailable."}</p></div>` : "";
+  return `${applicationTypesNav()}${punishmentCard}${eligibility}<div class="application-form-meta"><span>Estimated time: ${Number(form.estimated_minutes) || 10} minutes</span><span>Drafts are private</span><span>No automated personality or AI detection</span></div>${stage("draft")}<form id="application-form" class="form-grid" data-application-type="${esc(form.application_type)}" novalidate>${formSections(formData, answers)}${!isAppeal ? applicationCompatibilityNotice() : ""}<div class="application-save-row"><p id="apply-status" class="save-status" role="status" aria-live="polite">${eligible ? "Saved" : "Verification required"}</p><div class="dialog-actions">${!isAppeal ? applicationResetControl("Delete application data") : ""}<button class="button secondary" type="button" data-save="draft" ${eligible ? "" : "disabled"}>Save now</button><button class="button primary" type="submit" ${eligible ? "" : "disabled"}>${isAppeal ? "Review appeal" : "Review application"}</button></div></div></form>`;
 }
 
 function collectAnswers(form = $("#application-form")) {
@@ -136,7 +158,8 @@ function submissionReviewHtml(answers) {
     if (!sections.has(section)) sections.set(section, []);
     sections.get(section).push(question);
   }
-  return `${applicationTypesNav()}${stage("draft")}<section class="submission-review"><div class="panel-head"><div><p class="eyebrow">Final check</p><h2>Review your application</h2><p class="muted">Your submitted answers become an immutable review snapshot. Staff notes and scores remain private.</p></div></div>${missing.length ? `<div class="review-warning" role="alert"><strong>${missing.length} required answer${missing.length === 1 ? " is" : "s are"} missing</strong><ul>${missing.map((question) => `<li>${esc(question.label)}</li>`).join("")}</ul></div>` : '<p class="review-ready">All required answers are complete.</p>'}${[...sections.entries()].map(([section, items]) => `<section class="review-section"><h3>${esc(section)}</h3>${items.map((question) => `<div class="review-answer"><small>${esc(question.label)}</small><p>${esc(answers[question.key] || "No answer provided")}</p></div>`).join("")}</section>`).join("")}<label class="checkbox-row submission-confirm"><input id="submission-confirmation" type="checkbox" ${missing.length ? "disabled" : ""}><span>I confirm these answers are accurate and ready for staff review.</span></label><div class="dialog-actions"><button class="button secondary" type="button" data-back-to-form>Back to edit</button><button class="button primary" type="button" data-confirm-submit ${missing.length ? "disabled" : ""}>Confirm and submit</button></div><p id="apply-status" class="save-status" role="status" aria-live="polite"></p></section>`;
+  const noun = currentFormData?.form?.application_type === "appeal" ? "appeal" : "application";
+  return `${applicationTypesNav()}${stage("draft")}<section class="submission-review"><div class="panel-head"><div><p class="eyebrow">Final check</p><h2>Review your ${noun}</h2><p class="muted">Your submitted answers become an immutable review snapshot. For appeals, the punishment evidence snapshot is preserved with them. Internal staff notes remain private.</p></div></div>${missing.length ? `<div class="review-warning" role="alert"><strong>${missing.length} required answer${missing.length === 1 ? " is" : "s are"} missing</strong><ul>${missing.map((question) => `<li>${esc(question.label)}</li>`).join("")}</ul></div>` : '<p class="review-ready">All required answers are complete.</p>'}${[...sections.entries()].map(([section, items]) => `<section class="review-section"><h3>${esc(section)}</h3>${items.filter((question) => !question.show_for || (question.show_for[Object.keys(question.show_for)[0]] || []).includes(answers[Object.keys(question.show_for)[0]])).map((question) => `<div class="review-answer"><small>${esc(question.label)}</small><p>${esc(answers[question.key] || "No answer provided")}</p></div>`).join("")}</section>`).join("")}<label class="checkbox-row submission-confirm"><input id="submission-confirmation" type="checkbox" ${missing.length ? "disabled" : ""}><span>I confirm these answers are accurate and ready for staff review.</span></label><div class="dialog-actions"><button class="button secondary" type="button" data-back-to-form>Back to edit</button><button class="button primary" type="button" data-confirm-submit ${missing.length ? "disabled" : ""}>Confirm and submit</button></div><p id="apply-status" class="save-status" role="status" aria-live="polite"></p></section>`;
 }
 
 function applicationTypesNav() {
@@ -148,10 +171,24 @@ function statusHtml(application) {
   $("#apply-title").textContent = label;
   $("#apply-intro").textContent = "Your application status and next step are shown below.";
   const canWithdraw = withdrawableStatuses.has(application.status);
+  if (application.application_type === "appeal") return appealStatusHtml(application);
   return `${applicationTypesNav()}${stage(application.status)}<section class="panel"><div class="panel-head"><h2>Your application</h2><span class="pill ${esc(application.status)}">${esc(application.status.replaceAll("_", " "))}</span></div><p>Your application is saved and its current stage is shown above.</p>${application.applicant_message ? `<p class="muted">${esc(application.applicant_message)}</p>` : ""}${applicationCompatibilityNotice()}<div class="dialog-actions">${canWithdraw ? `<button class="button secondary" data-withdraw="${application.id}">Withdraw application</button>` : ""}${applicationResetControl("Delete my application data")}</div></section>`;
 }
 
+function appealStatusHtml(application) {
+  const messages = application.messages || [];
+  const canWithdraw = ["draft", "submitted", "triage", "under_review", "awaiting_information", "second_review"].includes(application.status);
+  const unban = application.unban_status ? `<p class="muted">Discord unban delivery: <strong>${esc(application.unban_status)}</strong></p>` : "";
+  const punishmentState = application.punishment?.active === true
+    ? "Active ban"
+    : application.punishment?.active === false
+      ? "Ban no longer active"
+      : "Ban verification unavailable";
+  return `${applicationTypesNav()}${stage(application.status)}<section class="panel appeal-status"><div class="panel-head"><div><p class="eyebrow">Private case</p><h2>Your punishment appeal</h2></div><span class="pill ${esc(application.status)}">${esc(application.status.replaceAll("_", " "))}</span></div>${application.punishment ? `<p><strong>${punishmentState}:</strong> ${esc(application.punishment.reason || "No Discord reason available")}</p>` : ""}${application.applicant_message ? `<div class="appeal-decision"><strong>Decision</strong><p>${esc(application.applicant_message)}</p></div>` : ""}${unban}<section class="appeal-chat"><h3>Messages</h3><div class="appeal-message-list">${messages.length ? messages.map((message) => `<article class="appeal-message ${esc(message.author_type)}"><strong>${esc(message.author)}</strong><p>${esc(message.body)}</p><small>${new Date(Number(message.created_ts) * 1000).toLocaleString()}</small></article>`).join("") : '<p class="muted">No messages yet. Staff replies will appear here even if Discord DMs are unavailable.</p>'}</div>${application.status !== "withdrawn" ? `<form id="appeal-message-form" data-appeal-id="${application.id}"><label for="appeal-message">Message the appeals team</label><textarea id="appeal-message" maxlength="1800" required></textarea><button class="button secondary" type="submit">Send message</button><p id="appeal-message-status" class="save-status" role="status"></p></form>` : ""}</section><div class="dialog-actions">${canWithdraw ? `<button class="button secondary" data-withdraw-appeal="${application.id}">Withdraw appeal</button>` : ""}</div></section>`;
+}
+
 function applicationTypeOpen(options, item) {
+  if (item.application_type === "appeal") return item.open !== false;
   if (!options.applications_open) return false;
   if (typeof item.open === "boolean") return item.open;
   return options.application_open_by_type?.[item.application_type] !== false;
@@ -171,26 +208,26 @@ function cooldownText(cooldown) {
 }
 
 function chooserHtml(options, applications) {
-  $("#apply-title").textContent = "Staff applications";
-  $("#apply-intro").textContent = "Choose the team you want to apply for. Each application type is tracked separately.";
+  $("#apply-title").textContent = "Applications and appeals";
+  $("#apply-intro").textContent = "Choose a staff application or ask GD Avenue to review an active server ban.";
   const choices = options.items.map((item) => {
     const active = applications.find((application) => application.application_type === item.application_type && activeStatuses.has(application.status));
     const cooldown = cooldownForType(options, item.application_type);
     const isOpen = applicationTypeOpen(options, item);
     const disabled = !item.enabled || (!active && (!isOpen || Boolean(cooldown.active)));
-    const note = !item.enabled ? "Coming later" : active?.status === "draft" ? "Return to draft" : active ? "View application" : !isOpen ? "Applications closed" : cooldownText(cooldown);
+    const note = item.membership_required ? "Server membership required" : !item.enabled ? "Unavailable" : active?.status === "draft" ? "Return to draft" : active ? "View application" : !isOpen ? "Applications closed" : cooldownText(cooldown);
     const action = active && active.status !== "draft"
       ? `data-view-application="${esc(active.id)}"`
       : `data-application-type="${esc(item.application_type)}"`;
     return `<button class="application-choice" type="button" ${action} ${disabled ? "disabled" : ""}><span><strong>${esc(item.label)}</strong><small>${esc(item.description)}</small></span><span class="application-choice-action">${esc(note)}</span></button>`;
   }).join("");
   const history = applications.filter((item) => item.status !== "draft").slice(0, 5);
-  return `<section class="application-chooser"><h2>Which application do you want to fill out?</h2><p class="muted">Each application type has its own five-day cooldown after submission.</p><div class="application-choice-list">${choices}</div>${history.length ? `<div class="application-history"><h3>Previous applications</h3>${history.map((item) => `<button type="button" class="application-history-row" data-view-application="${item.id}"><span>${esc(item.application_label || item.application_type)}</span><span class="pill ${esc(item.status)}">${esc(item.status.replaceAll("_", " "))}</span></button>`).join("")}</div>` : ""}</section>`;
+  return `<section class="application-chooser"><h2>Which application do you want to fill out?</h2><p class="muted">Each application type has its own five-day cooldown. Punishment appeals follow a separate, case-specific review and cooldown policy.</p><div class="application-choice-list">${choices}</div>${history.length ? `<div class="application-history"><h3>Previous applications and appeals</h3>${history.map((item) => `<button type="button" class="application-history-row" data-view-application="${item.id}"><span>${esc(item.application_label || item.application_type)}</span><span class="pill ${esc(item.status)}">${esc(item.status.replaceAll("_", " "))}</span></button>`).join("")}</div>` : ""}</section>`;
 }
 
 async function loadOptions() {
   if (supports("multi_type_applications")) return api("/api/apply/options");
-  return { items: [{ application_type: "judge", label: "Reviewer application", description: "Apply to join the GD Avenue review team.", enabled: true, open: true }, { application_type: "mod", label: "Mod application", description: "Deploy the matching Avenue Guard API to enable this application.", enabled: false, open: false }, { application_type: "appeal", label: "Appeal application", description: "This application will be added in a future update.", enabled: false, open: false }], applications_open: true, application_open_by_type: { judge: true, mod: false }, cooldown: { active: false, days: 5 }, cooldowns: {}, active_applications: [], active_application: null };
+  return { items: [{ application_type: "judge", label: "Reviewer application", description: "Apply to join the GD Avenue review team.", enabled: true, open: true }, { application_type: "mod", label: "Mod application", description: "Deploy the matching Avenue Guard API to enable this application.", enabled: false, open: false }, { application_type: "appeal", label: "Punishment appeal", description: "Deploy the matching Avenue Guard API to enable verified punishment appeals.", enabled: false, open: false }], applications_open: true, application_open_by_type: { judge: true, mod: false }, cooldown: { active: false, days: 5 }, cooldowns: {}, active_applications: [], active_application: null };
 }
 
 async function loadForm(applicationType) {
@@ -204,6 +241,7 @@ async function loadForm(applicationType) {
   }
   if (formData.application && !ownApplications.some((item) => String(item.id) === String(formData.application.id))) ownApplications.unshift(formData.application);
   $("#apply-content").innerHTML = formHtml(formData);
+  updateConditionalQuestions();
 }
 
 function cleanAuthError() {
@@ -297,12 +335,24 @@ async function showSubmissionReview() {
 }
 
 document.addEventListener("input", (event) => { if (event.target.closest("#application-form")) scheduleAutosave(); });
-document.addEventListener("change", (event) => { if (event.target.closest("#application-form")) scheduleAutosave(); });
-document.addEventListener("submit", (event) => { if (event.target.id === "application-form") { event.preventDefault(); showSubmissionReview(); } });
+document.addEventListener("change", (event) => { if (event.target.closest("#application-form")) { updateConditionalQuestions(); scheduleAutosave(); } });
+document.addEventListener("submit", async (event) => {
+  if (event.target.id === "application-form") { event.preventDefault(); showSubmissionReview(); }
+  if (event.target.id === "appeal-message-form") {
+    event.preventDefault();
+    const status = $("#appeal-message-status");
+    try {
+      await api(`/api/apply/appeals/${event.target.dataset.appealId}/messages`, { method: "POST", body: { body: $("#appeal-message").value } });
+      status.textContent = "Message sent.";
+      await initialize();
+    } catch (error) { status.textContent = error.message; }
+  }
+});
 document.addEventListener("click", async (event) => {
   if (event.target.closest("[data-save='draft']")) save(false);
   if (event.target.closest("[data-back-to-form]")) {
     $("#apply-content").innerHTML = formHtml(currentFormData, currentDraftAnswers);
+    updateConditionalQuestions();
   }
   if (event.target.closest("[data-confirm-submit]")) {
     const confirmation = $("#submission-confirmation");
@@ -334,6 +384,8 @@ document.addEventListener("click", async (event) => {
   }
   const withdraw = event.target.closest("[data-withdraw]");
   if (withdraw && confirm("Withdraw this application?")) { await api(`/api/apply/${withdraw.dataset.withdraw}/withdraw`, { method: "POST", body: {} }); showChooser = false; await initialize(); }
+  const appealWithdraw = event.target.closest("[data-withdraw-appeal]");
+  if (appealWithdraw && confirm("Withdraw this appeal?")) { await api(`/api/apply/appeals/${appealWithdraw.dataset.withdrawAppeal}/withdraw`, { method: "POST", body: {} }); showChooser = false; await initialize(); }
   if (event.target.closest("[data-reset-application]")) {
     const confirmation = prompt("Enter DELETE to permanently remove your application data. A recent submission will keep a 24-hour cooldown for that application type.");
     if (confirmation !== "DELETE") return;

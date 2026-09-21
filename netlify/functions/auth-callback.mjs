@@ -101,11 +101,17 @@ export async function handler(event) {
     });
     if (!identityResponse.ok) throw new Error("Discord identity lookup failed");
     const identity = await identityResponse.json();
+    const avatarUrl = identity.avatar
+      ? `https://cdn.discordapp.com/avatars/${identity.id}/${identity.avatar}.webp?size=128`
+      : "";
     const sessionResponse = await botRequest("/api/staff/auth/session", {
       method: "POST",
       body: {
         user_id: identity.id,
         purpose: parsedState.destination === "/apply" ? "apply" : "staff",
+        username: identity.username || "",
+        global_name: identity.global_name || "",
+        avatar_url: avatarUrl,
       },
     });
     if (sessionResponse.status >= 400) {

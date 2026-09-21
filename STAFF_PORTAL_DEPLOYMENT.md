@@ -44,8 +44,8 @@ https://gdavenue.netlify.app/api/auth/callback
 The OAuth flow requests only `identify`. Avenue Guard resolves server membership and current role IDs for every private request, so role changes take effect without trusting browser state.
 
 After Discord returns the authorization code, the Netlify callback exchanges it
-server-side, requests `/users/@me`, and sends only that Discord user ID to Avenue
-Guard. Avenue Guard looks up the user in the configured guild with the bot and
+server-side, requests `/users/@me`, and sends the Discord user ID plus sanitized
+display identity to Avenue Guard. Avenue Guard looks up the user in the configured guild with the bot and
 maps the live member roles to `judge`, `head_judge`, or `owner`. The callback then
 sets an `HttpOnly`, `Secure`, `SameSite=Strict` session cookie and returns a 303
 redirect to the absolute, canonical `/staff/` URL. Absolute trailing-slash URLs
@@ -56,6 +56,31 @@ application state.
 The role mapping is refreshed on every authenticated bot API request. A member
 who leaves the guild or loses an authorized role receives HTTP 403 on the next
 authorization check. The browser cannot submit or select its own role.
+
+An application-purpose session may remain an `applicant` session when the
+Discord identity is outside the guild. That exception exists only so a banned
+person can open and answer their punishment appeal. Reviewer and Mod application
+routes still perform a live guild-membership check, and outside users receive no
+staff capabilities.
+
+## Punishment appeal authority
+
+Avenue Guard reads the current Discord guild ban and, when Discord still retains
+it, the matching ban audit entry. The bot needs **Ban Members** to inspect and
+remove bans and **View Audit Log** to recover the issuing time, actor, and audit
+reason. Discord audit entries are retained for 45 days, so older provenance may
+remain unknown.
+
+Sapphire remains GD Avenue's normal moderation tool. The portal does not connect
+to or rewrite Sapphire's private case database. When Sapphire supplied an audit
+reason to Discord, Avenue Guard can preserve that official Discord reason. If
+the live ban reason and audit reason disagree, both are retained for staff and
+the conflict is flagged. Missing evidence is never invented.
+
+Appeal decisions require two independent assessments, and the moderator identified
+as the issuer cannot assess or make the final decision. An approved removal can
+enqueue an idempotent Discord unban. The private portal thread is the durable
+contact record; a staff member may additionally request a best-effort Discord DM.
 
 If a mobile or embedded browser revisits a callback after the first code exchange,
 the callback verifies the already-created secure session and redirects to the
@@ -74,7 +99,7 @@ bot-first deployment order below.
 
 1. Set `STAFF_API_TOKEN` on Render and deploy Avenue Guard first.
 2. Confirm `https://avenue-guard.onrender.com/ready` returns HTTP 200.
-3. Confirm database schema version 11 completed successfully.
+3. Confirm database schema version 13 completed successfully.
 4. Set all five Netlify variables above.
 5. Configure the Discord redirect URL.
 6. Deploy this website directory to Netlify.
@@ -85,6 +110,8 @@ bot-first deployment order below.
 - Request `/api/staff/session` signed out and confirm HTTP 401, not HTTP 404.
 - Visit `/staff/` signed out and complete OAuth; confirm the final URL is exactly `/staff/` without `code` or `state`.
 - Verify an ordinary member can use `/apply` but cannot access staff data.
+- Verify a banned account outside the guild can sign in to `/apply`, sees staff
+  applications disabled, and can open a punishment appeal with its Discord reason.
 - Verify Judge, Head Judge, and Owner navigation and mutation permissions.
 - As Dev, use **View as** for every role and confirm all preview requests are read-only.
 - Remove a test Judge role and confirm their next request is denied.
@@ -101,6 +128,14 @@ bot-first deployment order below.
 - As a Dev applicant, use **Delete my application data**, enter `DELETE`, and confirm the stale application disappears while unrelated portal records remain intact.
 - Proceed with an interview and confirm one private ticket and one applicant DM are delivered, including after an outbox retry.
 - Confirm the applicant sees `accepted` after role delivery even before staff reopen Applications.
+- Submit a test punishment appeal and confirm the staff inspector shows the
+  Discord reason source, date when available, and any reason conflict.
+- Confirm the issuing moderator cannot assess the appeal and that a final decision
+  remains disabled until two independent assessments exist.
+- Send a portal message with Discord DM disabled, then enabled; confirm the portal
+  message persists in both cases and the DM status is separately visible.
+- Approve a test removal, execute the unban, and confirm the outbox becomes
+  delivered and the punishment snapshot becomes `unbanned_by_appeal`.
 - Add and remove a test staff profile by Discord ID as Dev, then confirm the role delivery and audit history.
 - Hide and restore a test queue entry as Dev; confirm it disappears from public levels, queue counts, and normal internal filters while hidden.
 - Assign a task to another staff member and confirm Avenue Guard sends the assignment DM once.

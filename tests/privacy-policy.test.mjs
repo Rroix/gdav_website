@@ -33,6 +33,15 @@ test("privacy policy covers applications, hidden records, task DMs, and Dev prev
   assert.match(policy, /notify included staff about personal, assigned, and team tasks/);
 });
 
+test("privacy policy explains punishment appeal evidence and communication", () => {
+  assert.match(policy, /Punishment Appeals/);
+  assert.match(policy, /GD Avenue's current ban list/i);
+  assert.match(policy, /audit-log/i);
+  assert.match(policy, /Sapphire/i);
+  assert.match(policy, /45 days/i);
+  assert.match(policy, /private portal message/i);
+});
+
 test("privacy policy covers public health samples and curated Discord avatars", () => {
   assert.match(policy, /recent component-health samples/);
   assert.match(policy, /small, configured list of public team profiles/);

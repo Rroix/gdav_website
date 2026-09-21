@@ -13,6 +13,7 @@ const state = {
   staffItems: [],
   staffAssignees: null,
   applications: [],
+  appeals: [],
   applicationFilters: { type: "all", status: "active", claim: "all" },
   qaItems: [],
   tasks: [],
@@ -497,12 +498,58 @@ async function renderQA() {
 
 async function renderApplications() {
   const query = new URLSearchParams(state.applicationFilters);
-  const data = await api(`/api/staff/applications?${query}`);
+  const appealRequested = state.applicationFilters.type === "appeal";
+  const appealStatuses = new Set(["all", "active", "submitted", "triage", "under_review", "awaiting_information", "second_review", "decided", "withdrawn", "ineligible", "duplicate", "expired_no_action"]);
+  const staffQuery = new URLSearchParams(state.applicationFilters);
+  if (appealRequested) staffQuery.set("type", "all");
+  const [data, appealData] = await Promise.all([
+    appealRequested ? Promise.resolve({ items: [], application_types: ["judge", "mod"] }) : api(`/api/staff/applications?${staffQuery}`),
+    supports("punishment_appeals") && can("appeals.review") && ["all", "appeal"].includes(state.applicationFilters.type) && appealStatuses.has(state.applicationFilters.status)
+      ? api(`/api/staff/appeals?status=${encodeURIComponent(state.applicationFilters.status)}&claim=${encodeURIComponent(state.applicationFilters.claim)}`)
+      : Promise.resolve({ items: [] }),
+  ]);
   state.applications = data.items;
-  const typeOptions = [["all", "All types"], ...(data.application_types || ["judge", "mod"]).map((value) => [value, value === "judge" ? "Reviewer" : titleCase(value)])];
+  state.appeals = appealData.items || [];
+  const availableTypes = [...(data.application_types || ["judge", "mod"]), ...(can("appeals.review") ? ["appeal"] : [])];
+  const typeOptions = [["all", "All types"], ...[...new Set(availableTypes)].map((value) => [value, value === "judge" ? "Reviewer" : value === "appeal" ? "Punishment appeal" : titleCase(value)])];
   const filter = (key, options) => `<label class="filter-field"><span>${esc(titleCase(key))}</span><select id="application-${esc(key)}-filter">${options.map(([value,label]) => `<option value="${esc(value)}" ${state.applicationFilters[key] === value ? "selected" : ""}>${esc(label)}</option>`).join("")}</select></label>`;
-  const controls = `<div class="toolbar application-filter-bar">${filter("type", typeOptions)}${filter("status", [["active","Active"],["all","All statuses"],["submitted","Submitted"],["under_review","Under review"],["interview","Interview"],["hold","Held"],["accepted_pending_role","Accepted, role pending"],["accepted","Accepted"],["rejected","Rejected"],["withdrawn","Withdrawn"]])}${filter("claim", [["all","All claims"],["unclaimed","Not claimed"],["claimed","Claimed"],["mine","Claimed by me"]])}<button class="button secondary" type="button" data-action="application-filter-apply">Apply filters</button></div>`;
-  return `<div class="panel-head"><div><h2>Staff applications</h2><p class="muted">Review Reviewer and Mod applications, assignment state, notes, and durable decision history.</p></div></div>${controls}${data.items.length ? `<div class="record-list">${data.items.map((item) => `<button class="record-row" type="button" data-open-application="${item.id}"><span><strong>${esc(identityLabel(item.applicant, item.applicant_id))}</strong><small>${esc(item.application_label || titleCase(item.application_type))} · submitted ${ago(item.submitted_ts)}</small></span><span class="record-tags">${pill(item.status)}${pill(item.claimed_by ? "claimed" : "unclaimed")}</span><span class="row-chevron" aria-hidden="true">View</span></button>`).join("")}</div>` : empty("No applications match these filters", "Change the status, claim, or application type filters to widen the view.")}`;
+  const controls = `<div class="toolbar application-filter-bar">${filter("type", typeOptions)}${filter("status", [["active","Active"],["all","All statuses"],["submitted","Submitted"],["triage","Appeal triage"],["under_review","Under review"],["awaiting_information","Awaiting information"],["second_review","Second review"],["interview","Interview"],["hold","Held"],["decided","Appeal decided"],["accepted_pending_role","Accepted, role pending"],["accepted","Accepted"],["rejected","Rejected"],["withdrawn","Withdrawn"]])}${filter("claim", [["all","All claims"],["unclaimed","Not claimed"],["claimed","Claimed"],["mine","Claimed by me"]])}<button class="button secondary" type="button" data-action="application-filter-apply">Apply filters</button></div>`;
+  const recruitmentRows = data.items.map((item) => `<button class="record-row" type="button" data-open-application="${item.id}"><span><strong>${esc(identityLabel(item.applicant, item.applicant_id))}</strong><small>${esc(item.application_label || titleCase(item.application_type))} · submitted ${ago(item.submitted_ts)}</small></span><span class="record-tags">${pill(item.status)}${pill(item.claimed_by ? "claimed" : "unclaimed")}</span><span class="row-chevron" aria-hidden="true">View</span></button>`);
+  const appealRows = state.appeals.map((item) => `<button class="record-row" type="button" data-open-appeal="${item.id}"><span><strong>${esc(identityLabel(item.appellant, item.appellant_id))}</strong><small>Punishment appeal · submitted ${ago(item.submitted_ts)}</small></span><span class="record-tags">${item.staff_unread_count ? pill(`${item.staff_unread_count} new`) : ""}${pill(item.status)}${pill(item.claimed_by ? "claimed" : "unclaimed")}</span><span class="row-chevron" aria-hidden="true">View</span></button>`);
+  const rows = [...appealRows, ...recruitmentRows];
+  return `<div class="panel-head"><div><h2>Applications and appeals</h2><p class="muted">Review staff applications and evidence-based punishment appeals. Appeal communication remains available even when Discord DMs fail.</p></div></div>${controls}${rows.length ? `<div class="record-list">${rows.join("")}</div>` : empty("No records match these filters", "Change the status, claim, or type filters to widen the view.")}`;
+}
+
+function openAppeal(id) {
+  const item = state.appeals.find((entry) => String(entry.id) === String(id));
+  if (!item) return showNotice("That appeal is no longer in this view", true);
+  if (item.staff_unread_count) {
+    api(`/api/staff/appeals/${item.id}/action`, {
+      method: "POST",
+      body: { action: "mark_read" },
+    }).catch(() => {});
+    item.staff_unread_count = 0;
+  }
+  const applicant = identityLabel(item.appellant, item.appellant_id);
+  const answerLabels = {
+    primary_ground: "Primary ground", chronology: "Chronological account", disputed_detail: "Disputed record",
+    reconsideration: "Reconsideration", evidence_links: "Evidence", requested_outcome: "Requested outcome", confirmation: "Confirmation",
+  };
+  const answers = Object.entries(item.answers || {}).filter(([, value]) => String(value || "").trim()).map(([key, value]) => `<div class="review-answer"><small>${esc(answerLabels[key] || titleCase(key))}</small><p>${esc(value)}</p></div>`).join("");
+  const source = item.source_detail || {};
+  const evidenceState = item.lookup_status === "found"
+    ? "Banned"
+    : ["not_banned", "unbanned_by_appeal"].includes(item.lookup_status)
+      ? "Not banned"
+      : "Verification unavailable";
+  const evidence = `<section class="drawer-section"><h3>Discord punishment evidence</h3><div class="detail-grid"><div class="detail-stat"><small>Current state</small><strong>${evidenceState}</strong></div><div class="detail-stat"><small>Issued</small><strong>${item.issued_ts ? fmtTime(item.issued_ts) : "Unavailable"}</strong></div><div class="detail-stat"><small>Reason source</small><strong>${esc(titleCase(item.reason_source || "unknown"))}</strong></div><div class="detail-stat"><small>Audit entry</small><strong>${item.audit_log_entry_id ? esc(item.audit_log_entry_id) : "Not found / expired"}</strong></div></div><p><strong>Canonical reason:</strong> ${esc(item.reason || "No reason present")}</p>${item.reason_conflict ? `<div class="inline-warning"><strong>Reason conflict:</strong> live Discord ban reason and audit reason differ.</div><p><strong>Live ban:</strong> ${esc(source.live_reason || "None")}</p><p><strong>Audit log:</strong> ${esc(source.audit_reason || "None")}</p>` : ""}<p class="muted">${esc(source.sapphire_note || "Sapphire private case data was not queried.")}</p>${item.issued_by_identity ? `<p class="muted">Issuing moderator: ${esc(identityLabel(item.issued_by_identity, item.issued_by_id))}</p>` : ""}</section>`;
+  const assessments = (item.assessments || []).map((assessment) => `<article class="list-row"><div><strong>${esc(identityLabel(assessment.reviewer, assessment.reviewer_id))}</strong><small>${esc(titleCase(assessment.recommendation))}${assessment.recused ? " · recused" : ""}</small><p>${esc(assessment.rationale)}</p>${Object.entries(assessment.findings || {}).map(([key,value]) => `<small><strong>${esc(titleCase(key))}:</strong> ${esc(value)}</small>`).join("")}</div></article>`).join("") || '<p class="muted">No independent assessments yet.</p>';
+  const messages = (item.messages || []).map((message) => `<article class="appeal-message ${esc(message.author_type)}"><strong>${message.author_type === "applicant" ? esc(applicant) : "Appeals team"}</strong><p>${esc(message.body)}</p><small>${fmtTime(message.created_ts)}${message.dm_outbox_id ? " · DM requested" : ""}</small></article>`).join("") || '<p class="muted">No messages yet.</p>';
+  const ready = item.decision_ready || { eligible_assessments: 0, minimum: 2, ready: false };
+  const actions = ["decided", "withdrawn", "ineligible", "duplicate", "expired_no_action"].includes(item.status)
+    ? `<button class="button secondary small" data-appeal-action="reopen" data-id="${item.id}">Reopen</button><button class="button secondary small" data-appeal-action="message" data-id="${item.id}">Message applicant</button>`
+    : `<button class="button secondary small" data-appeal-action="claim" data-id="${item.id}">Claim</button><button class="button secondary small" data-appeal-action="review" data-id="${item.id}">Start review</button><button class="button secondary small" data-appeal-action="assess" data-id="${item.id}">Add assessment</button><button class="button secondary small" data-appeal-action="request_information" data-id="${item.id}">Request information</button><button class="button secondary small" data-appeal-action="message" data-id="${item.id}">Message applicant</button><button class="button secondary small" data-appeal-action="recuse" data-id="${item.id}">Recuse</button>${can("appeals.execute") ? `<button class="button primary small" data-appeal-action="decide" data-id="${item.id}" ${ready.ready ? "" : "disabled"}>Decide appeal</button>` : ""}`;
+  openDrawer("Appeal inspector", `${applicant}'s appeal`, `<div class="drawer-meta">${pill(item.status)}${pill(item.claimed_by ? "claimed" : "unclaimed")}<span>${ready.eligible_assessments} of ${ready.minimum} independent assessments</span>${item.unban_status ? `<span>Unban: ${esc(item.unban_status)}</span>` : ""}</div>${evidence}<section class="drawer-section"><h3>Submitted appeal</h3>${answers}</section><section class="drawer-section"><h3>Independent assessments</h3>${assessments}</section><section class="drawer-section"><h3>Private portal messages</h3><div class="appeal-message-list">${messages}</div></section><section class="drawer-section"><h3>Actions</h3><div class="toolbar application-actions">${actions}</div></section>`);
 }
 
 async function renderStaff() {
@@ -649,6 +696,7 @@ async function renderSystem() {
       <details class="admin-disclosure"><summary><span><strong>Identity integrity</strong><small>Legacy Discord ID repair status</small></span></summary><div class="diagnostic-body">${Object.entries(data.identity_repairs || {}).map(([status, item]) => `<div class="metric-line"><span>${esc(titleCase(status))}</span><strong>${item.records} records · ${item.rows_changed} rows</strong></div>`).join("") || '<p class="muted">No legacy snowflake repairs recorded.</p>'}</div></details>
     </div>
     ${config ? `<details class="admin-disclosure"><summary>Safe configuration</summary><div class="form-grid compact-form"><label>${conceptLabel("Stale claim threshold in hours", conceptHelp.staleClaim)}<input id="config-stale" type="number" min="1" max="720" value="${config.configuration.claim_stale_hours}"></label><label class="checkbox-row"><input id="config-apps" type="checkbox" ${config.configuration.applications_open ? "checked" : ""}><span>${conceptLabel("Application submissions enabled", "Emergency master switch for every application type. Existing drafts and submitted applications remain accessible when this is off.")}</span></label>${supports("application_type_availability") ? `<label class="checkbox-row"><input id="config-app-judge" type="checkbox" ${config.configuration.application_open_by_type?.judge !== false ? "checked" : ""}><span>Reviewer applications open</span></label><label class="checkbox-row"><input id="config-app-mod" type="checkbox" ${config.configuration.application_open_by_type?.mod !== false ? "checked" : ""}><span>Mod applications open</span></label>` : '<p class="inline-warning">Deploy Avenue Guard API v6 to manage each application type independently.</p>'}<button class="button primary" data-action="config-save">Save configuration</button></div></details>` : ""}
+    ${config && supports("punishment_appeals") ? `<details class="admin-disclosure"><summary>Punishment appeal availability</summary><div class="form-grid compact-form"><label class="checkbox-row"><input id="config-appeals" type="checkbox" ${config.configuration.appeals_open !== false ? "checked" : ""}><span>${conceptLabel("Punishment appeals open", "Controls new appeal drafts and submissions independently from staff recruitment. Existing appeals and private messages remain accessible.")}</span></label><button class="button primary" data-action="config-save">Save configuration</button></div></details>` : ""}
     <details class="admin-disclosure danger-zone"><summary>Recovery actions</summary><p class="muted">Use only after inspecting the relevant incident or worker state. Every action is audited.</p><div class="toolbar">${data.available_actions.map((action) => `<button class="button secondary" data-system-action="${esc(action)}">${esc(titleCase(action))}</button>`).join("")}</div></details>`;
 }
 
@@ -1061,6 +1109,8 @@ document.addEventListener("click", async (event) => {
   if (open) { markSelectedRecord("data-open-queue", open.dataset.openQueue); return openQueue(open.dataset.openQueue); }
   const openApplicationButton = event.target.closest("[data-open-application]");
   if (openApplicationButton) { markSelectedRecord("data-open-application", openApplicationButton.dataset.openApplication); return openApplication(openApplicationButton.dataset.openApplication); }
+  const openAppealButton = event.target.closest("[data-open-appeal]");
+  if (openAppealButton) { markSelectedRecord("data-open-appeal", openAppealButton.dataset.openAppeal); return openAppeal(openAppealButton.dataset.openAppeal); }
   const openStaffButton = event.target.closest("[data-open-staff]");
   if (openStaffButton) { markSelectedRecord("data-open-staff", openStaffButton.dataset.openStaff); return openStaffInspector(openStaffButton.dataset.openStaff); }
   const openQAButton = event.target.closest("[data-open-qa]");
@@ -1093,6 +1143,7 @@ document.addEventListener("click", async (event) => {
   if (action === "config-save") {
     const body = { claim_stale_hours: Number($("#config-stale").value), applications_open: $("#config-apps").checked };
     if (supports("application_type_availability")) body.application_open_by_type = { judge: $("#config-app-judge").checked, mod: $("#config-app-mod").checked };
+    if (supports("punishment_appeals") && $("#config-appeals")) body.appeals_open = $("#config-appeals").checked;
     return api("/api/staff/configuration", { method: "PATCH", body }).then(() => { showNotice("Configuration saved"); render(); }).catch((error) => showNotice(error.message, true));
   }
   if (action === "audit-apply") {
@@ -1132,6 +1183,65 @@ document.addEventListener("click", async (event) => {
     confirm: "Complete interview",
     run: (body) => api(`/api/staff/applications/${interviewOutcome.dataset.applicationId}/interview`, { method: "POST", body: { ...body, interview_id: Number(interviewOutcome.dataset.interviewOutcome) } }),
   });
+  const appealAction = event.target.closest("[data-appeal-action]");
+  if (appealAction) {
+    const action = appealAction.dataset.appealAction;
+    const id = appealAction.dataset.id;
+    const appeal = state.appeals.find((item) => String(item.id) === String(id));
+    if (!appeal) return showNotice("That appeal is no longer available", true);
+    if (action === "assess") {
+      const current = (appeal.assessments || []).find((item) => exactId(item.reviewer_id) === exactId(state.user.id));
+      const dimensions = [
+        ["factual_accuracy", "Factual accuracy"], ["rule_applicability", "Rule applicability"],
+        ["proportionality", "Proportionality"], ["consistency", "Comparable-case consistency"],
+        ["new_evidence", "New evidence"], ["current_risk", "Current community risk"],
+      ];
+      return actionDialog({
+        title: current ? "Update appeal assessment" : "Add appeal assessment",
+        description: "Record evidence for each fairness dimension. Avenue Guard does not calculate a credibility or personality score.",
+        fields: [
+          ...dimensions.map(([key, label]) => ({ name: key, label, type: "textarea", value: current?.findings?.[key] || "", required: true })),
+          { name: "recommendation", label: "Recommendation", type: "select", value: current?.recommendation || "upheld", options: [["upheld","Uphold"],["reduced","Reduce"],["removed","Remove"],["record_corrected","Correct record"],["returned_for_reconsideration","Return for reconsideration"],["ineligible","Ineligible"],["duplicate","Duplicate"]] },
+          { name: "rationale", label: "Assessment rationale", type: "textarea", value: current?.rationale || "", required: true },
+        ],
+        confirm: "Save assessment",
+        run: (body) => {
+          const findings = Object.fromEntries(dimensions.map(([key]) => [key, body[key]]));
+          return api(`/api/staff/appeals/${id}/assessment`, { method: "POST", body: { findings, recommendation: body.recommendation, rationale: body.rationale } });
+        },
+      });
+    }
+    if (action === "message" || action === "request_information") return actionDialog({
+      title: action === "message" ? "Message applicant" : "Request more information",
+      description: "The message is always saved in the secure appeal portal. Discord DM delivery is optional and may fail when Avenue Guard cannot contact the user.",
+      fields: [{ name: "body", label: "Message", type: "textarea", required: true }, { name: "notify_dm", label: "Also try to send a Discord DM", type: "checkbox", checked: true }],
+      confirm: "Send message",
+      run: (body) => api(`/api/staff/appeals/${id}/${action === "message" ? "message" : "action"}`, { method: "POST", body: action === "message" ? body : { ...body, action } }),
+    });
+    if (action === "decide") return actionDialog({
+      title: "Decide punishment appeal",
+      description: "Two independent non-conflicted assessments are required. Removing the punishment can queue an idempotent Discord unban; Sapphire's historical case record is not erased.",
+      fields: [
+        { name: "outcome", label: "Outcome", type: "select", options: [["upheld","Uphold"],["reduced","Reduce"],["removed","Remove"],["record_corrected","Correct record"],["returned_for_reconsideration","Return for reconsideration"],["ineligible","Ineligible"],["duplicate","Duplicate"]] },
+        { name: "internal_rationale", label: "Private staff rationale", type: "textarea", required: true },
+        { name: "applicant_explanation", label: "Explanation shown to applicant", type: "textarea", required: true },
+        { name: "execute_unban", label: "If the outcome is Remove, unban this Discord user", type: "checkbox", checked: true },
+        { name: "confirmed", label: "I confirm this final appeal decision", type: "checkbox", required: true },
+      ],
+      confirm: "Record decision",
+      run: (body) => api(`/api/staff/appeals/${id}/action`, { method: "POST", body: { ...body, action } }),
+    });
+    const descriptions = {
+      claim: "Claim this appeal for triage.", review: "Move this appeal into active evidence review.",
+      recuse: "Release your claim and exclude your assessment from the decision.", reopen: "Reopen this decided appeal for a controlled second review.",
+    };
+    return actionDialog({
+      title: titleCase(action), description: descriptions[action] || "Update this appeal.",
+      fields: [{ name: "confirmed", label: `I confirm this ${titleCase(action).toLowerCase()} action`, type: "checkbox", required: true }],
+      confirm: titleCase(action),
+      run: (body) => api(`/api/staff/appeals/${id}/action`, { method: "POST", body: { ...body, action } }),
+    });
+  }
   const app = event.target.closest("[data-app-action]");
   if (app) {
     const action = app.dataset.appAction;

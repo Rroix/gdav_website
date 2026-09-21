@@ -168,7 +168,7 @@ test("staff applications expose typed choices, cooldowns, timezone defaults, and
   assert.match(application, /Which application do you want to fill out\?/);
   assert.match(application, /Reviewer application/);
   assert.match(application, /Mod application/);
-  assert.match(application, /Appeal application/);
+  assert.match(application, /Punishment appeal/);
   assert.match(application, /Each application type has its own five-day cooldown/i);
   assert.match(application, /cooldownForType/);
   assert.match(application, /application\.application_type === item\.application_type/);
@@ -192,6 +192,22 @@ test("staff applications expose typed choices, cooldowns, timezone defaults, and
   assert.match(script, /Deploy Avenue Guard API v6/);
   assert.doesNotMatch(application, /Application #/);
   assert.doesNotMatch(script, /Application #/);
+});
+
+test("punishment appeals keep evidence, messaging, review, and unban controls explicit", () => {
+  assert.match(application, /item\.application_type === "appeal"/);
+  assert.match(application, /Your punishment appeal/);
+  assert.match(application, /Message the appeals team/);
+  assert.match(application, /No Discord reason available/);
+  assert.match(application, /Review appeal/);
+  assert.match(application, /Review application/);
+  assert.match(script, /Discord punishment evidence/);
+  assert.match(script, /Reason source/);
+  assert.match(script, /Reason conflict/);
+  assert.match(script, /independent assessments/i);
+  assert.match(script, /execute_unban/);
+  assert.match(script, /Punishment appeals open/);
+  assert.match(script, /notify_dm/);
 });
 
 test("application review workspace filters by type, status, and claim state", () => {
