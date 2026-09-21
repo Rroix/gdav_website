@@ -63,6 +63,12 @@ const duration = (seconds) => {
   if (value < 86400) return `${Math.round(value / 3600)}h`;
   return `${Math.round(value / 86400)}d`;
 };
+const formatPps = (value, fallback = "-") => {
+  if (value === null || value === undefined || value === "") return fallback;
+  const number = Number(value);
+  if (!Number.isFinite(number)) return fallback;
+  return new Intl.NumberFormat("en-US", { maximumFractionDigits: 2, minimumFractionDigits: 0, useGrouping: false }).format(number);
+};
 const titleCase = (value) => String(value || "unknown").replaceAll("_", " ").replace(/\b\w/g, (char) => char.toUpperCase());
 const roleLabel = (role) => ({ reviewer: "Reviewer", head_reviewer: "Head Reviewer", admin: "Admin", owner: "Owner", dev: "Dev" })[role] || titleCase(role);
 const identityLabel = (identity, fallbackId = "") => {
@@ -397,7 +403,7 @@ async function renderQueue(query = "") {
 
 function queueRow(item) {
   const claim = item.claim ? `${item.claim.user?.display_name || (item.claim.user_id === state.user.id ? "You" : "Claimed")}${item.claim.stale ? " · stale" : ""}` : "Unclaimed";
-  return `<tr data-open-queue="${item.id}" role="button" tabindex="0" aria-label="Open ${esc(item.level_name)}"><td data-label="Rank"><strong class="rank-value">${item.rank ? `#${item.rank}` : "-"}</strong></td><td class="level-cell"><strong>${esc(item.level_name)}</strong><small>${esc(item.creator || "Unknown creator")} · <span class="secondary-id">${esc(item.level_id)}</span></small></td><td data-label="Tier"><span class="tier-cell ${esc(item.tier)}">${tierArtwork(item.tier)}<span>${esc(titleCase(item.tier))}</span></span></td><td data-label="Creator">${esc(item.creator || "Unknown")}</td><td data-label="CP">${item.cp === null || item.cp === undefined ? "Unknown" : item.cp}</td><td data-label="W">${item.waiting_cycles}</td><td data-label="Priority"><strong class="priority-value">${item.components.complete ? Number(item.components.p).toFixed(2) : "Incomplete"}</strong></td><td data-label="State">${pill(item.state)}</td><td data-label="Claim">${esc(claim)}</td></tr>`;
+  return `<tr data-open-queue="${item.id}" role="button" tabindex="0" aria-label="Open ${esc(item.level_name)}"><td data-label="Rank"><strong class="rank-value">${item.rank ? `#${item.rank}` : "-"}</strong></td><td class="level-cell"><strong>${esc(item.level_name)}</strong><small>${esc(item.creator || "Unknown creator")} · <span class="secondary-id">${esc(item.level_id)}</span></small></td><td data-label="Tier"><span class="tier-cell ${esc(item.tier)}">${tierArtwork(item.tier)}<span>${esc(titleCase(item.tier))}</span></span></td><td data-label="Creator">${esc(item.creator || "Unknown")}</td><td data-label="CP">${item.cp === null || item.cp === undefined ? "Unknown" : item.cp}</td><td data-label="W">${item.waiting_cycles}</td><td data-label="Priority"><strong class="priority-value">${item.components.complete ? formatPps(item.components.p) : "Incomplete"}</strong></td><td data-label="State">${pill(item.state)}</td><td data-label="Claim">${esc(claim)}</td></tr>`;
 }
 
 async function openQueue(id) {
@@ -407,10 +413,10 @@ async function openQueue(id) {
     const item = data.queue;
     $("#detail-title").textContent = item.level_name;
     $("#drawer-content").innerHTML = `
-      <section class="level-inspector-hero" data-tier="${esc(item.tier)}">${tierArtwork(item.tier, "large")}<div><span>${esc(titleCase(item.tier))} recommendation</span><strong>${item.rank ? `#${item.rank} in queue` : "Queue position unavailable"}</strong></div><div class="priority-total"><small>Priority</small><strong>${item.components.complete ? Number(item.components.p).toFixed(2) : "-"}</strong></div></section>
+      <section class="level-inspector-hero" data-tier="${esc(item.tier)}">${tierArtwork(item.tier, "large")}<div><span>${esc(titleCase(item.tier))} recommendation</span><strong>${item.rank ? `#${item.rank} in queue` : "Queue position unavailable"}</strong></div><div class="priority-total"><small>Priority</small><strong>${item.components.complete ? formatPps(item.components.p) : "-"}</strong></div></section>
       <div class="drawer-identity"><div><span>Level ID</span><strong class="secondary-id">${esc(item.level_id)}</strong><small>Created by ${esc(item.creator)}</small></div>${copyButton(item.level_id)}</div>
       <div class="detail-grid"><div class="detail-stat"><small>State</small><strong>${esc(titleCase(item.state))}</strong></div><div class="detail-stat"><small>Creator Points</small><strong>${item.cp ?? "Unknown"}</strong></div><div class="detail-stat"><small>${conceptLabel("Waiting", conceptHelp.waiting)}</small><strong>${item.waiting_cycles} cycle${item.waiting_cycles === 1 ? "" : "s"}</strong></div><div class="detail-stat"><small>Tier</small><strong class="tier-text ${esc(item.tier)}">${esc(titleCase(item.tier))}</strong></div></div>
-      <details class="drawer-section" open><summary>${conceptLabel("PPS", conceptHelp.priority)}</summary><div class="priority-breakdown"><div><small>${conceptLabel("F", conceptHelp.priorityPrestige)}</small><strong>${item.components.f ?? "-"}</strong><span>Prestige</span></div><div><small>${conceptLabel("G", conceptHelp.priorityCreator)}</small><strong>${item.components.g ?? "-"}</strong><span>Creator</span></div><div><small>${conceptLabel("H", conceptHelp.priorityWaiting)}</small><strong>${item.components.h ?? "-"}</strong><span>Waiting</span></div><div class="total"><small>${conceptLabel("P", conceptHelp.priority)}</small><strong>${item.components.complete ? Number(item.components.p).toFixed(2) : "Incomplete"}</strong><span>Total</span></div></div></details>
+      <details class="drawer-section" open><summary>${conceptLabel("PPS", conceptHelp.priority)}</summary><div class="priority-breakdown"><div><small>${conceptLabel("F", conceptHelp.priorityPrestige)}</small><strong>${formatPps(item.components.f)}</strong><span>Prestige</span></div><div><small>${conceptLabel("G", conceptHelp.priorityCreator)}</small><strong>${formatPps(item.components.g)}</strong><span>Creator</span></div><div><small>${conceptLabel("H", conceptHelp.priorityWaiting)}</small><strong>${formatPps(item.components.h)}</strong><span>Waiting</span></div><div class="total"><small>${conceptLabel("P", conceptHelp.priority)}</small><strong>${item.components.complete ? formatPps(item.components.p) : "Incomplete"}</strong><span>Total</span></div></div></details>
       <section class="drawer-section"><div class="panel-head"><h3>Actions</h3></div><div class="toolbar">
         ${item.state !== "hidden" && !item.claim && can("queue.claim") ? `<button class="button primary" data-queue-action="claim" data-id="${id}">Claim</button>` : ""}
         ${item.state !== "hidden" && item.claim && (item.claim.user_id === state.user.id || can("queue.reassign")) ? `<button class="button secondary" data-queue-action="release" data-id="${id}">Release</button>` : ""}

@@ -32,7 +32,7 @@ const api = {
   features: legacyApi ? [] : ["application_data_reset", "application_interviews", "application_type_availability", "application_review_embeds", "application_review_threads", "application_cooldown", "multi_type_applications", "hidden_queue_entries", "staff_manual_management", "staff_assignee_directory", "task_assignment_dm", "task_recipient_dm", "view_role_preview", "punishment_appeals", "appeal_discord_evidence", "appeal_portal_messages", "appeal_unban_outbox"],
 };
 const queue = [
-  { id: 1, rank: 1, level_id: "101935961", level_name: "Synergy", creator: "CreatorName", tier: "mythic", cp: 0, waiting_cycles: 2, components: { f: 17.9, g: 3.22, h: 4.24, p: 25.36, complete: true }, state: "queued", claim: null },
+  { id: 1, rank: 1, level_id: "101935961", level_name: "Synergy", creator: "CreatorName", tier: "mythic", cp: 0, waiting_cycles: 2, components: { f: 8.062998208338442, g: 0, h: 0, p: 8.062998208338442, complete: true }, state: "queued", claim: null },
   { id: 2, rank: 2, level_id: "123456789", level_name: "Chromatic Path", creator: "Builder", tier: "epic", cp: null, waiting_cycles: 1, components: { f: 4.83, g: null, h: 1.5, p: null, complete: false }, state: "in_cycle", claim: { user_id: user.id, claimed_ts: now - 7200, stale: false } },
   { id: 3, rank: null, level_id: "987654321", level_name: "Hidden Test", creator: "Builder", tier: "feature", cp: 2, waiting_cycles: 0, components: { f: 0.8, g: 1.2, h: 0, p: 2, complete: true }, state: "hidden", hidden_from_state: "queued", claim: null },
 ];

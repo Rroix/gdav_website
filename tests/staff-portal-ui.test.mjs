@@ -62,6 +62,11 @@ test("operational records use inspectors and compact queue columns", () => {
   assert.match(script, /conceptLabel\("W", conceptHelp\.waiting\)/);
   assert.match(script, /conceptLabel\("Claim", conceptHelp\.claim\)/);
   assert.match(script, /data-copy=/);
+  assert.match(script, /const formatPps/);
+  assert.match(script, /maximumFractionDigits: 2/);
+  assert.match(script, /formatPps\(item\.components\.f\)/);
+  assert.match(script, /formatPps\(item\.components\.p\)/);
+  assert.doesNotMatch(script, /item\.components\.(?:f|g|h) \?\? "-"/);
 });
 
 test("search provides keyboard jump navigation and loading uses skeletons", () => {
