@@ -127,15 +127,13 @@ a { color: inherit; }
 .brand span, .sidebar-user span { min-width: 0; display: grid; }
 .brand small, .sidebar-user small { color: var(--muted); font-size: .75rem; }
 #primary-nav { display: grid; gap: 2px; }
-.nav-button { position: relative; width: 100%; display: grid; grid-template-columns: 16px minmax(0, 1fr) auto; align-items: center; gap: 10px; border: 0; background: transparent; color: var(--muted); text-align: left; padding: 9px 10px 9px 12px; border-radius: 3px; cursor: pointer; font-weight: 650; transition: color var(--t-fast), background var(--t-fast); }
-.nav-button::before { content: ""; width: 9px; height: 9px; border: 1px solid currentColor; opacity: .75; }
-.nav-button[data-module="overview"]::before { transform: rotate(45deg); }
-.nav-button[data-module="work"]::before { width: 10px; height: 7px; border-top-width: 3px; }
-.nav-button[data-module="team"]::before { clip-path: polygon(50% 0, 100% 30%, 88% 100%, 12% 100%, 0 30%); }
-.nav-button[data-module="admin"]::before { border-style: double; border-width: 3px; }
+.nav-button { position: relative; width: 100%; display: grid; grid-template-columns: 20px minmax(0, 1fr) auto; align-items: center; gap: 10px; border: 0; background: transparent; color: var(--muted); text-align: left; padding: 9px 10px 9px 12px; border-radius: 3px; cursor: pointer; font-weight: 650; transition: color var(--t-fast), background var(--t-fast); }
+.nav-icon { display: block; width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; opacity: .78; transition: color var(--t-fast), opacity var(--t-fast); }
 .nav-button::after { content: ""; position: absolute; inset: 7px auto 7px 0; width: 2px; background: transparent; transition: background var(--t-fast); }
 .nav-button:hover { color: var(--text); background: var(--surface-1); }
 .nav-button.active { color: var(--text); background: var(--surface-2); }
+.nav-button:hover .nav-icon { opacity: 1; }
+.nav-button.active .nav-icon { color: var(--accent); opacity: 1; }
 .nav-button.active::after { background: var(--accent); }
 .nav-label { min-width: 0; }
 .nav-count { float: right; min-width: 20px; padding: 1px 6px; text-align: center; color: var(--accent); background: #18332d; border-radius: 10px; font-size: .75rem; }

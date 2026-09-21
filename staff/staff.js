@@ -31,6 +31,13 @@ const modules = {
   admin: { label: "Admin", description: "Manage Avenue Guard operations through capability-gated controls.", sections: ["operations", "requests", "pps", "community", "admin-staff", "audit", "system"] },
 };
 
+const moduleIcons = {
+  overview: '<svg class="nav-icon" data-lucide="layout-dashboard" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg>',
+  work: '<svg class="nav-icon" data-lucide="briefcase-business" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M16 6V4a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/><rect width="20" height="14" x="2" y="6" rx="2"/><path d="M22 13a18.15 18.15 0 0 1-20 0"/><path d="M12 12h.01"/></svg>',
+  team: '<svg class="nav-icon" data-lucide="users-round" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M18 21a8 8 0 0 0-16 0"/><circle cx="10" cy="8" r="5"/><path d="M22 20c0-3.37-2-6.5-4-8a5 5 0 0 0-.45-8.3"/></svg>',
+  admin: '<svg class="nav-icon" data-lucide="shield-check" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/></svg>',
+};
+
 const sectionNames = {
   overview: "Overview", "my-work": "My Work", queue: "Queue", outreach: "Outreach", tasks: "Tasks", notes: "Notes",
   "team-overview": "Overview", statistics: "Statistics", "review-qa": "Review QA", applications: "Applications", staff: "Staff",
@@ -256,7 +263,7 @@ function setShell() {
   const allowedModules = ["overview", "work", "team", ...(can("admin.access") ? ["admin"] : [])];
   if (!allowedModules.includes(state.module)) state.module = "overview";
   if (!modules[state.module].sections.includes(state.section)) state.section = modules[state.module].sections[0];
-  $("#primary-nav").innerHTML = allowedModules.map((key) => `<button class="nav-button ${state.module === key ? "active" : ""}" data-module="${key}" type="button" ${state.module === key ? 'aria-current="page"' : ""}><span class="nav-label">${modules[key].label}</span><span class="nav-count" data-count="${key}" hidden></span></button>`).join("");
+  $("#primary-nav").innerHTML = allowedModules.map((key) => `<button class="nav-button ${state.module === key ? "active" : ""}" data-module="${key}" type="button" ${state.module === key ? 'aria-current="page"' : ""}>${moduleIcons[key]}<span class="nav-label">${modules[key].label}</span><span class="nav-count" data-count="${key}" hidden></span></button>`).join("");
   $("#section-nav").innerHTML = modules[state.module].sections.filter(sectionAllowed).map((key) => `<button class="section-tab ${state.section === key ? "active" : ""}" data-section="${key}" type="button">${sectionNames[key]}</button>`).join("");
   $("#section-nav").hidden = modules[state.module].sections.filter(sectionAllowed).length < 2;
   $("#page-title").textContent = sectionNames[state.section] || modules[state.module].label;

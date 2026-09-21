@@ -277,7 +277,14 @@ test("OAuth compatibility bridges are one-shot and clean callback parameters", (
 test("visual identity uses restrained geometric primitives and stable motion tokens", () => {
   assert.match(styles, /--t-fast: 140ms/);
   assert.match(styles, /--t-med: 210ms/);
-  assert.match(styles, /\.nav-button\[data-module="overview"\]::before[^}]+rotate\(45deg\)/s);
+  assert.match(script, /data-lucide="layout-dashboard"/);
+  assert.match(script, /data-lucide="briefcase-business"/);
+  assert.match(script, /data-lucide="users-round"/);
+  assert.match(script, /data-lucide="shield-check"/);
+  assert.match(script, /\$\{moduleIcons\[key\]\}/);
+  assert.match(styles, /\.nav-icon[^}]+stroke-width: 1\.75/s);
+  assert.match(styles, /\.nav-button\.active \.nav-icon[^}]+var\(--accent\)/s);
+  assert.doesNotMatch(styles, /\.nav-button\[data-module="team"\]::before/);
   assert.match(styles, /\.page-heading::after/);
   assert.match(styles, /\.pipeline-node[^}]+rotate\(45deg\)/s);
   assert.match(styles, /\.timeline li::before[^}]+rotate\(45deg\)/s);
