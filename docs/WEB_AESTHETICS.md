@@ -84,6 +84,8 @@ Defined in `staff/staff.css`:
 | `--sidebar-width` | `244px` | Desktop navigation width |
 | `--radius` | `6px` | Compact operational radius |
 | `--content-max` | `1320px` | Portal workspace limit |
+| `--t-fast` | `140ms` | Hover, focus, and row-state transitions |
+| `--t-med` | `210ms` | Drawers and larger workspace transitions |
 
 The portal does not use the public site's 14px radius. Its tighter 6px radius is deliberate: the workspace should feel precise, not soft or promotional.
 
@@ -91,7 +93,7 @@ The portal does not use the public site's 14px radius. Its tighter 6px radius is
 
 - Font stack: `Inter`, then native UI sans-serif fonts.
 - Public body line height: `1.62`; operational body line height: `1.5`.
-- Public `h1` uses responsive `clamp()` sizing and may be centered when it introduces a reading page.
+- Public `h1` uses a stable page-scale size and may be centered when it introduces a reading page. Font size does not scale continuously with viewport width.
 - Portal page titles stay compact, roughly `1.55rem` to `2rem`.
 - Eyebrows are small, bold, uppercase labels. Portal eyebrows use the accent color and `.08em` positive tracking.
 - Discord IDs, correlation IDs, and other machine identifiers use the system monospace stack and must wrap safely.
@@ -114,18 +116,31 @@ The portal does not use the public site's 14px radius. Its tighter 6px radius is
 - Desktop uses a fixed `244px` sidebar and a fluid second column.
 - Workspace content is constrained to `1320px` and padded by `28px`.
 - Operational summaries use stable grid tracks. Tables and list rows keep identifiers and actions aligned.
-- Drawers preserve the main view and become full width on narrow screens.
+- The right-side inspector is `500px` wide, preserves the main view, and becomes full width below `680px`.
 - Panels are usually unframed sections divided by one-pixel rules. Cards are reserved for a genuine contained tool, modal, repeated record, or sign-in/application surface.
 - Application pages use a focused `780px` column with a three-pixel accent top border.
+
+## Geometric Signature
+
+The shared GD Avenue signature is a restrained line-and-diamond language, not a decorative illustration system. It appears only where it helps orientation or state recognition:
+
+- A small outlined diamond accompanies the public wordmark and portal Overview module.
+- The Staff sidebar has a single cut-corner line and simple CSS-drawn module glyphs.
+- Page headings use a short angular mint underline.
+- Pipelines, timelines, application stages, milestones, service states, and empty states use compact diamond or check markers.
+- The inspector has one shallow clipped corner with a short mint edge.
+
+Do not add geometric backgrounds, repeated patterns, floating shapes, gradients, or large ornamental art. The signature must remain secondary to content.
 
 ## Components
 
 ### Navigation
 
 - Public navigation is a sticky, lightly translucent header with a blur backdrop.
-- Portal navigation is a fixed left rail with a two-pixel active indicator.
+- Portal navigation is a fixed left rail with compact module glyphs and a two-pixel active indicator.
 - The active location must be visible in text/color and not depend only on URL state.
 - The portal's top-level structure is Overview, Work, Team, and Admin. Secondary tabs remain horizontally scrollable rather than wrapping into an unpredictable grid.
+- Portal search is a stable 38px command surface. Focus adds an inset mint edge without changing its dimensions.
 
 ### Buttons
 
@@ -150,6 +165,8 @@ The portal does not use the public site's 14px radius. Its tighter 6px radius is
 - Rows expose their primary object first, supporting metadata second, and actions last.
 - Small viewports use responsive labels or stacked rows. No identifier may force horizontal page overflow.
 - Claims, queue state, application state, and delivery state use explicit labels or pills in addition to color.
+- Queue rows prioritize level name, creator, and monospace level ID before score metadata. Tier artwork stays compact and decorative.
+- Hover and selected rows use an inset two-pixel accent edge, so state changes never move table content.
 
 ### Pills And Status
 
@@ -158,6 +175,7 @@ The portal does not use the public site's 14px radius. Its tighter 6px radius is
 - Rejected and failed use danger styling.
 - Unknown is neutral and must never be presented as healthy or as zero.
 - Recommendation tiers use the dedicated `--rate`, `--feature`, `--epic`, `--legendary`, and `--mythic` tokens and their matching image assets where the surface supports them.
+- Staff roles use a compact rectangular role badge with a semantic left edge. It is intentionally distinct from workflow-status pills.
 
 ### Dialogs And Drawers
 
@@ -165,6 +183,7 @@ The portal does not use the public site's 14px radius. Its tighter 6px radius is
 - Side inspectors use dialog semantics when modal, close on Escape, and prevent background scrolling.
 - Destructive actions explain the consequence and require deliberate confirmation.
 - Dense details use progressive disclosure with `details`/`summary` rather than showing every diagnostic at once.
+- The level inspector leads with tier artwork, queue rank, and priority, followed by stable F/G/H/P component cells. Actions remain visible before outreach, history, and notes disclosures.
 
 ### Loading, Empty, And Error States
 
@@ -173,6 +192,18 @@ The portal does not use the public site's 14px radius. Its tighter 6px radius is
 - Errors are concise and actionable. They do not expose secrets, raw environment values, or private Discord payloads.
 - Public avatar and image requests keep a checked-in fallback so a bot restart does not leave a broken visual.
 - Status graphs display a labelled empty state until persisted health samples exist.
+- Portal empty states are compact, include one quiet geometric marker, and do not consume a dashboard-sized region.
+
+### Shared Component Families
+
+- `page-heading` and `section-title` establish hierarchy without cards.
+- `summary-band`, `progress-strip`, and `today-line` present related metrics as one ruled surface.
+- `pipeline-strip` communicates ordered state with labelled diamond nodes.
+- `record-row`, `list-row`, and `data-table` cover increasing information density.
+- `role-badge`, `pill`, and tier artwork communicate different semantic categories and are not interchangeable.
+- `detail-drawer` is the signature inspection surface for levels, applications, tasks, staff, and QA records.
+- `timeline` uses a line with diamond event nodes; application stages use the same geometry.
+- Skeleton, empty, warning, and error states preserve the surrounding layout.
 
 ## Page Inventory
 
@@ -194,7 +225,7 @@ Live service identity, overall state, version, process uptime, measured availabi
 
 ### Public Levels (`levels/index.html`)
 
-Wide, search-first directory. Rows prioritize level identity, recommendation tier, queue state, and public priority band. The compact `public-levels.css` layer inherits portal tokens for a consistent operational feel without importing private portal behavior.
+Wide, search-first directory. Stable 78px rows prioritize level identity, creator and ID, recommendation artwork, queue state, and public priority band. The compact `public-levels.css` layer inherits portal tokens for a consistent operational feel without importing private portal behavior.
 
 ### Recommendation Detail (`level.html`)
 
@@ -208,18 +239,26 @@ Focused authenticated workflow. The first view is always the application-type ch
 
 Role-aware operational workspace with capability-gated navigation and server-enforced mutations. Reviewer, Head Reviewer, Admin, Owner, and Dev views share the same component vocabulary while exposing different actions. Dev View Mode is visually explicit and read-only.
 
+- Overview opens with a personal greeting, role badge, attention count, current-week contribution, actionable attention list, and a Queued to Rated team pipeline.
+- My Work behaves like an inbox: Claimed, Assigned tasks, Follow-ups, and monthly contribution each expose the next useful action.
+- Queue uses quick filters, Tier and State controls, search, compact scan rows, and a right-side level inspector.
+- Team uses a single contribution strip plus workload and human-identity rows. Resolved people are named first; exact Discord IDs remain secondary metadata.
+- Admin Operations opens on calm service health and keeps diagnostics behind disclosure.
+- Dev System begins with a high-level summary. Runtime, Database, Outbox, Workers, Providers, Requests/PPS, and Identity integrity details stay collapsed until requested.
+
 ### Privacy (`privacy.html`)
 
 Long-form reading layout using the public surface system. Policy sections use headings, paragraphs, and lists rather than dashboard widgets.
 
 ## Motion And Interaction
 
-- Motion is short and functional. Public transitions use `140ms` or `220ms`.
+- Motion is short and functional. Public transitions use `140ms` or `220ms`; Staff transitions use `140ms` or `210ms`.
 - The portal respects `prefers-reduced-motion`.
 - Hover never carries information that focus cannot reveal.
 - Tooltip, drawer, modal, menu, and search behavior must be operable from a keyboard.
 - Refreshes update content without forcing page navigation or clearing active form input.
 - Form drafts are server-backed, but local typing is not overwritten by background refreshes.
+- Drawer motion is a small horizontal reveal with opacity correction. Rows, arrows, and buttons use color or two-pixel movement at most.
 
 ## Responsive Rules
 

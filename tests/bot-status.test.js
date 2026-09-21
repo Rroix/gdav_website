@@ -46,10 +46,13 @@ test("public status page exposes system availability and accessible graphs", () 
 
 test("About Us keeps static fallbacks and refreshes curated Discord avatars", () => {
   assert.match(aboutMarkup, /data-team-user-id=/);
-  assert.match(aboutMarkup, /src="https:\/\/cdn\.discordapp\.com\/avatars\//);
+  assert.match(aboutMarkup, /data-avatar-url="https:\/\/cdn\.discordapp\.com\/avatars\//);
+  assert.match(aboutMarkup, /src="\/assets\/send-types\/pps_rate\.png"/);
   assert.match(aboutScript, /avenue-guard\.onrender\.com/);
   assert.match(aboutScript, /location\.origin/);
-  assert.match(aboutScript, /if \(\/\^https:/);
+  assert.match(aboutScript, /function applyAvatar/);
+  assert.match(aboutScript, /image\.onerror/);
+  assert.match(aboutScript, /image\.src = fallbackUrl/);
   assert.match(aboutScript, /checked-in image remains a stable fallback/);
 });
 

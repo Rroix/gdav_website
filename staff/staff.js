@@ -59,8 +59,9 @@ const titleCase = (value) => String(value || "unknown").replaceAll("_", " ").rep
 const roleLabel = (role) => ({ reviewer: "Reviewer", head_reviewer: "Head Reviewer", admin: "Admin", owner: "Owner", dev: "Dev" })[role] || titleCase(role);
 const identityLabel = (identity, fallbackId = "") => {
   const id = String(identity?.id ?? fallbackId ?? "");
-  const name = identity?.display_name || identity?.portal_nickname || identity?.discord_display_name || identity?.global_display_name || identity?.username || "Reviewer";
-  return id ? `${name} (${id})` : name;
+  const name = identity?.display_name || identity?.portal_nickname || identity?.discord_display_name || identity?.global_display_name || identity?.username;
+  if (name) return name;
+  return id ? `Discord user ${id}` : "Unresolved staff identity";
 };
 const conceptHelp = {
   claim: "A claim marks the staff member currently responsible for a queue item. It does not mean that outreach has happened.",
@@ -185,7 +186,7 @@ function showNotice(message, error = false) {
 }
 
 function empty(message, detail = "") {
-  return `<div class="empty-state"><strong>${esc(message)}</strong>${detail ? `<span>${esc(detail)}</span>` : ""}</div>`;
+  return `<div class="empty-state"><span class="empty-state-mark" aria-hidden="true"></span><strong>${esc(message)}</strong>${detail ? `<span>${esc(detail)}</span>` : ""}</div>`;
 }
 
 function loading() {
@@ -198,10 +199,10 @@ function errorState(error) {
 
 function progress(label, done, total) {
   if (!Number(total)) {
-    return `<div class="metric-line"><span>${esc(label)}</span><strong>0 / 0</strong></div><small class="muted">No assigned work yet.</small>`;
+    return `<div class="progress-component is-empty"><div class="metric-line"><span>${esc(label)}</span><strong>0 / 0</strong></div><small class="muted">No assigned work yet.</small></div>`;
   }
   const value = percent(done, total);
-  return `<div class="metric-line"><span>${esc(label)}</span><strong>${Number(done) || 0} / ${Number(total) || 0}</strong></div><progress aria-label="${esc(label)}" aria-valuemin="0" aria-valuemax="${Math.max(1, Number(total) || 1)}" aria-valuenow="${Number(done) || 0}" max="${Math.max(1, Number(total) || 1)}" value="${Number(done) || 0}">${value}%</progress><small class="muted">${value}% complete</small>`;
+  return `<div class="progress-component"><div class="metric-line"><span>${esc(label)}</span><strong>${Number(done) || 0} / ${Number(total) || 0}</strong></div><progress aria-label="${esc(label)}" aria-valuemin="0" aria-valuemax="${Math.max(1, Number(total) || 1)}" aria-valuenow="${Number(done) || 0}" max="${Math.max(1, Number(total) || 1)}" value="${Number(done) || 0}">${value}%</progress><small class="muted">${value}% complete</small></div>`;
 }
 
 function countMetric(label, value, detail = "") {
@@ -212,16 +213,36 @@ function copyButton(value, label = "Copy ID") {
   return `<button class="icon-link" type="button" data-copy="${esc(exactId(value))}">${esc(label)}</button>`;
 }
 
+function markSelectedRecord(attribute, value) {
+  document.querySelectorAll(".is-selected").forEach((item) => item.classList.remove("is-selected"));
+  const target = [...document.querySelectorAll(`[${attribute}]`)].find((item) => String(item.getAttribute(attribute)) === String(value));
+  target?.classList.add("is-selected");
+}
+
 function pill(value, extra = "") {
-  const safe = String(value || "unknown").toLowerCase();
+  const safe = String(value || "unknown").toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "");
   return `<span class="pill ${esc(safe)} ${esc(extra)}">${esc(titleCase(value))}</span>`;
+}
+
+function rolePill(role, label = "") {
+  const safeRole = String(role || "reviewer").toLowerCase().replace(/[^a-z0-9]+/g, "_");
+  return `<span class="role-badge ${esc(safeRole)}">${esc(label || roleLabel(role))}</span>`;
+}
+
+function tierArtwork(tier, size = "small") {
+  const safeTier = ["rate", "feature", "epic", "legendary", "mythic"].includes(String(tier).toLowerCase()) ? String(tier).toLowerCase() : "rate";
+  return `<img class="tier-art tier-art-${esc(size)}" src="/assets/send-types/pps_${safeTier}.png" alt="" width="${size === "large" ? 64 : 24}" height="${size === "large" ? 64 : 24}">`;
+}
+
+function pipeline(stages) {
+  return `<div class="pipeline-strip">${stages.map(([label, value, state = ""]) => `<div class="pipeline-stage ${esc(state)}"><span class="pipeline-node" aria-hidden="true"></span><strong>${esc(value)}</strong><span>${esc(label)}</span></div>`).join("")}</div>`;
 }
 
 function setShell() {
   const allowedModules = ["overview", "work", "team", ...(can("admin.access") ? ["admin"] : [])];
   if (!allowedModules.includes(state.module)) state.module = "overview";
   if (!modules[state.module].sections.includes(state.section)) state.section = modules[state.module].sections[0];
-  $("#primary-nav").innerHTML = allowedModules.map((key) => `<button class="nav-button ${state.module === key ? "active" : ""}" data-module="${key}" type="button">${modules[key].label}<span class="nav-count" data-count="${key}" hidden></span></button>`).join("");
+  $("#primary-nav").innerHTML = allowedModules.map((key) => `<button class="nav-button ${state.module === key ? "active" : ""}" data-module="${key}" type="button" ${state.module === key ? 'aria-current="page"' : ""}><span class="nav-label">${modules[key].label}</span><span class="nav-count" data-count="${key}" hidden></span></button>`).join("");
   $("#section-nav").innerHTML = modules[state.module].sections.filter(sectionAllowed).map((key) => `<button class="section-tab ${state.section === key ? "active" : ""}" data-section="${key}" type="button">${sectionNames[key]}</button>`).join("");
   $("#section-nav").hidden = modules[state.module].sections.filter(sectionAllowed).length < 2;
   $("#page-title").textContent = sectionNames[state.section] || modules[state.module].label;
@@ -288,24 +309,31 @@ async function renderOverview() {
     [summary.stale_claims || 0, "Stale claims", "Claims beyond the configured threshold", "work/queue", "stale"],
     [summary.followups_due || 0, "Follow-ups due", "Outcome windows due within one day", "work/outreach", ""],
     [summary.tasks_due || 0, "Tasks due soon", "Due within the next day", "work/tasks", ""],
+  ].filter(([count]) => Number(count) > 0);
+  const pipelineStages = [
+    ["Queued", data.pipeline?.queued || 0, "complete"],
+    ["Claimed", summary.active_claims || 0, "complete"],
+    ["Outreach", data.pipeline?.in_cycle || data.pipeline?.outreach || 0, "current"],
+    ["Awaiting", data.pipeline?.awaiting_outcome || 0, "future"],
+    ["Rated", data.pipeline?.rated || 0, "future"],
   ];
   return `
     ${data.warnings?.length ? `<div class="inline-warning"><strong>Some data could not be refreshed</strong><span>Available sections are still shown. Reference: ${esc(data.correlation_id || "unavailable")}</span></div>` : ""}
-    <header class="personal-header"><div><p class="eyebrow">${esc(data.user.role_label || roleLabel(data.user.role))}</p><h2>${greeting()}, ${esc(name)}</h2><p>Here is what needs your attention and how the current pipeline is moving.</p></div><span class="attention-total">${attention} attention item${attention === 1 ? "" : "s"}</span></header>
-    <section class="progress-strip" aria-label="Your recent contribution">
+    <header class="personal-header"><div><div class="identity-kicker">${rolePill(data.user.role, data.user.role_label)}</div><h2>${greeting()}, ${esc(name)}</h2><p>${attention ? `You have ${attention} thing${attention === 1 ? "" : "s"} needing attention.` : "You're all caught up."}</p></div><span class="attention-total">${attention ? `${attention} to review` : "Clear"}</span></header>
+    <section class="overview-section" aria-labelledby="week-heading"><div class="section-title"><p class="eyebrow" id="week-heading">This week</p></div><div class="progress-strip" aria-label="Your recent contribution">
       ${countMetric("Reviews", progressData.reviews_month || 0, "last 31 days")}
       ${countMetric("Outreach", progressData.outreach_attempts || 0, "attempts")}
       ${countMetric("Submissions", progressData.confirmed_submissions || 0, "confirmed")}
       <div class="progress-unit">${progress("Assigned tasks", progressData.tasks_done || 0, tasks)}</div>
-    </section>
+    </div></section>
     <div class="workspace-grid">
       <section class="section-block"><div class="panel-head"><h2>Needs attention</h2><button class="icon-link" data-nav="work/my-work">Open My Work</button></div>
-        <div class="stack">${attentionRows.map(([count, label, detail, nav, filter]) => `<div class="list-row"><div><strong>${count} ${label.toLowerCase()}</strong><small>${detail}</small></div><button class="button small secondary" data-nav="${nav}" ${filter ? `data-filter="${filter}"` : ""}>Open</button></div>`).join("")}</div>
+        <div class="stack">${attentionRows.length ? attentionRows.map(([count, label, detail, nav, filter]) => `<div class="list-row attention-row"><div><strong>${esc(label)}</strong><small>${esc(detail)} · ${count} item${count === 1 ? "" : "s"}</small></div><button class="button small tertiary" data-nav="${nav}" ${filter ? `data-filter="${filter}"` : ""}>Open</button></div>`).join("") : empty("Nothing needs your attention", "New claims, follow-ups, and due tasks will appear here.")}</div>
       </section>
-      <section class="section-block"><div class="panel-head"><h2>Team pipeline</h2><button class="icon-link" data-nav="team/team-overview">Team view</button></div><div class="pipeline-strip">${Object.entries(data.pipeline || {}).map(([key, value]) => `<div><strong>${value}</strong><span>${esc(titleCase(key))}</span></div>`).join("") || '<span class="muted">No queue activity yet.</span>'}</div></section>
+      <section class="section-block"><div class="panel-head"><h2>Team pulse</h2><button class="icon-link" data-nav="team/team-overview">Team view</button></div>${pipeline(pipelineStages)}</section>
     </div>
     <section class="section-block recent-block"><div class="panel-head"><h2>Recent activity</h2><small class="muted">Latest six events</small></div>${data.recent_activity.length ? `<div class="activity-feed">${data.recent_activity.slice(0, 6).map((event) => `<div class="list-row"><div><strong>${esc(titleCase(event.event))}</strong><small>${esc(event.entity_id || event.workflow_type)}</small></div><time>${ago(event.created_ts)}</time></div>`).join("")}</div>` : empty("No recent activity", "Your completed work will appear here.")}</section>
-    ${progressData.milestones?.length ? `<section class="milestone-line"><strong>Milestones</strong><div>${progressData.milestones.map((item) => `<span class="pill">${esc(item.label)}</span>`).join("")}</div></section>` : ""}`;
+    ${progressData.milestones?.length ? `<section class="milestone-line"><strong>Milestones</strong><div>${progressData.milestones.map((item) => `<span class="milestone-marker"><span aria-hidden="true">✓</span>${esc(item.label)}</span>`).join("")}</div></section>` : ""}`;
 }
 
 async function renderMyWork() {
@@ -321,22 +349,24 @@ async function renderMyWork() {
   const openTasks = tasks.items.filter((item) => !["done", "cancelled"].includes(item.status));
   state.tasks = tasks.items;
   const followups = Number(overview.summary?.followups_due || 0);
-  return `${unavailable ? `<div class="inline-warning"><strong>${unavailable} work source${unavailable === 1 ? " is" : "s are"} temporarily unavailable</strong><span>The rest of your inbox is still available. Retry with Refresh.</span></div>` : ""}<section class="today-line" aria-label="Today's work summary">
+  return `${unavailable ? `<div class="inline-warning"><strong>${unavailable} work source${unavailable === 1 ? " is" : "s are"} temporarily unavailable</strong><span>The rest of your inbox is still available. Retry with Refresh.</span></div>` : ""}<div class="inbox-heading"><p class="eyebrow">Today</p><p>Work is ordered by what needs a next action.</p></div><section class="today-line" aria-label="Today's work summary">
     ${countMetric("Active claims", queue.items.length)}
     ${countMetric("Open tasks", openTasks.length)}
     ${countMetric("Follow-ups due", followups)}
     ${countMetric("Reviews this month", overview.progress.reviews_month || 0)}
   </section><div class="workspace-grid"><div>
-    <section class="section-block"><div class="panel-head"><div><h2>Active claims</h2><p class="muted">Continue from your oldest claimed level.</p></div><button class="button small secondary" data-nav="work/queue">Full queue</button></div>${queue.items.length ? queue.items.map(workRow).join("") : empty("You're all caught up", "You do not have any active queue claims.")}</section>
+    <section class="section-block"><div class="panel-head"><div><h2>Claimed</h2><p class="muted">Continue from your oldest claimed level.</p></div><button class="button small tertiary" data-nav="work/queue">Full queue</button></div>${queue.items.length ? queue.items.map(workRow).join("") : empty("You're all caught up", "You do not have any active queue claims.")}</section>
     <section class="section-block"><div class="panel-head"><h2>Assigned tasks</h2><button class="button small secondary" data-nav="work/tasks">Manage</button></div>${openTasks.length ? openTasks.slice(0, 8).map(taskRow).join("") : empty("No open tasks", "Assigned and system-generated work will appear here.")}</section>
   </div><aside class="work-rail">
-    <section class="section-block"><h2>Next action</h2>${queue.items[0] ? `<p><strong>${esc(queue.items[0].level_name)}</strong> is your oldest visible claim.</p><button class="button primary" data-open-queue="${queue.items[0].id}">Continue review</button>` : `<p class="muted">There is no claimed level waiting for you.</p><button class="button secondary" data-nav="work/queue">Browse queue</button>`}</section>
+    <section class="section-block"><h2>Follow-ups</h2>${followups ? `<p><strong>${followups}</strong> outcome window${followups === 1 ? " is" : "s are"} due soon.</p><button class="button secondary" data-nav="work/outreach">Review follow-ups</button>` : `<p class="muted">No follow-ups need attention.</p>`}</section>
     <section class="section-block"><h2>Monthly contribution</h2><div class="metric-line"><span>Outreach attempts</span><strong>${overview.progress.outreach_attempts || 0}</strong></div><div class="metric-line"><span>Confirmed submissions</span><strong>${overview.progress.confirmed_submissions || 0}</strong></div><div class="metric-line"><span>Active days</span><strong>${overview.progress.active_days || 0}</strong></div></section>
   </aside></div>`;
 }
 
 function workRow(item) {
-  return `<div class="list-row"><div><strong>${esc(item.level_name)}</strong><small>${esc(item.level_id)} · ${esc(titleCase(item.tier))} · claimed ${ago(item.claim?.claimed_ts)}</small></div><button class="button small primary" data-open-queue="${item.id}">Open</button></div>`;
+  const next = item.state === "awaiting_outcome" ? "Check outcome" : item.state === "in_outreach" ? "Record outcome" : "Record outreach";
+  const claimStatus = item.claim?.claimed_ts ? `Claimed ${ago(item.claim.claimed_ts)}` : "Ready for action";
+  return `<div class="list-row work-item"><div><strong>${esc(item.level_name)}</strong><small>${esc(titleCase(item.tier))} · ${esc(claimStatus)}</small><span class="work-next">Next: ${esc(next)}</span></div><button class="button small tertiary" data-open-queue="${item.id}">Open</button></div>`;
 }
 
 async function renderQueue(query = "") {
@@ -345,18 +375,21 @@ async function renderQueue(query = "") {
   const data = await api(`/api/staff/queue?${params}`);
   const filters = [["unclaimed","Unclaimed"],["mine","Mine"],["claimed","Claimed"],["top_priority","Top priority"],["cp_zero","CP 0"],["cp_unknown","CP unknown"],["waiting_3","W >= 3"],["outreach","In outreach"],["awaiting","Awaiting outcome"],["stale","Stale claims"]];
   if (can("developer.access")) filters.push(["hidden", supports("hidden_queue_entries") ? "Hidden" : "Hidden (API update required)", !supports("hidden_queue_entries")]);
-  return `<div class="toolbar">
+  const activeFilter = params.get("filter") || "all";
+  return `<div class="queue-tools"><div class="quick-filters" aria-label="Quick queue filters">
+    ${[["mine","Mine"],["unclaimed","Unclaimed"],["cp_zero","CP 0"],["waiting_3","Waiting 3+"]].map(([value,label]) => `<button class="filter-chip ${activeFilter === value ? "active" : ""}" type="button" data-queue-quick="${value}" aria-pressed="${activeFilter === value}">${label}</button>`).join("")}
+    <label class="filter-field compact-filter"><span>Tier</span><select id="queue-tier" aria-label="Recommendation tier"><option value="">All tiers</option>${["rate","feature","epic","legendary","mythic"].map((value) => `<option value="${value}" ${params.get("tier") === value ? "selected" : ""}>${titleCase(value)}</option>`).join("")}</select></label>
+    <label class="filter-field compact-filter"><span>State</span><select id="queue-filter" aria-label="Queue state or filter"><option value="all">All queue</option>${filters.map(([value,label,disabled]) => `<option value="${value}" ${activeFilter === value ? "selected" : ""} ${disabled ? "disabled" : ""}>${label}</option>`).join("")}</select></label>
+  </div><div class="toolbar queue-search-row">
     <input id="queue-search" type="search" placeholder="Level ID, name, or creator" value="${esc(params.get("q") || "")}">
-    <select id="queue-filter" aria-label="Queue filter"><option value="all">All queue</option>${filters.map(([value,label,disabled]) => `<option value="${value}" ${params.get("filter") === value ? "selected" : ""} ${disabled ? "disabled" : ""}>${label}</option>`).join("")}</select>
-    <select id="queue-tier" aria-label="Recommendation tier"><option value="">All tiers</option>${["rate","feature","epic","legendary","mythic"].map((value) => `<option value="${value}" ${params.get("tier") === value ? "selected" : ""}>${titleCase(value)}</option>`).join("")}</select>
-    <button class="button secondary" data-action="queue-apply">Apply</button>
+    <button class="button secondary" data-action="queue-apply">Apply filters</button>
   </div>
   ${data.items.length ? `<div class="table-wrap"><table class="data-table queue-table"><thead><tr><th>Rank</th><th>Level</th><th>Tier</th><th>Creator</th><th>${conceptLabel("CP", conceptHelp.cp)}</th><th>${conceptLabel("W", conceptHelp.waiting)}</th><th>${conceptLabel("Priority", conceptHelp.priority)}</th><th>State</th><th>${conceptLabel("Claim", conceptHelp.claim)}</th></tr></thead><tbody>${data.items.map(queueRow).join("")}</tbody></table></div><p class="muted table-caption">Showing ${data.items.length} of ${data.total} entries</p>` : empty("No levels match this view", "Try another filter or search term.")}`;
 }
 
 function queueRow(item) {
   const claim = item.claim ? `${item.claim.user?.display_name || (item.claim.user_id === state.user.id ? "You" : "Claimed")}${item.claim.stale ? " · stale" : ""}` : "Unclaimed";
-  return `<tr data-open-queue="${item.id}" role="button" tabindex="0" aria-label="Open ${esc(item.level_name)}"><td data-label="Rank"><strong>${item.rank ? `#${item.rank}` : "-"}</strong></td><td class="level-cell"><strong>${esc(item.level_name)}</strong><small>${esc(item.level_id)}</small></td><td data-label="Tier">${pill(item.tier)}</td><td data-label="Creator">${esc(item.creator || "Unknown")}</td><td data-label="CP">${item.cp === null || item.cp === undefined ? "Unknown" : item.cp}</td><td data-label="W">${item.waiting_cycles}</td><td data-label="Priority">${item.components.complete ? Number(item.components.p).toFixed(2) : "Incomplete"}</td><td data-label="State">${pill(item.state)}</td><td data-label="Claim">${esc(claim)}</td></tr>`;
+  return `<tr data-open-queue="${item.id}" role="button" tabindex="0" aria-label="Open ${esc(item.level_name)}"><td data-label="Rank"><strong class="rank-value">${item.rank ? `#${item.rank}` : "-"}</strong></td><td class="level-cell"><strong>${esc(item.level_name)}</strong><small>${esc(item.creator || "Unknown creator")} · <span class="secondary-id">${esc(item.level_id)}</span></small></td><td data-label="Tier"><span class="tier-cell ${esc(item.tier)}">${tierArtwork(item.tier)}<span>${esc(titleCase(item.tier))}</span></span></td><td data-label="Creator">${esc(item.creator || "Unknown")}</td><td data-label="CP">${item.cp === null || item.cp === undefined ? "Unknown" : item.cp}</td><td data-label="W">${item.waiting_cycles}</td><td data-label="Priority"><strong class="priority-value">${item.components.complete ? Number(item.components.p).toFixed(2) : "Incomplete"}</strong></td><td data-label="State">${pill(item.state)}</td><td data-label="Claim">${esc(claim)}</td></tr>`;
 }
 
 async function openQueue(id) {
@@ -366,9 +399,10 @@ async function openQueue(id) {
     const item = data.queue;
     $("#detail-title").textContent = item.level_name;
     $("#drawer-content").innerHTML = `
-      <div class="drawer-identity"><div><span>Level ID</span><strong class="secondary-id">${esc(item.level_id)}</strong></div>${copyButton(item.level_id)}</div><p class="muted">Created by ${esc(item.creator)}</p>
-      <div class="detail-grid"><div class="detail-stat"><small>Tier</small><strong>${esc(titleCase(item.tier))}</strong></div><div class="detail-stat"><small>State</small><strong>${esc(titleCase(item.state))}</strong></div><div class="detail-stat"><small>Creator Points</small><strong>${item.cp ?? "Unknown"}</strong></div><div class="detail-stat"><small>Exact rank</small><strong>${item.rank ? `#${item.rank}` : "Unavailable"}</strong></div></div>
-      <details class="drawer-section" open><summary>${conceptLabel("Priority breakdown", conceptHelp.priority)}</summary><div class="detail-grid"><div class="detail-stat"><small>${conceptLabel("Prestige F", conceptHelp.priorityPrestige)}</small><strong>${item.components.f ?? "-"}</strong></div><div class="detail-stat"><small>${conceptLabel("Creator G", conceptHelp.priorityCreator)}</small><strong>${item.components.g ?? "-"}</strong></div><div class="detail-stat"><small>${conceptLabel("Waiting H", conceptHelp.priorityWaiting)}</small><strong>${item.components.h ?? "-"}</strong></div><div class="detail-stat"><small>${conceptLabel("Total P", conceptHelp.priority)}</small><strong>${item.components.complete ? Number(item.components.p).toFixed(2) : "Incomplete"}</strong></div></div></details>
+      <section class="level-inspector-hero" data-tier="${esc(item.tier)}">${tierArtwork(item.tier, "large")}<div><span>${esc(titleCase(item.tier))} recommendation</span><strong>${item.rank ? `#${item.rank} in queue` : "Queue position unavailable"}</strong></div><div class="priority-total"><small>Priority</small><strong>${item.components.complete ? Number(item.components.p).toFixed(2) : "-"}</strong></div></section>
+      <div class="drawer-identity"><div><span>Level ID</span><strong class="secondary-id">${esc(item.level_id)}</strong><small>Created by ${esc(item.creator)}</small></div>${copyButton(item.level_id)}</div>
+      <div class="detail-grid"><div class="detail-stat"><small>State</small><strong>${esc(titleCase(item.state))}</strong></div><div class="detail-stat"><small>Creator Points</small><strong>${item.cp ?? "Unknown"}</strong></div><div class="detail-stat"><small>${conceptLabel("Waiting", conceptHelp.waiting)}</small><strong>${item.waiting_cycles} cycle${item.waiting_cycles === 1 ? "" : "s"}</strong></div><div class="detail-stat"><small>Tier</small><strong class="tier-text ${esc(item.tier)}">${esc(titleCase(item.tier))}</strong></div></div>
+      <details class="drawer-section" open><summary>${conceptLabel("PPS", conceptHelp.priority)}</summary><div class="priority-breakdown"><div><small>${conceptLabel("F", conceptHelp.priorityPrestige)}</small><strong>${item.components.f ?? "-"}</strong><span>Prestige</span></div><div><small>${conceptLabel("G", conceptHelp.priorityCreator)}</small><strong>${item.components.g ?? "-"}</strong><span>Creator</span></div><div><small>${conceptLabel("H", conceptHelp.priorityWaiting)}</small><strong>${item.components.h ?? "-"}</strong><span>Waiting</span></div><div class="total"><small>${conceptLabel("P", conceptHelp.priority)}</small><strong>${item.components.complete ? Number(item.components.p).toFixed(2) : "Incomplete"}</strong><span>Total</span></div></div></details>
       <section class="drawer-section"><div class="panel-head"><h3>Actions</h3></div><div class="toolbar">
         ${item.state !== "hidden" && !item.claim && can("queue.claim") ? `<button class="button primary" data-queue-action="claim" data-id="${id}">Claim</button>` : ""}
         ${item.state !== "hidden" && item.claim && (item.claim.user_id === state.user.id || can("queue.reassign")) ? `<button class="button secondary" data-queue-action="release" data-id="${id}">Release</button>` : ""}
@@ -425,8 +459,8 @@ async function renderNotes() {
 
 async function renderTeamOverview() {
   const team = await api("/api/staff/team");
-  return `<div class="summary-band"><div><p class="eyebrow">Team operations</p><h2>Shared workload</h2><small>Progress uses real workflow denominators.</small></div><div><small>Active claims</small><strong>${team.claims.active}</strong></div><div><small>${conceptLabel("Stale claims", conceptHelp.staleClaim)}</small><strong>${team.claims.stale}</strong></div><div><small>Queued</small><strong>${team.queue.queued || 0}</strong></div></div>
-    <div class="workspace-grid"><section class="panel">${progress("Current request wave", team.review_progress.done, team.review_progress.total)}<div class="detail-grid"><div class="detail-stat"><small>Outreach attempts this week</small><strong>${team.outreach_week.attempts}</strong></div><div class="detail-stat"><small>Confirmed submissions this week</small><strong>${team.outreach_week.submissions}</strong></div><div class="detail-stat"><small>Pending applications</small><strong>${team.pending_applications}</strong></div></div></section><section class="panel"><h2>Current claim workload</h2>${team.workload.length ? team.workload.map((item) => `<div class="metric-line"><span>${esc(identityLabel(item.identity, item.user_id))}</span><strong>${item.active_claims}</strong></div>`).join("") : '<p class="muted">No active claims.</p>'}</section></div>`;
+  return `<section class="progress-strip" aria-label="Team operations summary">${countMetric("Reviews", `${team.review_progress.done} / ${team.review_progress.total}`)}${countMetric("Queue", team.queue.queued || 0)}${countMetric("Outreach", team.outreach_week.attempts)}${countMetric("Applications", team.pending_applications)}</section>
+    <div class="workspace-grid"><section class="section-block"><div class="panel-head"><div><h2>Current request wave</h2><p class="muted">Shared review progress with a real denominator.</p></div></div>${progress("Reviews", team.review_progress.done, team.review_progress.total)}<div class="detail-grid"><div class="detail-stat"><small>Active claims</small><strong>${team.claims.active}</strong></div><div class="detail-stat"><small>${conceptLabel("Stale claims", conceptHelp.staleClaim)}</small><strong>${team.claims.stale}</strong></div><div class="detail-stat"><small>Outreach attempts</small><strong>${team.outreach_week.attempts}</strong></div><div class="detail-stat"><small>Confirmed submissions</small><strong>${team.outreach_week.submissions}</strong></div></div></section><section class="section-block"><h2>Current claim workload</h2>${team.workload.length ? team.workload.map((item) => `<div class="list-row human-row"><div><strong>${esc(identityLabel(item.identity, item.user_id))}</strong><small class="secondary-id">${esc(exactId(item.user_id))}</small></div><strong>${item.active_claims} active</strong></div>`).join("") : empty("No active claims", "The team currently has no claimed outreach work.")}</section></div>`;
 }
 
 async function renderStatistics() {
@@ -441,7 +475,7 @@ async function renderStatistics() {
     <div class="workspace-grid"><section class="section-block"><div class="panel-head"><div><h2>${data.scope === "team" ? "Reviewer activity" : "My review activity"}</h2><p class="muted">Review counts and real median turnaround.</p></div></div>${data.reviewers.map((item) => {
       const known = state.staffItems.some((member) => exactId(member.id) === exactId(item.reviewed_by));
       const content = `<div><strong>${esc(item.identity?.display_name || "Unresolved staff identity")}</strong><small class="secondary-id">${esc(exactId(item.reviewed_by || item.identity?.id || "Unknown"))}</small><small>Median turnaround: ${item.median_turnaround ? `${Math.round(item.median_turnaround / 3600)}h` : "Unavailable"}</small></div><strong>${item.reviews} reviews</strong>`;
-      return known ? `<button class="list-row row-button" data-open-staff="${esc(exactId(item.reviewed_by))}">${content}</button>` : `<div class="list-row">${content}</div>`;
+      return known ? `<button class="list-row row-button human-row" data-open-staff="${esc(exactId(item.reviewed_by))}">${content}</button>` : `<div class="list-row human-row">${content}</div>`;
     }).join("") || empty("No review statistics yet")}</section><section class="section-block"><h2>Queue and outreach</h2><div class="detail-grid"><div class="detail-stat"><small>Attempts</small><strong>${data.outreach.attempts}</strong></div><div class="detail-stat"><small>Confirmed</small><strong>${data.outreach.submissions}</strong></div><div class="detail-stat"><small>Follow-ups</small><strong>${data.outreach.followups}</strong></div><div class="detail-stat"><small>Stale claims</small><strong>${data.stale_claims}</strong></div></div>${data.outreach.routes.map((route) => `<div class="metric-line"><span>${esc(titleCase(route.route_type))}</span><strong>${route.submissions || 0} / ${route.attempts}</strong></div>`).join("")}${Object.entries(data.queue).map(([queueState, count]) => `<div class="metric-line"><span>${esc(titleCase(queueState))}</span><strong>${count}</strong></div>`).join("")}</section></div>
     <div class="statistics-grid"><section class="section-block"><h2>Review decisions</h2>${Object.entries(data.results).map(([result,count]) => `<div class="distribution-row"><span>${esc(titleCase(result))}</span><progress aria-label="${esc(titleCase(result))} decisions" aria-valuemin="0" aria-valuemax="${Math.max(1, reviewTotal)}" aria-valuenow="${count}" max="${Math.max(1, reviewTotal)}" value="${count}"></progress><strong>${count}</strong></div>`).join("") || '<p class="muted">No reviewed levels yet.</p>'}</section><section class="section-block"><h2>Recommendation tiers</h2>${Object.entries(data.tiers).map(([tier,count]) => `<div class="metric-line"><span>${pill(tier)}</span><strong>${count}</strong></div>`).join("") || '<p class="muted">No tier data yet.</p>'}<h3>Distributions</h3><p class="muted">Waiting: ${esc(Object.entries(data.waiting_distribution).map(([key,value]) => `W${key}: ${value}`).join(" | ") || "None")}</p><p class="muted">Creator Points: ${esc(Object.entries(data.cp_distribution).map(([key,value]) => `${key}: ${value}`).join(" | ") || "None")}</p></section></div>`;
 }
@@ -469,7 +503,7 @@ async function renderStaff() {
   const addStaff = can("developer.access")
     ? `<button class="button primary" data-action="add-staff" ${manualManagement ? "" : 'disabled aria-disabled="true" title="Deploy the matching Avenue Guard API to enable this control"'}>Add staff</button>`
     : "";
-  return `<div class="panel-head"><div><h2>Staff access</h2><p class="muted">Discord roles remain authoritative. Portal names are separate and every access change is audited.</p></div>${addStaff}</div>${can("developer.access") && !manualManagement ? '<p class="warning-text">Add staff is preserved but temporarily disabled because the deployed Avenue Guard API is older than this portal. Deploy Avenue Guard to enable it.</p>' : ""}${data.items.length ? `<div class="record-list">${data.items.map((member) => `<button class="record-row staff-record" type="button" data-open-staff="${esc(exactId(member.id))}"><span class="identity-row">${member.avatar_url ? `<img src="${esc(member.avatar_url)}" alt="" width="36" height="36">` : ""}<span><strong>${esc(member.display_name)}</strong><small>${esc(member.role_label || roleLabel(member.role))} · ${member.reviews} reviews · ${member.workload} active claims</small></span></span>${pill(member.active ? "active" : "inactive")}<span class="row-chevron" aria-hidden="true">View</span></button>`).join("")}</div>` : empty("No configured staff roles found")}`;
+  return `<div class="panel-head"><div><h2>Staff access</h2><p class="muted">Discord roles remain authoritative. Portal names are separate and every access change is audited.</p></div>${addStaff}</div>${can("developer.access") && !manualManagement ? '<p class="warning-text">Add staff is preserved but temporarily disabled because the deployed Avenue Guard API is older than this portal. Deploy Avenue Guard to enable it.</p>' : ""}${data.items.length ? `<div class="record-list staff-list">${data.items.map((member) => `<button class="record-row staff-record" type="button" data-open-staff="${esc(exactId(member.id))}"><span class="identity-row">${member.avatar_url ? `<img src="${esc(member.avatar_url)}" alt="" width="40" height="40">` : '<span class="avatar-fallback" aria-hidden="true"></span>'}<span><strong>${esc(member.display_name)}</strong><small>${member.reviews} reviews · ${member.workload} active claims${member.last_activity_ts ? ` · active ${ago(member.last_activity_ts)}` : ""}</small><small class="secondary-id">${esc(exactId(member.id))}</small></span></span>${rolePill(member.role, member.role_label)}<span class="row-chevron" aria-hidden="true">View</span></button>`).join("")}</div>` : empty("No configured staff roles found")}`;
 }
 
 function openApplication(id) {
@@ -524,11 +558,11 @@ function openStaffInspector(id) {
   const member = state.staffItems.find((entry) => exactId(entry.id) === exactId(id));
   if (!member) return showNotice("That staff identity is no longer in this view", true);
   openDrawer("Staff inspector", member.display_name, `
-    <div class="profile-hero">${member.avatar_url ? `<img src="${esc(member.avatar_url)}" alt="" width="64" height="64">` : ""}<div>${pill(member.role_label || roleLabel(member.role))}${pill(member.active ? "active" : "inactive")}</div></div>
+    <div class="profile-hero">${member.avatar_url ? `<img src="${esc(member.avatar_url)}" alt="" width="64" height="64">` : '<span class="avatar-fallback large" aria-hidden="true"></span>'}<div>${rolePill(member.role, member.role_label)}${pill(member.active ? "active" : "inactive")}</div></div>
     <div class="drawer-identity"><div><span>Exact Discord ID</span><strong class="secondary-id">${esc(exactId(member.id))}</strong></div>${copyButton(member.id)}</div>
-    <div class="detail-grid"><div class="detail-stat"><small>Reviews</small><strong>${member.reviews || 0}</strong></div><div class="detail-stat"><small>Active claims</small><strong>${member.workload || 0}</strong></div><div class="detail-stat"><small>Last activity</small><strong>${member.last_activity_ts ? ago(member.last_activity_ts) : "Unknown"}</strong></div><div class="detail-stat"><small>${conceptLabel("Role delivery", conceptHelp.roleDelivery)}</small><strong>${esc(titleCase(member.role_delivery_status || "current"))}</strong></div></div>
-    <section class="drawer-section"><h3>Portal identity</h3><p class="muted">The portal nickname does not change the Discord server nickname.</p><button class="button secondary" data-nickname-id="${esc(exactId(member.id))}" data-nickname-value="${esc(member.portal_nickname || "")}">Edit nickname</button></section>
-    ${can("staff.manage_standard_roles") ? `<section class="drawer-section"><h3>Access</h3><button class="button secondary" data-staff-action="${esc(exactId(member.id))}" data-staff-role="${esc(member.role)}">Manage staff access</button></section>` : ""}`);
+    <section class="drawer-section"><h3>Work and statistics</h3><div class="detail-grid"><div class="detail-stat"><small>Reviews</small><strong>${member.reviews || 0}</strong></div><div class="detail-stat"><small>Active claims</small><strong>${member.workload || 0}</strong></div><div class="detail-stat"><small>Last activity</small><strong>${member.last_activity_ts ? ago(member.last_activity_ts) : "Unknown"}</strong></div><div class="detail-stat"><small>${conceptLabel("Role delivery", conceptHelp.roleDelivery)}</small><strong>${esc(titleCase(member.role_delivery_status || "current"))}</strong></div></div></section>
+    <section class="drawer-section"><h3>Profile</h3><p class="muted">The portal nickname does not change the Discord server nickname.</p><button class="button secondary" data-nickname-id="${esc(exactId(member.id))}" data-nickname-value="${esc(member.portal_nickname || "")}">Edit nickname</button></section>
+    ${can("staff.manage_standard_roles") ? `<section class="drawer-section"><h3>Management</h3><button class="button secondary" data-staff-action="${esc(exactId(member.id))}" data-staff-role="${esc(member.role)}">Manage staff access</button></section>` : ""}`);
 }
 
 function openQAInspector(id) {
@@ -543,7 +577,7 @@ function openQAInspector(id) {
 async function renderOperations() {
   const data = await api("/api/staff/operations");
   const health = (ready) => pill(ready ? "healthy" : "degraded", ready ? "" : "warning");
-  return `<div class="summary-band"><div><p class="eyebrow">Live operations</p><h2>${esc(data.service.state || "Unknown")}</h2><small>${esc(data.service.detail || "No service detail")}</small></div><div><small>Bot readiness</small><strong>${health(data.runtime.ready)}</strong></div><div><small>Database</small><strong>${health(data.database.connected)}</strong></div><div><small>Open incidents</small><strong>${data.incidents.length}</strong></div></div>
+  return `<div class="summary-band operations-summary"><div><p class="eyebrow">Avenue Guard</p><h2><span class="state-dot ${data.runtime.ready ? "healthy" : "degraded"}" aria-hidden="true"></span>${esc(data.service.state || "Unknown")}</h2><small>${esc(data.service.detail || "No service detail")}</small></div><div><small>Bot readiness</small><strong>${health(data.runtime.ready)}</strong></div><div><small>Database</small><strong>${health(data.database.connected)}</strong></div><div><small>Open incidents</small><strong>${data.incidents.length}</strong></div></div>
     <section class="system-status-line" aria-label="Operations summary">${countMetric("Gateway", data.runtime.responsive ? "Healthy" : "Degraded")}${countMetric("Outbox pending", data.outbox.pending || 0)}${countMetric("Current wave", titleCase(data.request_wave.state || "unknown"))}${countMetric("Providers", `${Object.values(data.providers || {}).filter((item) => !item.circuit_open).length} healthy`)}</section>
     <details class="admin-disclosure"><summary>View diagnostics</summary><div class="operations-grid"><section class="section-block"><h2>Core systems</h2><div class="metric-line"><span>Database worker</span>${health(data.database.connected && data.database.worker_alive !== false)}</div><div class="metric-line"><span>PPS maintenance</span><strong>${esc(titleCase(data.pps_worker || "unknown"))}</strong></div><div class="metric-line"><span>Public level cache</span><strong>${esc(titleCase(data.public_cache?.state || "unknown"))}</strong></div></section><section class="section-block"><h2>Durable outbox</h2>${["pending","processing","dead","delivered"].map((key) => `<div class="metric-line"><span>${esc(titleCase(key))}</span><strong>${data.outbox[key] || 0}</strong></div>`).join("")}</section><section class="section-block"><h2>Providers</h2>${Object.entries(data.providers || {}).map(([name, provider]) => `<div class="list-row"><div><strong>${esc(titleCase(name))}</strong><small>${esc(provider.last_error || "No recent error")}</small></div>${pill(provider.circuit_open ? "degraded" : "healthy", provider.circuit_open ? "warning" : "")}</div>`).join("") || '<p class="muted">Provider telemetry is not available yet.</p>'}</section><section class="section-block"><h2>Background workers</h2>${Object.entries(data.background_workers || {}).map(([name, status]) => `<div class="metric-line"><span>${esc(titleCase(name))}</span><strong>${esc(titleCase(status))}</strong></div>`).join("") || '<p class="muted">No worker telemetry available.</p>'}</section></div></details>
     <section class="section-block incident-panel"><div class="panel-head"><div><h2>Recent incidents</h2><p class="muted">Sanitized summaries; open one only when investigation is needed.</p></div></div>${data.incidents.map((item) => `<article class="incident-row"><div><strong>${esc(item.component)}</strong><span>${esc(item.error_type)}: ${esc(item.summary)}</span><small>${item.occurrence_count} occurrence${item.occurrence_count === 1 ? "" : "s"} · last seen ${ago(item.last_seen_ts)}</small></div>${item.details_available ? `<button class="button small secondary" data-incident="${esc(item.fingerprint)}">View details</button>` : ""}</article>`).join("") || '<p class="muted">No open incidents.</p>'}</section>`;
@@ -566,10 +600,19 @@ async function renderSystem() {
     api("/api/staff/system"),
     can("config.manage_safe") ? api("/api/staff/configuration").catch(() => null) : Promise.resolve(null),
   ]);
-  return `<div class="panel-head"><div><h2>System</h2><p class="muted">Sanitized engineering diagnostics. Secrets and raw environment values are never returned.</p></div></div>
+  const providerEntries = Object.entries(data.providers || {});
+  const workerEntries = Object.entries(data.background_workers || {});
+  return `<div class="panel-head"><div><h2>System</h2><p class="muted">An engineering console with details disclosed only when you need them.</p></div></div>
     <div class="system-status-line">${countMetric("Runtime", data.runtime.ready ? "Ready" : "Degraded")}${countMetric("Database", data.database.connected ? "Connected" : "Unavailable")}${countMetric("Waiting operations", data.database.waiting_operations || 0)}${countMetric("Dead outbox", data.dead_outbox.length)}</div>
-    <details class="admin-disclosure" open><summary>Runtime and database</summary><div class="operations-grid"><section class="section-block"><h3>Runtime</h3><div class="metric-line"><span>Heartbeat age</span><strong>${data.runtime.heartbeat_age_seconds ?? "Unknown"}s</strong></div><div class="metric-line"><span>Event-loop lag</span><strong>${data.runtime.event_loop_lag_ms ?? "Unknown"}ms</strong></div></section><section class="section-block"><h3>Database</h3><div class="metric-line"><span>Remote primary</span><strong>${data.database.uses_remote ? "Yes" : "No"}</strong></div><div class="metric-line"><span>Waiting operations</span><strong>${data.database.waiting_operations || 0}</strong></div></section></div></details>
-    <details class="admin-disclosure"><summary>Schema and delivery diagnostics</summary><div class="operations-grid"><section class="section-block"><h3>${conceptLabel("Schema versions", conceptHelp.schema)}</h3>${data.schemas.map((item) => `<div class="metric-line"><span>${esc(item.component)}</span><strong>v${item.schema_version}</strong></div>`).join("") || '<p class="muted">No schema metadata.</p>'}</section><section class="section-block"><h3>${conceptLabel("Identity integrity", conceptHelp.identityIntegrity)}</h3>${Object.entries(data.identity_repairs || {}).map(([status, item]) => `<div class="metric-line"><span>${esc(titleCase(status))}</span><strong>${item.records} records · ${item.rows_changed} rows</strong></div>`).join("") || '<p class="muted">No legacy snowflake repairs recorded.</p>'}</section><section class="section-block"><h3>${conceptLabel("Dead outbox entries", conceptHelp.outbox)}</h3><strong>${data.dead_outbox.length}</strong><p class="muted">Inspect correlation IDs before replaying side effects.</p></section></div></details>
+    <div class="system-console">
+      <details class="admin-disclosure"><summary><span><strong>Runtime</strong><small>${data.runtime.ready ? "Ready" : "Degraded"} · heartbeat ${data.runtime.heartbeat_age_seconds ?? "unknown"}s ago</small></span></summary><div class="diagnostic-body"><div class="metric-line"><span>Heartbeat age</span><strong>${data.runtime.heartbeat_age_seconds ?? "Unknown"}s</strong></div><div class="metric-line"><span>Event-loop lag</span><strong>${data.runtime.event_loop_lag_ms ?? "Unknown"}ms</strong></div></div></details>
+      <details class="admin-disclosure"><summary><span><strong>Database</strong><small>${data.database.connected ? "Connected" : "Unavailable"} · ${data.database.waiting_operations || 0} waiting</small></span></summary><div class="diagnostic-body"><div class="metric-line"><span>Remote primary</span><strong>${data.database.uses_remote ? "Yes" : "No"}</strong></div><div class="metric-line"><span>Waiting operations</span><strong>${data.database.waiting_operations || 0}</strong></div><h3>${conceptLabel("Schema versions", conceptHelp.schema)}</h3>${data.schemas.map((item) => `<div class="metric-line"><span>${esc(item.component)}</span><strong>v${item.schema_version}</strong></div>`).join("") || '<p class="muted">No schema metadata.</p>'}</div></details>
+      <details class="admin-disclosure"><summary><span><strong>Outbox</strong><small>${data.dead_outbox.length} dead · durable delivery diagnostics</small></span></summary><div class="diagnostic-body"><h3>${conceptLabel("Dead outbox entries", conceptHelp.outbox)}</h3><strong>${data.dead_outbox.length}</strong><p class="muted">Inspect correlation IDs before replaying side effects.</p></div></details>
+      <details class="admin-disclosure"><summary><span><strong>Workers</strong><small>${workerEntries.length || "No"} worker state${workerEntries.length === 1 ? "" : "s"} available</small></span></summary><div class="diagnostic-body">${workerEntries.map(([name, status]) => `<div class="metric-line"><span>${esc(titleCase(name))}</span><strong>${esc(titleCase(status))}</strong></div>`).join("") || '<p class="muted">No worker telemetry is available.</p>'}</div></details>
+      <details class="admin-disclosure"><summary><span><strong>Providers</strong><small>${providerEntries.filter(([, provider]) => !provider.circuit_open).length} healthy · ${providerEntries.filter(([, provider]) => provider.circuit_open).length} degraded</small></span></summary><div class="diagnostic-body">${providerEntries.map(([name, provider]) => `<div class="list-row"><div><strong>${esc(titleCase(name))}</strong><small>${esc(provider.last_error || "No recent error")}</small></div>${pill(provider.circuit_open ? "degraded" : "healthy", provider.circuit_open ? "warning" : "")}</div>`).join("") || '<p class="muted">Provider telemetry is not available yet.</p>'}</div></details>
+      <details class="admin-disclosure"><summary><span><strong>Requests and PPS</strong><small>${esc(titleCase(data.request_wave?.state || "unknown"))} wave · maintenance ${esc(titleCase(data.background_workers?.["priority.maintenance"] || "unknown"))}</small></span></summary><div class="diagnostic-body"><div class="metric-line"><span>Request wave</span><strong>${esc(titleCase(data.request_wave?.state || "unknown"))}</strong></div><div class="metric-line"><span>PPS maintenance</span><strong>${esc(titleCase(data.background_workers?.["priority.maintenance"] || "unknown"))}</strong></div><div class="metric-line"><span>Public level cache</span><strong>${esc(titleCase(data.public_cache?.state || "unknown"))}</strong></div></div></details>
+      <details class="admin-disclosure"><summary><span><strong>Identity integrity</strong><small>Legacy Discord ID repair status</small></span></summary><div class="diagnostic-body">${Object.entries(data.identity_repairs || {}).map(([status, item]) => `<div class="metric-line"><span>${esc(titleCase(status))}</span><strong>${item.records} records · ${item.rows_changed} rows</strong></div>`).join("") || '<p class="muted">No legacy snowflake repairs recorded.</p>'}</div></details>
+    </div>
     ${config ? `<details class="admin-disclosure"><summary>Safe configuration</summary><div class="form-grid compact-form"><label>${conceptLabel("Stale claim threshold in hours", conceptHelp.staleClaim)}<input id="config-stale" type="number" min="1" max="720" value="${config.configuration.claim_stale_hours}"></label><label class="checkbox-row"><input id="config-apps" type="checkbox" ${config.configuration.applications_open ? "checked" : ""}><span>${conceptLabel("Application submissions enabled", "Emergency master switch for every application type. Existing drafts and submitted applications remain accessible when this is off.")}</span></label>${supports("application_type_availability") ? `<label class="checkbox-row"><input id="config-app-judge" type="checkbox" ${config.configuration.application_open_by_type?.judge !== false ? "checked" : ""}><span>Reviewer applications open</span></label><label class="checkbox-row"><input id="config-app-mod" type="checkbox" ${config.configuration.application_open_by_type?.mod !== false ? "checked" : ""}><span>Mod applications open</span></label>` : '<p class="inline-warning">Deploy Avenue Guard API v6 to manage each application type independently.</p>'}<button class="button primary" data-action="config-save">Save configuration</button></div></details>` : ""}
     <details class="admin-disclosure danger-zone"><summary>Recovery actions</summary><p class="muted">Use only after inspecting the relevant incident or worker state. Every action is audited.</p><div class="toolbar">${data.available_actions.map((action) => `<button class="button secondary" data-system-action="${esc(action)}">${esc(titleCase(action))}</button>`).join("")}</div></details>`;
 }
@@ -596,6 +639,7 @@ const renderers = {
 function openDrawer(eyebrow, title, html) {
   const drawer = $("#detail-drawer");
   state.drawerReturnFocus = document.activeElement?.offsetParent !== null ? document.activeElement : $("#profile-button");
+  drawer.dataset.inspector = String(eyebrow || "detail").toLowerCase().replace(/\s+inspector$/, "").replace(/[^a-z0-9]+/g, "-");
   $("#detail-eyebrow").textContent = eyebrow;
   $("#detail-title").textContent = title;
   $("#drawer-content").innerHTML = html;
@@ -614,6 +658,7 @@ function closeDrawer() {
   drawer.inert = true;
   $("#drawer-scrim").hidden = true;
   document.body.classList.remove("drawer-open");
+  document.querySelectorAll(".is-selected").forEach((item) => item.classList.remove("is-selected"));
   if (state.drawerReturnFocus instanceof HTMLElement) state.drawerReturnFocus.focus();
   state.drawerReturnFocus = null;
 }
@@ -967,12 +1012,22 @@ document.addEventListener("click", async (event) => {
     const destination = destinations[searchResult.dataset.searchType];
     if (destination) return navigate(destination[0], destination[1]);
   }
+  const quickFilter = event.target.closest("[data-queue-quick]");
+  if (quickFilter) {
+    const current = new URLSearchParams(state.queueQuery || "limit=50");
+    current.set("filter", current.get("filter") === quickFilter.dataset.queueQuick ? "all" : quickFilter.dataset.queueQuick);
+    if ($("#queue-search")) current.set("q", $("#queue-search").value);
+    if ($("#queue-tier")) current.set("tier", $("#queue-tier").value);
+    state.queueQuery = current.toString();
+    loading(); try { $("#content").innerHTML = await renderQueue(state.queueQuery); } catch (error) { errorState(error); }
+    return;
+  }
   const open = event.target.closest("[data-open-queue]");
-  if (open) return openQueue(open.dataset.openQueue);
+  if (open) { markSelectedRecord("data-open-queue", open.dataset.openQueue); return openQueue(open.dataset.openQueue); }
   const openApplicationButton = event.target.closest("[data-open-application]");
-  if (openApplicationButton) return openApplication(openApplicationButton.dataset.openApplication);
+  if (openApplicationButton) { markSelectedRecord("data-open-application", openApplicationButton.dataset.openApplication); return openApplication(openApplicationButton.dataset.openApplication); }
   const openStaffButton = event.target.closest("[data-open-staff]");
-  if (openStaffButton) return openStaffInspector(openStaffButton.dataset.openStaff);
+  if (openStaffButton) { markSelectedRecord("data-open-staff", openStaffButton.dataset.openStaff); return openStaffInspector(openStaffButton.dataset.openStaff); }
   const openQAButton = event.target.closest("[data-open-qa]");
   if (openQAButton) return openQAInspector(openQAButton.dataset.openQa);
   const openTaskButton = event.target.closest("[data-open-task]");
@@ -1143,8 +1198,7 @@ document.addEventListener("click", (event) => {
   if (help) {
     event.preventDefault();
     event.stopPropagation();
-    if (activeHelpTrigger === help) hideHelpTooltip();
-    else showHelpTooltip(help);
+    showHelpTooltip(help);
     return;
   }
   hideHelpTooltip();

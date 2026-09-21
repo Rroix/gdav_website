@@ -6,6 +6,10 @@ const script = readFileSync(new URL("../staff/staff.js", import.meta.url), "utf8
 const markup = readFileSync(new URL("../staff/index.html", import.meta.url), "utf8");
 const styles = readFileSync(new URL("../staff/staff.css", import.meta.url), "utf8");
 const application = readFileSync(new URL("../apply/apply.js", import.meta.url), "utf8");
+const publicStyles = readFileSync(new URL("../styles.css", import.meta.url), "utf8");
+const publicLevelStyles = readFileSync(new URL("../levels/public-levels.css", import.meta.url), "utf8");
+const publicLevels = readFileSync(new URL("../levels/levels.js", import.meta.url), "utf8");
+const aesthetics = readFileSync(new URL("../docs/WEB_AESTHETICS.md", import.meta.url), "utf8");
 
 test("staff UI keeps Discord snowflakes as strings", () => {
   assert.doesNotMatch(script, /Number\(body\.(?:assignee|reviewer|requester|user)_id\)/);
@@ -134,6 +138,7 @@ test("task creation uses the authoritative staff directory and explains internal
   assert.doesNotMatch(script, /class="help-tip"[^>]+title=/);
   assert.match(script, /portal-help-tooltip/);
   assert.match(script, /removeAttribute\("aria-describedby"\)/);
+  assert.doesNotMatch(script, /activeHelpTrigger === help\) hideHelpTooltip/);
   assert.match(script, /conceptHelp\.linkedEntity/);
   assert.match(script, /conceptHelp\.outbox/);
   assert.match(script, /conceptHelp\.priority/);
@@ -206,4 +211,47 @@ test("OAuth compatibility bridges are one-shot and clean callback parameters", (
   assert.match(application, /params\.delete\("code"\)/);
   assert.match(application, /params\.delete\("state"\)/);
   assert.match(application, /sessionStorage\.getItem\(replayKey\) === oauthState/);
+});
+
+test("visual identity uses restrained geometric primitives and stable motion tokens", () => {
+  assert.match(styles, /--t-fast: 140ms/);
+  assert.match(styles, /--t-med: 210ms/);
+  assert.match(styles, /\.nav-button\[data-module="overview"\]::before[^}]+rotate\(45deg\)/s);
+  assert.match(styles, /\.page-heading::after/);
+  assert.match(styles, /\.pipeline-node[^}]+rotate\(45deg\)/s);
+  assert.match(styles, /\.timeline li::before[^}]+rotate\(45deg\)/s);
+  assert.match(styles, /\.section-nav\[hidden\] \{ display: none; \}/);
+  assert.match(styles, /prefers-reduced-motion/);
+  assert.doesNotMatch(styles, /font-size:\s*clamp\([^;]*(?:vw|vmin|vmax)/);
+});
+
+test("workspace hierarchy keeps queue, people, and diagnostics scannable", () => {
+  assert.match(script, /function rolePill/);
+  assert.match(script, /function tierArtwork/);
+  assert.match(script, /function pipeline/);
+  assert.match(script, /This week/);
+  assert.match(script, /Work is ordered by what needs a next action/);
+  assert.match(script, /Ready for action/);
+  assert.match(script, /data-queue-quick/);
+  assert.match(script, /class="level-inspector-hero"/);
+  assert.match(script, /<strong>Runtime<\/strong>/);
+  assert.match(script, /<strong>Identity integrity<\/strong>/);
+  assert.match(styles, /\.role-badge/);
+  assert.match(styles, /\.detail-drawer[^}]+width: min\(500px, 100%\)/s);
+  assert.match(styles, /\.empty-state[^}]+min-height: 164px/s);
+  assert.doesNotMatch(styles, /\.data-table th[^}]+position:\s*sticky/s);
+});
+
+test("public polish keeps editorial pages separate from the dense level directory", () => {
+  assert.match(publicStyles, /\.about-hero\.surface,\s*\.privacy-hero\.surface[^}]+background: transparent/s);
+  assert.match(publicStyles, /\.privacy-section\.surface[^}]+border-radius: 0/s);
+  assert.match(publicStyles, /\.bot-metrics[^}]+border-top: 1px solid var\(--line-strong\)/s);
+  assert.match(publicStyles, /nav[^}]+overflow-x: auto/s);
+  assert.match(publicStyles, /nav a[^}]+flex: 0 0 auto/s);
+  assert.match(publicLevelStyles, /\.public-level-row[^}]+min-height: 78px/s);
+  assert.match(publicLevelStyles, /\.public-tier\.mythic/);
+  assert.match(publicLevels, /assets\/send-types\/pps_\$\{safe\}\.png/);
+  assert.match(aesthetics, /## Geometric Signature/);
+  assert.match(aesthetics, /### Shared Component Families/);
+  assert.match(aesthetics, /Reviewer, Head Reviewer, Admin, Owner, and Dev/);
 });

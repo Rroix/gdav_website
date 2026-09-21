@@ -113,9 +113,9 @@ main {
 h1 {
   margin: 0 0 10px;
   text-align: center;
-  font-size: clamp(1.8rem, 1vw + 1.45rem, 2.35rem);
+  font-size: 2.2rem;
   line-height: 1.2;
-  letter-spacing: -0.02em;
+  letter-spacing: 0;
 }
 
 .intro,
@@ -633,11 +633,24 @@ a.inline {
   }
 
   .logo {
+    justify-content: center;
     text-align: center;
   }
 
   nav {
-    justify-content: center;
+    flex-wrap: nowrap;
+    justify-content: flex-start;
+    overflow-x: auto;
+    padding-bottom: 2px;
+    scrollbar-width: none;
+  }
+
+  nav::-webkit-scrollbar {
+    display: none;
+  }
+
+  nav a {
+    flex: 0 0 auto;
   }
 
   main {
@@ -2076,6 +2089,169 @@ a.inline {
   .level-thumbnail,
   .level-id-copy,
   .level-id-copy code {
+    transition: none;
+  }
+}
+
+/* Visual identity polish: public pages remain calm, editorial, and spacious. */
+header::after {
+  content: "";
+  position: absolute;
+  inset: auto 0 -1px auto;
+  width: min(18vw, 180px);
+  height: 1px;
+  background: var(--line-strong);
+  clip-path: polygon(10px 0, 100% 0, 100% 100%, 0 100%);
+}
+
+.logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.logo::before {
+  content: "";
+  width: 9px;
+  height: 9px;
+  flex: 0 0 auto;
+  border: 1px solid var(--line-strong);
+  transform: rotate(45deg);
+}
+
+nav a {
+  position: relative;
+}
+
+nav a.active::after {
+  content: "";
+  position: absolute;
+  inset: auto 10px -1px;
+  height: 2px;
+  background: var(--text);
+}
+
+button,
+input,
+select,
+textarea,
+a {
+  -webkit-tap-highlight-color: transparent;
+}
+
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+a:focus-visible {
+  outline: 2px solid var(--text);
+  outline-offset: 3px;
+}
+
+.about-hero.surface,
+.privacy-hero.surface {
+  padding: 22px 0 26px;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--line-strong);
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.privacy-grid {
+  gap: 0;
+  border-top: 1px solid var(--line-strong);
+}
+
+.privacy-section.surface {
+  padding: 22px 0;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.profile-card {
+  min-height: 100%;
+}
+
+.profile-avatar.using-fallback {
+  padding: 8px;
+  background: var(--bg-soft);
+  object-fit: contain;
+}
+
+.profile-card:hover {
+  transform: none;
+}
+
+.bot-metrics {
+  gap: 0;
+  border-top: 1px solid var(--line-strong);
+  border-bottom: 1px solid var(--line-strong);
+}
+
+.metric-card.surface {
+  min-height: 126px;
+  background: transparent;
+  border: 0;
+  border-right: 1px solid var(--line);
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.metric-card.surface:last-child {
+  border-right: 0;
+}
+
+.system-row.surface {
+  border-radius: 8px;
+  box-shadow: none;
+}
+
+.health-chart.surface {
+  box-shadow: none;
+}
+
+.release-card.surface {
+  box-shadow: none;
+}
+
+.generator-toolbar {
+  box-shadow: none;
+}
+
+.generator-panel {
+  border-color: var(--line-strong);
+  box-shadow: none;
+}
+
+@media (max-width: 860px) {
+  .metric-card.surface:nth-child(2) {
+    border-right: 0;
+  }
+
+  .metric-card.surface:nth-child(-n + 2) {
+    border-bottom: 1px solid var(--line);
+  }
+}
+
+@media (max-width: 560px) {
+  .metric-card.surface,
+  .metric-card.surface:nth-child(2) {
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .metric-card.surface:last-child {
+    border-bottom: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .profile-card,
+  nav a {
     transition: none;
   }
 }

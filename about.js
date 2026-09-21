@@ -7,6 +7,24 @@
   var images = Array.from(document.querySelectorAll("[data-team-user-id]"));
   if (!images.length) return;
 
+  function applyAvatar(image, avatarUrl) {
+    if (!/^https:\/\//i.test(avatarUrl)) return;
+    var fallbackUrl = image.dataset.fallbackSrc || image.src;
+    image.dataset.fallbackSrc = fallbackUrl;
+    image.onerror = function () {
+      image.onerror = null;
+      image.classList.add("using-fallback");
+      image.src = fallbackUrl;
+    };
+    image.classList.remove("using-fallback");
+    image.src = avatarUrl;
+  }
+
+  images.forEach(function (image) {
+    image.dataset.fallbackSrc = image.src;
+    applyAvatar(image, String(image.dataset.avatarUrl || ""));
+  });
+
   fetch(API_URL, {
     cache: "no-store",
     headers: { Accept: "application/json" }
@@ -22,7 +40,7 @@
     images.forEach(function (image) {
       var member = members.get(String(image.dataset.teamUserId || ""));
       var avatarUrl = String(member && member.avatar_url || "");
-      if (/^https:\/\//i.test(avatarUrl)) image.src = avatarUrl;
+      applyAvatar(image, avatarUrl);
     });
   }).catch(function () {
     // The checked-in image remains a stable fallback while Avenue Guard restarts.
