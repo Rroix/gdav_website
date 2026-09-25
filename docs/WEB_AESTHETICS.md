@@ -250,6 +250,10 @@ Role-aware operational workspace with capability-gated navigation and server-enf
 
 Long-form reading layout using the public surface system. Policy sections use headings, paragraphs, and lists rather than dashboard widgets.
 
+### Queue Methodology (`methodology/queue/`)
+
+Public editorial documentation, not a dashboard. A sticky left contents rail sits outside a 700–800px reading column on desktop and becomes a collapsible contents panel on mobile. Sections are unframed, anchorable, and separated by quiet rules. Formula surfaces use accessible MathML, restrained accent borders, and overflow protection. The PPS calculator is the only tool-like block; it never reads private queue data. Live model status is one compact sentence and never exposes evidence counts, routes, targets, posterior parameters, or staff identities. Public spacing, typography rhythm, and 14px surface radius apply; Staff Portal density does not.
+
 ## Motion And Interaction
 
 - Motion is short and functional. Public transitions use `140ms` or `220ms`; Staff transitions use `140ms` or `210ms`.

@@ -43,6 +43,19 @@
     notice: document.getElementById("levelNotice"),
     retry: document.getElementById("levelRetry")
   };
+  elements.probability = document.getElementById("levelProbability");
+  elements.probabilityAccess = document.getElementById("probabilityAccess");
+  elements.probabilityAccessPoint = document.getElementById("probabilityAccessPoint");
+  elements.probabilityAccessInterval = document.getElementById("probabilityAccessInterval");
+  elements.probabilityAccessStrength = document.getElementById("probabilityAccessStrength");
+  elements.probabilityRating = document.getElementById("probabilityRating");
+  elements.probabilityRatingPoint = document.getElementById("probabilityRatingPoint");
+  elements.probabilityRatingInterval = document.getElementById("probabilityRatingInterval");
+  elements.probabilityRatingStrength = document.getElementById("probabilityRatingStrength");
+  elements.probabilityOverall = document.getElementById("probabilityOverall");
+  elements.probabilityPoint = document.getElementById("probabilityPoint");
+  elements.probabilityInterval = document.getElementById("probabilityInterval");
+  elements.probabilityStrength = document.getElementById("probabilityStrength");
 
   function levelIdFromLocation() {
     var match = window.location.pathname.match(/\/level\/(\d{7,9})\/?$/);
@@ -164,6 +177,32 @@
     renderStatus(model);
     renderTimeline(model);
     renderThumbnail(model);
+    if (model.probability) {
+      var access = model.probability.access;
+      var rating = model.probability.rating;
+      var overall = model.probability.overall;
+      elements.probability.hidden = false;
+      elements.probabilityAccess.hidden = !access;
+      elements.probabilityRating.hidden = !rating;
+      elements.probabilityOverall.hidden = !overall;
+      if (access) {
+        elements.probabilityAccessPoint.textContent = access.probabilityPercent + "%";
+        elements.probabilityAccessInterval.textContent = "Likely range " + access.interval90[0] + "%–" + access.interval90[1] + "%";
+        elements.probabilityAccessStrength.textContent = "Evidence: " + access.evidenceStrength.replaceAll("_", " ");
+      }
+      if (rating) {
+        elements.probabilityRatingPoint.textContent = rating.probabilityPercent + "%";
+        elements.probabilityRatingInterval.textContent = "Likely range " + rating.interval90[0] + "%–" + rating.interval90[1] + "%";
+        elements.probabilityRatingStrength.textContent = "Evidence: " + rating.evidenceStrength.replaceAll("_", " ");
+      }
+      if (overall) {
+        elements.probabilityPoint.textContent = overall.probabilityPercent + "%";
+        elements.probabilityInterval.textContent = "Likely range " + overall.interval90[0] + "%–" + overall.interval90[1] + "%";
+        elements.probabilityStrength.textContent = "Evidence: " + overall.evidenceStrength.replaceAll("_", " ");
+      }
+    } else {
+      elements.probability.hidden = true;
+    }
     document.title = model.levelName + " | GD Avenue";
 
     if (relativeTimer) window.clearInterval(relativeTimer);
@@ -194,6 +233,7 @@
     elements.share.disabled = true;
     elements.notice.textContent = message;
     elements.retry.hidden = !levelId;
+    elements.probability.hidden = true;
     document.title = "Level unavailable | GD Avenue";
   }
 

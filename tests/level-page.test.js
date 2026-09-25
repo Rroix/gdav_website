@@ -147,6 +147,31 @@ test("timeline marks only evidence-backed stages and supports terminal states", 
   });
 });
 
+test("public estimates expose only active available components", () => {
+  const accessOnly = Core.normalizePayload({
+    level_id: "101935961",
+    probability: {
+      status: "active",
+      access_probability_percent: 63.4,
+      access_credible_interval_90_percent: [48.2, 76.1],
+      access_evidence_strength: "moderate"
+    }
+  });
+  assert.equal(accessOnly.probability.access.probabilityPercent, 63);
+  assert.deepEqual(accessOnly.probability.access.interval90, [48, 76]);
+  assert.equal(accessOnly.probability.rating, null);
+  assert.equal(accessOnly.probability.overall, null);
+
+  const provisional = Core.normalizePayload({
+    probability: {
+      status: "provisional",
+      access_probability_percent: 63,
+      access_credible_interval_90_percent: [48, 76]
+    }
+  });
+  assert.equal(provisional.probability, null);
+});
+
 test("copy helper writes only the supplied numeric level ID", async () => {
   let copied = "";
   await Core.copyText("101935961", {
@@ -162,6 +187,10 @@ test("page structure keeps the ID as the control and Share after progress", () =
   assert.doesNotMatch(HTML, /What this means/i);
   assert.match(SCRIPT, /navigator\.share/);
   assert.match(SCRIPT, /aria-label", "Copy level ID /);
+  assert.match(HTML, />How we order the queue</);
+  assert.match(HTML, /id="probabilityAccess" hidden/);
+  assert.match(HTML, /id="probabilityRating" hidden/);
+  assert.match(HTML, /id="probabilityOverall" hidden/);
 });
 
 test("tier focus accents, responsive timeline, and thumbnail fallback are present", () => {

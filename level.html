@@ -68,9 +68,40 @@
       </div>
     </section>
 
+    <section class="level-probability" id="levelProbability" aria-labelledby="probabilityTitle" hidden>
+      <div class="level-section-inner level-probability__inner">
+        <div>
+          <p class="level-section-kicker">Observed evidence</p>
+          <h2 id="probabilityTitle">Avenue estimates</h2>
+          <p>These estimates use only evidence that has passed publication safeguards. They are not promises and do not affect queue order.</p>
+        </div>
+        <div class="level-probability__figures">
+          <div class="level-probability__figure" id="probabilityAccess" hidden>
+            <span>Reaching a moderator</span>
+            <strong id="probabilityAccessPoint">--%</strong>
+            <small id="probabilityAccessInterval"></small>
+            <small id="probabilityAccessStrength"></small>
+          </div>
+          <div class="level-probability__figure" id="probabilityRating" hidden>
+            <span>Rated after reaching a moderator</span>
+            <strong id="probabilityRatingPoint">--%</strong>
+            <small id="probabilityRatingInterval"></small>
+            <small id="probabilityRatingStrength"></small>
+          </div>
+          <div class="level-probability__figure level-probability__figure--overall" id="probabilityOverall" hidden>
+            <span>Overall Avenue path</span>
+            <strong id="probabilityPoint">--%</strong>
+            <small id="probabilityInterval">90% likely range unavailable</small>
+            <small id="probabilityStrength"></small>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <section class="level-actions" aria-label="Recommendation page actions">
       <div class="level-section-inner level-actions__inner">
         <p class="level-updated" id="levelUpdated"></p>
+        <a class="level-methodology-link" href="/methodology/queue/">How we order the queue</a>
         <div class="level-share-group">
           <button class="level-share" id="levelShare" type="button">Share this recommendation</button>
           <span class="level-share-feedback" id="levelShareFeedback" role="status" aria-live="polite"></span>

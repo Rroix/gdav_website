@@ -133,6 +133,25 @@
     }
     if (queueState !== "queued" && queueState !== "in_cycle") priorityBand = null;
 
+    function probabilityPart(prefix) {
+      var point = data.probability[prefix + "probability_percent"];
+      var interval = data.probability[prefix + "credible_interval_90_percent"];
+      if (!Number.isFinite(Number(point)) || !Array.isArray(interval) || interval.length < 2) return null;
+      return {
+        probabilityPercent: Math.max(0, Math.min(100, Math.round(Number(point)))),
+        interval90: interval.slice(0, 2).map(function (value) {
+          return Math.max(0, Math.min(100, Math.round(Number(value))));
+        }),
+        evidenceStrength: String(data.probability[prefix + "evidence_strength"] || data.probability.evidence_strength || "limited")
+      };
+    }
+    var probability = data.probability && data.probability.status === "active" ? {
+      access: probabilityPart("access_"),
+      rating: probabilityPart("rating_"),
+      overall: probabilityPart("")
+    } : null;
+    if (probability && !probability.access && !probability.rating && !probability.overall) probability = null;
+
     return {
       schemaVersion: Number(data.schema_version || 1),
       levelId: String(data.level_id || ""),
@@ -146,7 +165,8 @@
       outcomeState: outcomeState || "unknown",
       submittedToModAt: timestampSeconds(data.submitted_to_mod_at),
       ratedObservedAt: timestampSeconds(data.rated_observed_at),
-      lastUpdatedAt: timestampSeconds(data.last_updated_at || data.updated_ts)
+      lastUpdatedAt: timestampSeconds(data.last_updated_at || data.updated_ts),
+      probability: probability
     };
   }
 

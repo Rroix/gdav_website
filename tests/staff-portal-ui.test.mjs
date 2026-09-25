@@ -326,3 +326,15 @@ test("public polish keeps editorial pages separate from the dense level director
   assert.match(aesthetics, /### Shared Component Families/);
   assert.match(aesthetics, /Reviewer, Head Reviewer, Admin, Owner, and Dev/);
 });
+
+test("PPS Statistics Lab exposes operational models without becoming a ranking control", () => {
+  assert.match(script, /PPS · Statistics Lab/);
+  assert.match(script, /capacity_model_v1/);
+  assert.match(script, /Posteriors and subgroup shrinkage/);
+  assert.match(script, /Calibration/);
+  assert.match(script, /Capacity simulator/);
+  assert.match(script, /Start new era/);
+  assert.match(script, /Add audited exclusion/);
+  assert.match(script, /Simulation only/);
+  assert.match(script, /never alter review decisions, queue scores, or outreach actions/i);
+});

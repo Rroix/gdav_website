@@ -50,6 +50,15 @@ test("privacy policy covers public health samples and curated Discord avatars", 
   assert.match(policy, /checked-in profile image remains the fallback/);
 });
 
+test("privacy policy covers model evidence and durable Discord subscriptions", () => {
+  assert.match(policy, /outreach episodes/);
+  assert.match(policy, /immutable prediction snapshots/);
+  assert.match(policy, /network eras/);
+  assert.match(policy, /aggregate Bayesian estimates/);
+  assert.match(policy, /priority-band changes are optional and disabled by default/);
+  assert.match(policy, /does not use browser push notifications or email/);
+});
+
 test("authenticated entry points link to the privacy policy", () => {
   assert.match(staff, /href="\/privacy\.html"/);
   assert.match(application, /href="\/privacy\.html"/);

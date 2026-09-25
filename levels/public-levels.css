@@ -8,6 +8,7 @@
 .search-hero { max-width: 760px; padding-bottom: 34px; }
 .search-hero h1 { margin: 8px 0; font-size: 3.35rem; letter-spacing: 0; }
 .search-hero p { color: var(--muted); }
+.methodology-link { color: var(--accent); font-weight: 750; text-underline-offset: 4px; }
 .search-field input { width: 100%; height: 50px; margin-top: 16px; padding: 0 16px; color: var(--text); background: var(--surface); border: 1px solid var(--line-strong); border-left: 3px solid var(--accent); border-radius: 5px; font-size: 1rem; }
 .search-field input:focus { outline: 2px solid var(--accent); outline-offset: 3px; }
 .level-results { border-top: 1px solid var(--line-strong); }

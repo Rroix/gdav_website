@@ -1879,6 +1879,24 @@ a.inline {
   background: #050506;
 }
 
+.level-probability { background: #0b0d0f; border-top: 1px solid rgba(255,255,255,.12); }
+.level-probability__inner { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 44px; align-items: center; padding-top: 42px; padding-bottom: 42px; }
+.level-probability h2 { margin: 4px 0 10px; letter-spacing: 0; }
+.level-probability p { max-width: 650px; color: rgba(255,255,255,.66); line-height: 1.6; }
+.level-probability__figures { display: grid; grid-template-columns: repeat(3, minmax(150px, 1fr)); gap: 1px; background: rgba(255,255,255,.12); }
+.level-probability__figure { display: grid; min-width: 0; padding: 22px; background: #0b0d0f; border-top: 3px solid rgba(74,209,181,.45); }
+.level-probability__figure[hidden] { display: none; }
+.level-probability__figure--overall { border-top-color: #4ad1b5; }
+.level-probability__figure strong { font-size: 3.2rem; line-height: 1; letter-spacing: 0; }
+.level-probability__figure span, .level-probability__figure small { margin-top: 7px; color: rgba(255,255,255,.66); }
+.level-methodology-link { color: #4ad1b5; font-weight: 750; text-underline-offset: 4px; }
+
+@media (max-width: 680px) {
+  .level-probability__inner { grid-template-columns: 1fr; gap: 24px; }
+  .level-probability__figures { grid-template-columns: 1fr; }
+  .level-probability__figure { padding: 18px; }
+}
+
 .level-actions__inner {
   display: flex;
   align-items: center;
