@@ -156,8 +156,18 @@ Do not add geometric backgrounds, repeated patterns, floating shapes, gradients,
 - `:focus-visible` uses the accent outline. Long-text fields also receive an inset accent ring without adding a second left-edge highlight.
 - Radio/choice options are entire clickable labels and visibly change surface and ink when selected.
 - Required state is stated in the visible label and validated again by Avenue Guard.
-- Help buttons are real 18px buttons. They use one shared fixed-position tooltip that is clamped to the viewport, opens on hover/focus/click, closes on Escape/outside interaction, and never combines a native `title` tooltip with custom help text.
+- Help buttons are real 18px buttons. They use one shared, overlay-context-aware fixed-position tooltip that is clamped to the visual viewport, opens on hover/focus/click, closes on Escape/outside interaction, and never combines a native `title` tooltip with custom help text.
+- A help trigger in a browser top-layer dialog or popover renders the shared tooltip into a host inside that active top-layer context. Normal pages and non-top-layer drawers use the document overlay host. A body-level tooltip must never be used to fight a native dialog with a larger `z-index`.
+- Dialog and drawer scrolling belongs to an intentional inner scroll region. Overlay hosts sit outside that clipping region; do not solve tooltip clipping by making every form or table overflow-visible.
 - Application-type availability and cooldown are different states. A closed type is unavailable; a cooldown is per applicant and per application type.
+
+### Layering
+
+- Staff layers use `--z-base`, `--z-sticky`, `--z-menu`, `--z-drawer`, `--z-overlay`, and `--z-tooltip`. Do not introduce one-off giant `z-index` values.
+- Native dialogs and popovers participate in the browser top layer, which is outside the normal z-index hierarchy. The layer tokens order content only within the same DOM/top-layer context.
+- The drawer transform is retained for its entrance transition and intentionally creates a stacking context. Drawer help uses the document overlay host so it is neither transformed nor clipped by the drawer's scrolling surface.
+- Sticky top bars and application save rows retain `backdrop-filter` for legibility and therefore create intentional local stacking contexts. Decorative transforms on diamonds and markers are local and must not become overlay ancestors.
+- Only one contextual tooltip is open at a time. Click-open help remains visible through pointer leave and blur; Escape, outside click, parent-overlay close, or a view change removes it and its temporary `aria-describedby` relationship.
 
 ### Tables And Lists
 
@@ -280,7 +290,7 @@ Public editorial documentation, not a dashboard. A sticky left contents rail sit
 - Interactive non-link elements are native buttons, inputs, selects, details, or dialogs whenever possible.
 - Images have meaningful alt text; decorative status dots are hidden from assistive technology.
 - Canvas graphs use `role="img"`, a live `aria-label`, and an adjacent text summary containing the same key information.
-- Tooltips contain supplemental explanations only. The trigger has a concise accessible name and references the tooltip only while it is open, preventing duplicate announcements.
+- Tooltips contain supplemental explanations only. The trigger has a concise accessible name and references the `role="tooltip"` element only while it is open, preventing duplicate announcements. Tooltip content is not an `aria-live` region.
 - Color-coded state always has readable text.
 - `aria-live` is reserved for meaningful status changes and not applied to entire rapidly changing workspaces.
 
@@ -305,6 +315,6 @@ Public editorial documentation, not a dashboard. A sticky left contents rail sit
 - Browser zoom at 200% with no clipped labels or inaccessible actions.
 - Long display names, IDs, errors, and status labels wrap without overlap.
 - Empty and unavailable API states preserve usable navigation and fallback images.
-- The help tooltip appears once, stays inside the viewport, and closes predictably.
+- The help tooltip appears once, stays inside the viewport, and closes predictably on page, drawer, dialog, nested-overlay, touch, keyboard, scroll, resize, Safari, and 200% zoom checks.
 - Status canvases are nonblank when data exists and provide textual summaries when it does not.
 - Reviewer, Head Reviewer, Admin, Owner, and Dev views expose only capability-appropriate controls.

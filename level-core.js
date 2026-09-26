@@ -101,6 +101,7 @@
     var outreachState = String(data.public_outreach_state || "").toLowerCase();
     var outcomeState = String(data.public_outcome_state || "").toLowerCase();
     var priorityBand = data.public_priority_band || null;
+    var priorityComplete = data.priority_complete !== false && data.public_priority_status !== "pending";
 
     // Transitional support for schema 1. Exact rank is never rendered.
     if (!queueState) {
@@ -111,9 +112,10 @@
       else if (data.queue_position != null) queueState = "queued";
       else queueState = "unknown";
     }
-    if (!priorityBand && (queueState === "queued" || queueState === "in_cycle")) {
+    if (priorityComplete && !priorityBand && (queueState === "queued" || queueState === "in_cycle")) {
       priorityBand = publicPriorityBand(data.queue_position, data.active_queue_total);
     }
+    if (!priorityComplete) priorityBand = null;
     if (!outreachState) {
       outreachState = {
         queued: "queued_for_outreach",
@@ -161,6 +163,7 @@
       recommendedAt: timestampSeconds(data.recommended_at || data.recommended_ts),
       queueState: queueState || "unknown",
       priorityBand: priorityBand,
+      priorityComplete: priorityComplete,
       outreachState: outreachState || "unknown",
       outcomeState: outcomeState || "unknown",
       submittedToModAt: timestampSeconds(data.submitted_to_mod_at),
@@ -176,7 +179,7 @@
       value: model.recommendedAt,
       kind: "time"
     };
-    var priority = PRIORITY_LABELS[model.priorityBand] || "Unknown";
+    var priority = model.priorityComplete ? (PRIORITY_LABELS[model.priorityBand] || "Status available") : "Calculating";
     var outreach = OUTREACH_LABELS[model.outreachState] || "Unknown";
     var outcome = OUTCOME_LABELS[model.outcomeState] || "Unknown";
     var fields;

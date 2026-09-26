@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 
 const script = readFileSync(new URL("../staff/staff.js", import.meta.url), "utf8");
+const helpTooltip = readFileSync(new URL("../staff/help-tooltip.js", import.meta.url), "utf8");
 const markup = readFileSync(new URL("../staff/index.html", import.meta.url), "utf8");
 const styles = readFileSync(new URL("../staff/staff.css", import.meta.url), "utf8");
 const application = readFileSync(new URL("../apply/apply.js", import.meta.url), "utf8");
@@ -63,10 +64,39 @@ test("operational records use inspectors and compact queue columns", () => {
   assert.match(script, /conceptLabel\("Claim", conceptHelp\.claim\)/);
   assert.match(script, /data-copy=/);
   assert.match(script, /const formatPps/);
+  assert.match(script, /item\.components\.complete && item\.rank !== null/);
+  assert.match(script, /const rankedCount = Number\.isFinite/);
+  assert.match(script, /const pendingCount = Number\.isFinite/);
   assert.match(script, /maximumFractionDigits: 2/);
   assert.match(script, /formatPps\(item\.components\.f\)/);
   assert.match(script, /formatPps\(item\.components\.p\)/);
+  assert.match(script, /item\.components\.complete && item\.rank \? `#\$\{item\.rank\}` : "—"/);
+  assert.match(script, /item\.components\.complete && item\.rank \? `#\$\{item\.rank\} in queue`/);
   assert.doesNotMatch(script, /item\.components\.(?:f|g|h) \?\? "-"/);
+});
+
+test("Operations exposes private Creator Points provider diagnostics", () => {
+  assert.match(script, /data\.creator_points_providers/);
+  assert.match(script, /Creator Points providers/);
+  assert.match(script, /provider\.success_rate/);
+  assert.match(script, /provider\.cp_success_rate/);
+  assert.match(script, /provider\.identity_success_rate/);
+  assert.match(script, /provider\.median_latency_ms/);
+  assert.match(script, /provider\.parse_failures/);
+  assert.match(script, /provider\.last_success/);
+  assert.match(script, /provider\.methods/);
+  assert.match(script, /method\.method/);
+  assert.match(script, /gdbrowser: "GDBrowser"/);
+  assert.match(script, /gdrateplus: "GDRate\+"/);
+  assert.match(script, /api_profile: "API fallback"/);
+  assert.match(styles, /\.provider-method/);
+});
+
+test("Head-level Creator Points attention can be retried from Overview", () => {
+  assert.match(script, /data\.attention_items/);
+  assert.match(script, /Creator Points unresolved/);
+  assert.match(script, /item\.unresolved_minutes/);
+  assert.match(script, /data-queue-action="retry-cp"/);
 });
 
 test("search provides keyboard jump navigation and loading uses skeletons", () => {
@@ -141,9 +171,10 @@ test("task creation uses the authoritative staff directory and explains internal
   assert.match(script, /class="help-tip"/);
   assert.match(script, /<button class="help-tip" type="button"/);
   assert.doesNotMatch(script, /class="help-tip"[^>]+title=/);
-  assert.match(script, /portal-help-tooltip/);
-  assert.match(script, /removeAttribute\("aria-describedby"\)/);
-  assert.doesNotMatch(script, /activeHelpTrigger === help\) hideHelpTooltip/);
+  assert.match(helpTooltip, /portal-help-tooltip/);
+  assert.match(helpTooltip, /removeAttribute\("aria-describedby"\)/);
+  assert.match(helpTooltip, /activeTopLayer/);
+  assert.match(helpTooltip, /active\.mode === "click"/);
   assert.match(script, /conceptHelp\.linkedEntity/);
   assert.match(script, /conceptHelp\.outbox/);
   assert.match(script, /conceptHelp\.priority/);

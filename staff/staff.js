@@ -95,6 +95,8 @@ const conceptHelp = {
   pps: "The Priority Point System orders eligible recommended levels for outreach. It does not change review decisions or claim that moderator contact has occurred.",
   priority: "The current Priority Point System total. It combines the configured prestige, creator, and waiting components when all required data is available.",
   priorityCreator: "The creator component (G) used by the current Priority Point System model.",
+  priorityPending: "Creator Points are required before Avenue can calculate the final PPS priority.",
+  creatorResolving: "Avenue is still resolving the uploader's current Creator Points. This level will enter the ranked queue automatically once its priority can be calculated.",
   priorityPrestige: "The recommendation-tier component (F) used by the current Priority Point System model.",
   priorityWaiting: "The waiting component (H), which increases as an eligible level remains in later outreach cycles.",
   roleDelivery: "Whether Avenue Guard has finished the queued Discord role change for this staff profile.",
@@ -105,53 +107,8 @@ const conceptHelp = {
 };
 const helpTip = (text, label = "this item") => `<button class="help-tip" type="button" aria-label="Explain ${esc(label)}" aria-expanded="false" data-help="${esc(text)}">?</button>`;
 const conceptLabel = (label, help) => `<span class="concept-label">${esc(label)}${helpTip(help, label)}</span>`;
-let activeHelpTrigger = null;
-function helpTooltipElement() {
-  let tooltip = $("#portal-help-tooltip");
-  if (tooltip) return tooltip;
-  tooltip = document.createElement("div");
-  tooltip.id = "portal-help-tooltip";
-  tooltip.className = "portal-help-tooltip";
-  tooltip.setAttribute("role", "tooltip");
-  tooltip.hidden = true;
-  document.body.appendChild(tooltip);
-  return tooltip;
-}
-function positionHelpTooltip() {
-  if (!activeHelpTrigger?.isConnected) return hideHelpTooltip();
-  const tooltip = helpTooltipElement();
-  const trigger = activeHelpTrigger.getBoundingClientRect();
-  const tooltipRect = tooltip.getBoundingClientRect();
-  const margin = 12;
-  const centered = trigger.left + trigger.width / 2 - tooltipRect.width / 2;
-  const left = Math.max(margin, Math.min(centered, window.innerWidth - tooltipRect.width - margin));
-  const above = trigger.top - tooltipRect.height - 9;
-  const top = above >= margin ? above : Math.min(trigger.bottom + 9, window.innerHeight - tooltipRect.height - margin);
-  tooltip.style.left = `${Math.round(left)}px`;
-  tooltip.style.top = `${Math.round(Math.max(margin, top))}px`;
-}
-function showHelpTooltip(trigger) {
-  if (!(trigger instanceof HTMLElement)) return;
-  const text = String(trigger.dataset.help || "").trim();
-  if (!text) return;
-  if (activeHelpTrigger && activeHelpTrigger !== trigger) activeHelpTrigger.setAttribute("aria-expanded", "false");
-  activeHelpTrigger = trigger;
-  trigger.setAttribute("aria-expanded", "true");
-  trigger.setAttribute("aria-describedby", "portal-help-tooltip");
-  const tooltip = helpTooltipElement();
-  tooltip.textContent = text;
-  tooltip.hidden = false;
-  positionHelpTooltip();
-}
-function hideHelpTooltip() {
-  if (activeHelpTrigger) {
-    activeHelpTrigger.setAttribute("aria-expanded", "false");
-    activeHelpTrigger.removeAttribute("aria-describedby");
-  }
-  activeHelpTrigger = null;
-  const tooltip = $("#portal-help-tooltip");
-  if (tooltip) tooltip.hidden = true;
-}
+const helpTooltips = window.StaffHelpTooltip.createController(document, window);
+helpTooltips.install();
 const percent = (done, total) => total ? Math.round((Number(done) / Number(total)) * 100) : 0;
 const cookieValue = (name) => document.cookie.split(";").map((item) => item.trim()).find((item) => item.startsWith(`${name}=`))?.slice(name.length + 1) || "";
 const exactId = (value) => String(value ?? "");
@@ -286,6 +243,7 @@ function sectionAllowed(section) {
 }
 
 async function navigate(module, section) {
+  helpTooltips.close();
   state.module = module;
   state.section = section || modules[module].sections.find(sectionAllowed) || modules[module].sections[0];
   localStorage.setItem("av-staff-module", state.module);
@@ -300,6 +258,7 @@ async function navigate(module, section) {
 }
 
 async function render() {
+  helpTooltips.close();
   loading();
   const request = ++state.request;
   try {
@@ -323,7 +282,8 @@ async function renderOverview() {
   const summary = data.summary || {};
   const progressData = data.progress || {};
   const tasks = progressData.tasks_total || 0;
-  const attention = Number(summary.stale_claims || 0) + Number(summary.tasks_due || 0) + Number(summary.followups_due || 0);
+  const creatorAttention = Array.isArray(data.attention_items) ? data.attention_items.filter((item) => item.type === "creator_points") : [];
+  const attention = Number(summary.stale_claims || 0) + Number(summary.tasks_due || 0) + Number(summary.followups_due || 0) + creatorAttention.length;
   $("#top-attention").textContent = attention ? `${attention} item${attention === 1 ? "" : "s"} need attention` : "No urgent items";
   const name = data.user.portal_nickname || data.user.display_name;
   const attentionRows = [
@@ -349,7 +309,7 @@ async function renderOverview() {
     </div></section>
     <div class="workspace-grid">
       <section class="section-block"><div class="panel-head"><h2>Needs attention</h2><button class="icon-link" data-nav="work/my-work">Open My Work</button></div>
-        <div class="stack">${attentionRows.length ? attentionRows.map(([count, label, detail, nav, filter]) => `<div class="list-row attention-row"><div><strong>${esc(label)}</strong><small>${esc(detail)} · ${count} item${count === 1 ? "" : "s"}</small></div><button class="button small tertiary" data-nav="${nav}" ${filter ? `data-filter="${filter}"` : ""}>Open</button></div>`).join("") : empty("Nothing needs your attention", "New claims, follow-ups, and due tasks will appear here.")}</div>
+        <div class="stack">${attentionRows.map(([count, label, detail, nav, filter]) => `<div class="list-row attention-row"><div><strong>${esc(label)}</strong><small>${esc(detail)} · ${count} item${count === 1 ? "" : "s"}</small></div><button class="button small tertiary" data-nav="${nav}" ${filter ? `data-filter="${filter}"` : ""}>Open</button></div>`).join("")}${creatorAttention.map((item) => `<div class="list-row attention-row"><div><strong>Creator Points unresolved</strong><small>${esc(item.level_name)} · ${item.unresolved_minutes}m${item.escalated ? " · escalated" : ""}</small></div><button class="button small secondary" data-queue-action="retry-cp" data-id="${item.queue_id}">Retry</button></div>`).join("")}${!attentionRows.length && !creatorAttention.length ? empty("Nothing needs your attention", "New claims, follow-ups, and due tasks will appear here.") : ""}</div>
       </section>
       <section class="section-block"><div class="panel-head"><h2>Team pulse</h2><button class="icon-link" data-nav="team/team-overview">Team view</button></div>${pipeline(pipelineStages)}</section>
     </div>
@@ -397,6 +357,12 @@ async function renderQueue(query = "") {
   const filters = [["unclaimed","Unclaimed"],["mine","Mine"],["claimed","Claimed"],["top_priority","Top priority"],["cp_zero","CP 0"],["cp_unknown","CP unknown"],["waiting_3","W >= 3"],["outreach","In outreach"],["awaiting","Awaiting outcome"],["stale","Stale claims"]];
   if (can("developer.access")) filters.push(["hidden", supports("hidden_queue_entries") ? "Hidden" : "Hidden (API update required)", !supports("hidden_queue_entries")]);
   const activeFilter = params.get("filter") || "all";
+  const ranked = data.items.filter((item) => item.components.complete && item.rank !== null && item.rank !== undefined);
+  const pending = data.items.filter((item) => !item.components.complete && ["queued", "in_cycle"].includes(item.state));
+  const other = data.items.filter((item) => !ranked.includes(item) && !pending.includes(item));
+  const rankedCount = Number.isFinite(Number(data.ranked_count)) ? Number(data.ranked_count) : ranked.length;
+  const pendingCount = Number.isFinite(Number(data.pending_count)) ? Number(data.pending_count) : pending.length;
+  const table = (items) => `<div class="table-wrap"><table class="data-table queue-table"><thead><tr><th>Rank</th><th>Level</th><th>Tier</th><th>Creator</th><th>${conceptLabel("CP", conceptHelp.cp)}</th><th>${conceptLabel("W", conceptHelp.waiting)}</th><th>${conceptLabel("Priority", conceptHelp.priority)}</th><th>State</th><th>${conceptLabel("Claim", conceptHelp.claim)}</th></tr></thead><tbody>${items.map(queueRow).join("")}</tbody></table></div>`;
   return `<div class="queue-tools"><div class="quick-filters" aria-label="Quick queue filters">
     ${[["mine","Mine"],["unclaimed","Unclaimed"],["cp_zero","CP 0"],["waiting_3","Waiting 3+"]].map(([value,label]) => `<button class="filter-chip ${activeFilter === value ? "active" : ""}" type="button" data-queue-quick="${value}" aria-pressed="${activeFilter === value}">${label}</button>`).join("")}
     <label class="filter-field compact-filter"><span>Tier</span><select id="queue-tier" aria-label="Recommendation tier"><option value="">All tiers</option>${["rate","feature","epic","legendary","mythic"].map((value) => `<option value="${value}" ${params.get("tier") === value ? "selected" : ""}>${titleCase(value)}</option>`).join("")}</select></label>
@@ -405,12 +371,23 @@ async function renderQueue(query = "") {
     <input id="queue-search" type="search" placeholder="Level ID, name, or creator" value="${esc(params.get("q") || "")}">
     <button class="button secondary" data-action="queue-apply">Apply filters</button>
   </div>
-  ${data.items.length ? `<div class="table-wrap"><table class="data-table queue-table"><thead><tr><th>Rank</th><th>Level</th><th>Tier</th><th>Creator</th><th>${conceptLabel("CP", conceptHelp.cp)}</th><th>${conceptLabel("W", conceptHelp.waiting)}</th><th>${conceptLabel("Priority", conceptHelp.priority)}</th><th>State</th><th>${conceptLabel("Claim", conceptHelp.claim)}</th></tr></thead><tbody>${data.items.map(queueRow).join("")}</tbody></table></div><p class="muted table-caption">Showing ${data.items.length} of ${data.total} entries</p>` : empty("No levels match this view", "Try another filter or search term.")}`;
+  ${data.items.length ? `<section class="queue-result-section" aria-labelledby="ranked-queue-heading"><div class="queue-section-heading"><div><p class="eyebrow">Ranked queue</p><h2 id="ranked-queue-heading">${rankedCount} ranked</h2></div></div>${ranked.length ? table(ranked) : empty("Ranked queue is waiting for creator data", "Levels appear here automatically after Creator Points are verified.")}</section>
+  ${pending.length ? `<section class="queue-result-section pending-priority" aria-labelledby="pending-priority-heading"><div class="queue-section-heading"><div><p class="eyebrow">Pending priority data</p><h2 id="pending-priority-heading">${pendingCount} pending</h2></div><small>Not ranked</small></div>${table(pending)}</section>` : ""}
+  ${other.length ? `<section class="queue-result-section" aria-labelledby="other-queue-heading"><div class="queue-section-heading"><div><p class="eyebrow">Other states</p><h2 id="other-queue-heading">History and outcomes</h2></div></div>${table(other)}</section>` : ""}
+  <p class="muted table-caption">Showing ${data.items.length} of ${data.total} entries</p>` : empty("No levels match this view", "Try another filter or search term.")}`;
+}
+
+function creatorPointsDisplay(item) {
+  if (item.cp !== null && item.cp !== undefined) return String(item.cp);
+  if (item.creator_points_status === "conflict") return "Verifying…";
+  if (item.creator_points_status === "needs_attention") return "Unavailable";
+  return "Resolving…";
 }
 
 function queueRow(item) {
-  const claim = item.claim ? `${item.claim.user?.display_name || (item.claim.user_id === state.user.id ? "You" : "Claimed")}${item.claim.stale ? " · stale" : ""}` : "Unclaimed";
-  return `<tr data-open-queue="${item.id}" role="button" tabindex="0" aria-label="Open ${esc(item.level_name)}"><td data-label="Rank"><strong class="rank-value">${item.rank ? `#${item.rank}` : "-"}</strong></td><td class="level-cell"><strong>${esc(item.level_name)}</strong><small>${esc(item.creator || "Unknown creator")} · <span class="secondary-id">${esc(item.level_id)}</span></small></td><td data-label="Tier"><span class="tier-cell ${esc(item.tier)}">${tierArtwork(item.tier)}<span>${esc(titleCase(item.tier))}</span></span></td><td data-label="Creator">${esc(item.creator || "Unknown")}</td><td data-label="CP">${item.cp === null || item.cp === undefined ? "Unknown" : item.cp}</td><td data-label="W">${item.waiting_cycles}</td><td data-label="Priority"><strong class="priority-value">${item.components.complete ? formatPps(item.components.p) : "Incomplete"}</strong></td><td data-label="State">${pill(item.state)}</td><td data-label="Claim">${esc(claim)}</td></tr>`;
+  const claim = !item.components.complete ? "Waiting for Creator Points" : item.claim ? `${item.claim.user?.display_name || (item.claim.user_id === state.user.id ? "You" : "Claimed")}${item.claim.stale ? " · stale" : ""}` : "Unclaimed";
+  const pendingHelp = !item.components.complete ? ` title="${esc(conceptHelp.creatorResolving)}"` : "";
+  return `<tr data-open-queue="${item.id}" role="button" tabindex="0" aria-label="Open ${esc(item.level_name)}"><td data-label="Rank"><strong class="rank-value">${item.components.complete && item.rank ? `#${item.rank}` : "—"}</strong></td><td class="level-cell"><strong>${esc(item.level_name)}</strong><small>${esc(item.creator || "Unknown creator")} · <span class="secondary-id">${esc(item.level_id)}</span></small></td><td data-label="Tier"><span class="tier-cell ${esc(item.tier)}">${tierArtwork(item.tier)}<span>${esc(titleCase(item.tier))}</span></span></td><td data-label="Creator">${esc(item.creator || "Unknown")}</td><td data-label="CP"${pendingHelp}>${esc(creatorPointsDisplay(item))}</td><td data-label="W">${item.waiting_cycles}</td><td data-label="Priority"${pendingHelp}><strong class="priority-value">${item.components.complete ? formatPps(item.components.p) : "Pending"}</strong></td><td data-label="State">${pill(item.state)}</td><td data-label="Claim"${pendingHelp}>${esc(claim)}</td></tr>`;
 }
 
 async function openQueue(id) {
@@ -420,12 +397,13 @@ async function openQueue(id) {
     const item = data.queue;
     $("#detail-title").textContent = item.level_name;
     $("#drawer-content").innerHTML = `
-      <section class="level-inspector-hero" data-tier="${esc(item.tier)}">${tierArtwork(item.tier, "large")}<div><span>${esc(titleCase(item.tier))} recommendation</span><strong>${item.rank ? `#${item.rank} in queue` : "Queue position unavailable"}</strong></div><div class="priority-total"><small>Priority</small><strong>${item.components.complete ? formatPps(item.components.p) : "-"}</strong></div></section>
+      <section class="level-inspector-hero" data-tier="${esc(item.tier)}">${tierArtwork(item.tier, "large")}<div><span>${esc(titleCase(item.tier))} recommendation</span><strong>${item.components.complete && item.rank ? `#${item.rank} in queue` : item.components.complete ? "Outside the active ranked queue" : "Waiting for creator data"}</strong></div><div class="priority-total"><small>Priority</small><strong>${item.components.complete ? formatPps(item.components.p) : "Pending"}</strong></div></section>
       <div class="drawer-identity"><div><span>Level ID</span><strong class="secondary-id">${esc(item.level_id)}</strong><small>Created by ${esc(item.creator)}</small></div>${copyButton(item.level_id)}</div>
-      <div class="detail-grid"><div class="detail-stat"><small>State</small><strong>${esc(titleCase(item.state))}</strong></div><div class="detail-stat"><small>Creator Points</small><strong>${item.cp ?? "Unknown"}</strong></div><div class="detail-stat"><small>${conceptLabel("Waiting", conceptHelp.waiting)}</small><strong>${item.waiting_cycles} cycle${item.waiting_cycles === 1 ? "" : "s"}</strong></div><div class="detail-stat"><small>Tier</small><strong class="tier-text ${esc(item.tier)}">${esc(titleCase(item.tier))}</strong></div></div>
-      <details class="drawer-section" open><summary>${conceptLabel("PPS", conceptHelp.priority)}</summary><div class="priority-breakdown"><div><small>${conceptLabel("F", conceptHelp.priorityPrestige)}</small><strong>${formatPps(item.components.f)}</strong><span>Prestige</span></div><div><small>${conceptLabel("G", conceptHelp.priorityCreator)}</small><strong>${formatPps(item.components.g)}</strong><span>Creator</span></div><div><small>${conceptLabel("H", conceptHelp.priorityWaiting)}</small><strong>${formatPps(item.components.h)}</strong><span>Waiting</span></div><div class="total"><small>${conceptLabel("P", conceptHelp.priority)}</small><strong>${item.components.complete ? formatPps(item.components.p) : "Incomplete"}</strong><span>Total</span></div></div></details>
+      <div class="detail-grid"><div class="detail-stat"><small>State</small><strong>${item.components.complete ? esc(titleCase(item.state)) : "Waiting for creator data"}</strong></div><div class="detail-stat"><small>Creator Points</small><strong>${esc(creatorPointsDisplay(item))}</strong></div><div class="detail-stat"><small>${conceptLabel("Waiting", conceptHelp.waiting)}</small><strong>${item.waiting_cycles} cycle${item.waiting_cycles === 1 ? "" : "s"}</strong></div><div class="detail-stat"><small>Tier</small><strong class="tier-text ${esc(item.tier)}">${esc(titleCase(item.tier))}</strong></div></div>
+      <details class="drawer-section" open><summary>${conceptLabel("PPS", conceptHelp.priority)}</summary><div class="priority-breakdown"><div><small>${conceptLabel("F", conceptHelp.priorityPrestige)}</small><strong>${formatPps(item.components.f)}</strong><span>Prestige</span></div><div><small>${conceptLabel("G", conceptHelp.priorityCreator)}</small><strong>${item.components.complete ? formatPps(item.components.g) : "Pending"}</strong><span>Creator</span></div><div><small>${conceptLabel("H", conceptHelp.priorityWaiting)}</small><strong>${formatPps(item.components.h)}</strong><span>Waiting</span></div><div class="total"><small>${conceptLabel("P", conceptHelp.priority)}</small><strong>${item.components.complete ? formatPps(item.components.p) : "Pending"}</strong><span>Total</span></div></div>${item.components.complete ? "" : `<p class="muted">${esc(conceptHelp.creatorResolving)}</p>`}</details>
       <section class="drawer-section"><div class="panel-head"><h3>Actions</h3></div><div class="toolbar">
-        ${item.state !== "hidden" && !item.claim && can("queue.claim") ? `<button class="button primary" data-queue-action="claim" data-id="${id}">Claim</button>` : ""}
+        ${item.state !== "hidden" && !item.claim && can("queue.claim") && item.components.complete ? `<button class="button primary" data-queue-action="claim" data-id="${id}">Claim</button>` : ""}
+        ${item.state !== "hidden" && !item.components.complete && can("queue.manage_state") ? `<button class="button secondary" data-queue-action="retry-cp" data-id="${id}">Retry Creator Points</button>` : ""}
         ${item.state !== "hidden" && item.claim && (item.claim.user_id === state.user.id || can("queue.reassign")) ? `<button class="button secondary" data-queue-action="release" data-id="${id}">Release</button>` : ""}
         ${item.state !== "hidden" && item.claim && can("queue.reassign") ? `<button class="button secondary" data-queue-action="reassign" data-id="${id}">Reassign</button>` : ""}
         ${item.state !== "hidden" && can("outreach.record") ? `<button class="button secondary" data-queue-action="outreach" data-id="${id}">Record outreach</button>` : ""}
@@ -435,6 +413,7 @@ async function openQueue(id) {
         ${can("developer.access") && item.state !== "hidden" ? `<button class="button danger" data-queue-action="hide" data-id="${id}" ${supports("hidden_queue_entries") ? "" : 'disabled aria-disabled="true" title="Deploy the matching Avenue Guard API to enable hidden levels"'}>Hide level</button>` : ""}
         ${can("developer.access") && item.state === "hidden" ? `<button class="button primary" data-queue-action="restore" data-id="${id}" ${supports("hidden_queue_entries") ? "" : 'disabled aria-disabled="true" title="Deploy the matching Avenue Guard API to restore hidden levels"'}>Restore level</button>` : ""}
       </div></section>
+      ${data.creator_points_diagnostics ? `<details class="drawer-section"><summary>Creator Points diagnostics</summary><div class="detail-grid"><div class="detail-stat"><small>Resolution</small><strong>${esc(titleCase(data.creator_points_diagnostics.job?.state || item.creator_points_status))}</strong></div><div class="detail-stat"><small>Source</small><strong>${esc(item.creator_points_source || "Not accepted yet")}</strong></div><div class="detail-stat"><small>Next retry</small><strong>${data.creator_points_diagnostics.job?.next_attempt_ts ? ago(data.creator_points_diagnostics.job.next_attempt_ts) : "Not scheduled"}</strong></div><div class="detail-stat"><small>Identity</small><strong>${esc(item.uploader_account_id ? `Account ${item.uploader_account_id}` : item.uploader_player_id ? `Player ${item.uploader_player_id}` : item.creator)}</strong></div></div><div class="stack">${data.creator_points_diagnostics.observations.map((obs) => `<div class="list-row"><div><strong>${esc(`${titleCase(obs.provider)} · ${titleCase(obs.method)}`)}</strong><small>${obs.success ? `CP ${obs.creator_points ?? "not supplied"}` : esc(titleCase(obs.error_category || "unavailable"))}${obs.account_id ? ` · account ${esc(obs.account_id)}` : ""}</small></div><time>${ago(obs.observed_at)}</time></div>`).join("") || '<p class="muted">No provider observations yet.</p>'}</div></details>` : ""}
       <details class="drawer-section"><summary>Outreach (${data.outreach.length})</summary>${data.outreach.length ? data.outreach.map((event) => `<div class="list-row"><div><strong>${esc(titleCase(event.status))}</strong><small>${esc(event.route_type)} · ${esc(event.private_target_label || "No target")}</small></div><small>${ago(event.event_ts)}</small></div>`).join("") : '<p class="muted">No outreach recorded.</p>'}</details>
       <details class="drawer-section"><summary>History (${data.history.length})</summary><ol class="timeline">${data.history.map((event) => `<li><strong>${esc(titleCase(event.event))}</strong><br><small class="muted">${fmtTime(event.created_ts)}</small></li>`).join("") || '<li>No history recorded.</li>'}</ol></details>
       <details class="drawer-section"><summary>Notes (${data.notes.length})</summary>${data.notes.length ? data.notes.map((note) => `<div class="list-row"><div><strong>${esc(titleCase(note.scope))}</strong><small>${esc(note.body)}</small></div><small>${ago(note.updated_ts)}</small></div>`).join("") : '<p class="muted">No visible notes.</p>'}</details>`;
@@ -680,9 +659,27 @@ function openQAInspector(id) {
 async function renderOperations() {
   const data = await api("/api/staff/operations");
   const health = (ready) => pill(ready ? "healthy" : "degraded", ready ? "" : "warning");
+  const cpProviders = Object.entries(data.creator_points_providers || {});
+  const providerLabels = { gdbrowser: "GDBrowser", boomlings: "Boomlings", gdhistory: "GDHistory", gdrateplus: "GDRate+" };
+  const methodLabels = { html_level: "HTML level", html_profile: "HTML profile", api_profile: "API fallback", direct_profile: "Direct profile", level: "Level lookup" };
+  const rate = (value) => value == null ? "No samples" : `${Math.round(Number(value) * 100)}%`;
+  const creatorProvider = ([name, provider]) => {
+    const status = provider.status || (provider.circuit_open ? "unavailable" : "degraded");
+    const details = [
+      `${provider.attempts || 0} attempts`,
+      `${rate(provider.success_rate)} success`,
+      `${rate(provider.cp_success_rate)} CP`,
+      `${rate(provider.identity_success_rate)} identity`,
+      provider.median_latency_ms == null ? "latency unknown" : `${formatPps(provider.median_latency_ms)} ms median`,
+      `${provider.parse_failures || 0} parse failures`,
+      provider.last_success ? `last success ${ago(provider.last_success)}` : "no recent success",
+    ];
+    const methods = (provider.methods || []).map((method) => `<div class="metric-line provider-method"><span>${esc(methodLabels[method.method] || titleCase(method.method || "provider request"))}</span><strong>${method.attempts || 0} attempts · ${method.cp_successes || 0} CP · ${method.parse_failures || 0} parse failures</strong></div>`).join("");
+    return `<div class="provider-diagnostic"><div class="list-row"><div><strong>${esc(providerLabels[name] || titleCase(name))}</strong><small>${esc(details.join(" · "))}</small>${provider.last_error_category ? `<small>Last error: ${esc(titleCase(provider.last_error_category))}${provider.last_error ? ` · ${ago(provider.last_error)}` : ""}</small>` : ""}</div>${pill(status, status === "healthy" ? "" : "warning")}</div>${methods}</div>`;
+  };
   return `<div class="summary-band operations-summary"><div><p class="eyebrow">Avenue Guard</p><h2><span class="state-dot ${data.runtime.ready ? "healthy" : "degraded"}" aria-hidden="true"></span>${esc(data.service.state || "Unknown")}</h2><small>${esc(data.service.detail || "No service detail")}</small></div><div><small>Bot readiness</small><strong>${health(data.runtime.ready)}</strong></div><div><small>Database</small><strong>${health(data.database.connected)}</strong></div><div><small>Open incidents</small><strong>${data.incidents.length}</strong></div></div>
-    <section class="system-status-line" aria-label="Operations summary">${countMetric("Gateway", data.runtime.responsive ? "Healthy" : "Degraded")}${countMetric("Outbox pending", data.outbox.pending || 0)}${countMetric("Current wave", titleCase(data.request_wave.state || "unknown"))}${countMetric("Providers", `${Object.values(data.providers || {}).filter((item) => !item.circuit_open).length} healthy`)}</section>
-    <details class="admin-disclosure"><summary>View diagnostics</summary><div class="operations-grid"><section class="section-block"><h2>Core systems</h2><div class="metric-line"><span>Database worker</span>${health(data.database.connected && data.database.worker_alive !== false)}</div><div class="metric-line"><span>PPS maintenance</span><strong>${esc(titleCase(data.pps_worker || "unknown"))}</strong></div><div class="metric-line"><span>Public level cache</span><strong>${esc(titleCase(data.public_cache?.state || "unknown"))}</strong></div></section><section class="section-block"><h2>Durable outbox</h2>${["pending","processing","dead","delivered"].map((key) => `<div class="metric-line"><span>${esc(titleCase(key))}</span><strong>${data.outbox[key] || 0}</strong></div>`).join("")}</section><section class="section-block"><h2>Providers</h2>${Object.entries(data.providers || {}).map(([name, provider]) => `<div class="list-row"><div><strong>${esc(titleCase(name))}</strong><small>${esc(provider.last_error || "No recent error")}</small></div>${pill(provider.circuit_open ? "degraded" : "healthy", provider.circuit_open ? "warning" : "")}</div>`).join("") || '<p class="muted">Provider telemetry is not available yet.</p>'}</section><section class="section-block"><h2>Background workers</h2>${Object.entries(data.background_workers || {}).map(([name, status]) => `<div class="metric-line"><span>${esc(titleCase(name))}</span><strong>${esc(titleCase(status))}</strong></div>`).join("") || '<p class="muted">No worker telemetry available.</p>'}</section></div></details>
+    <section class="system-status-line" aria-label="Operations summary">${countMetric("Gateway", data.runtime.responsive ? "Healthy" : "Degraded")}${countMetric("Outbox pending", data.outbox.pending || 0)}${countMetric("Current wave", titleCase(data.request_wave.state || "unknown"))}${countMetric("CP providers", `${cpProviders.filter(([, item]) => item.status === "healthy").length} healthy`)}</section>
+    <details class="admin-disclosure"><summary>View diagnostics</summary><div class="operations-grid"><section class="section-block"><h2>Core systems</h2><div class="metric-line"><span>Database worker</span>${health(data.database.connected && data.database.worker_alive !== false)}</div><div class="metric-line"><span>PPS maintenance</span><strong>${esc(titleCase(data.pps_worker || "unknown"))}</strong></div><div class="metric-line"><span>Public level cache</span><strong>${esc(titleCase(data.public_cache?.state || "unknown"))}</strong></div></section><section class="section-block"><h2>Durable outbox</h2>${["pending","processing","dead","delivered"].map((key) => `<div class="metric-line"><span>${esc(titleCase(key))}</span><strong>${data.outbox[key] || 0}</strong></div>`).join("")}</section><section class="section-block"><h2>Creator Points providers</h2>${cpProviders.map(creatorProvider).join("") || '<p class="muted">Creator Points telemetry is not available yet.</p>'}</section><section class="section-block"><h2>Validation providers</h2>${Object.entries(data.providers || {}).map(([name, provider]) => `<div class="list-row"><div><strong>${esc(titleCase(name))}</strong><small>${esc(provider.last_error || "No recent error")}</small></div>${pill(provider.circuit_open ? "degraded" : "healthy", provider.circuit_open ? "warning" : "")}</div>`).join("") || '<p class="muted">Validation telemetry is not available yet.</p>'}</section><section class="section-block"><h2>Background workers</h2>${Object.entries(data.background_workers || {}).map(([name, status]) => `<div class="metric-line"><span>${esc(titleCase(name))}</span><strong>${esc(titleCase(status))}</strong></div>`).join("") || '<p class="muted">No worker telemetry available.</p>'}</section></div></details>
     <section class="section-block incident-panel"><div class="panel-head"><div><h2>Recent incidents</h2><p class="muted">Sanitized summaries; open one only when investigation is needed.</p></div></div>${data.incidents.map((item) => `<article class="incident-row"><div><strong>${esc(item.component)}</strong><span>${esc(item.error_type)}: ${esc(item.summary)}</span><small>${item.occurrence_count} occurrence${item.occurrence_count === 1 ? "" : "s"} · last seen ${ago(item.last_seen_ts)}</small></div>${item.details_available ? `<button class="button small secondary" data-incident="${esc(item.fingerprint)}">View details</button>` : ""}</article>`).join("") || '<p class="muted">No open incidents.</p>'}</section>`;
 }
 
@@ -767,6 +764,7 @@ const renderers = {
 };
 
 function openDrawer(eyebrow, title, html) {
+  helpTooltips.close();
   const drawer = $("#detail-drawer");
   state.drawerReturnFocus = document.activeElement?.offsetParent !== null ? document.activeElement : $("#profile-button");
   drawer.dataset.inspector = String(eyebrow || "detail").toLowerCase().replace(/\s+inspector$/, "").replace(/[^a-z0-9]+/g, "-");
@@ -783,6 +781,7 @@ function openDrawer(eyebrow, title, html) {
 
 function closeDrawer() {
   const drawer = $("#detail-drawer");
+  helpTooltips.closeWithin(drawer);
   drawer.classList.remove("open");
   drawer.setAttribute("aria-hidden", "true");
   drawer.inert = true;
@@ -809,9 +808,9 @@ async function actionDialog({ title, description, fields = [], confirm = "Confir
   $("#dialog-fields").innerHTML = fields.map((field) => {
     const required = field.required ? '<span class="required-marker" aria-hidden="true">*</span>' : "";
     const describedBy = `${field.name}-error`;
-    const label = `<span class="field-label">${esc(field.label)}${required}${field.help ? helpTip(field.help) : ""}</span>`;
+    const label = `<span class="field-label">${esc(field.label)}${required}${field.help ? helpTip(field.help, field.label) : ""}</span>`;
     if (field.type === "display") return `<div class="profile-detail"><small>${esc(field.label)}</small><strong class="${field.monospace ? "secondary-id" : ""}">${esc(field.value || "Not available")}</strong></div>`;
-    if (field.type === "checkbox") return `<div data-field-wrapper="${esc(field.name)}"><label class="checkbox-row"><input name="${esc(field.name)}" type="checkbox" ${field.checked ? "checked" : ""} ${field.disabled ? "disabled" : ""}> <span>${esc(field.label)}${field.help ? helpTip(field.help) : ""}</span></label><small id="${esc(describedBy)}" class="field-error" data-field-error="${esc(field.name)}" hidden></small></div>`;
+    if (field.type === "checkbox") return `<div data-field-wrapper="${esc(field.name)}"><label class="checkbox-row"><input name="${esc(field.name)}" type="checkbox" ${field.checked ? "checked" : ""} ${field.disabled ? "disabled" : ""}> <span>${esc(field.label)}${field.help ? helpTip(field.help, field.label) : ""}</span></label><small id="${esc(describedBy)}" class="field-error" data-field-error="${esc(field.name)}" hidden></small></div>`;
     if (field.type === "select") return `<label data-field-wrapper="${esc(field.name)}">${label}<select name="${esc(field.name)}" aria-describedby="${esc(describedBy)}">${field.options.map(([value,optionLabel]) => `<option value="${esc(value)}" ${String(field.value ?? "") === String(value) ? "selected" : ""}>${esc(optionLabel)}</option>`).join("")}</select><small id="${esc(describedBy)}" class="field-error" data-field-error="${esc(field.name)}" hidden></small></label>`;
     if (field.type === "staff") {
       const listId = `${field.name}-staff-options`;
@@ -826,6 +825,7 @@ async function actionDialog({ title, description, fields = [], confirm = "Confir
   const form = $("#action-form");
   const closeDialog = () => {
     if (state.dialogSubmitting) return;
+    helpTooltips.closeWithin(dialog);
     dialog.close();
     cleanup();
   };
@@ -858,6 +858,7 @@ async function actionDialog({ title, description, fields = [], confirm = "Confir
     try {
       await run(data);
       state.dialogSubmitting = false;
+      helpTooltips.closeWithin(dialog);
       dialog.close();
       cleanup();
       if ($("#detail-drawer").classList.contains("open")) closeDrawer();
@@ -867,7 +868,11 @@ async function actionDialog({ title, description, fields = [], confirm = "Confir
     catch (error) { $("#dialog-error").textContent = error.message; $("#dialog-error").hidden = false; }
     finally { state.dialogSubmitting = false; $("#dialog-submit").disabled = false; $("#dialog-cancel").disabled = false; $("#dialog-close").disabled = false; }
   };
-  const onCancel = (event) => { event.preventDefault(); closeDialog(); };
+  const onCancel = (event) => {
+    event.preventDefault();
+    if (helpTooltips.consumeParentCancel(dialog)) return;
+    closeDialog();
+  };
   const onClick = (event) => {
     if (!danger && event.target === dialog) closeDialog();
   };
@@ -882,6 +887,7 @@ async function actionDialog({ title, description, fields = [], confirm = "Confir
   };
   const readyCleanup = typeof onReady === "function" ? onReady(form) : null;
   const cleanup = () => {
+    helpTooltips.closeWithin(dialog);
     form.removeEventListener("submit", onSubmit);
     dialog.removeEventListener("cancel", onCancel);
     dialog.removeEventListener("click", onClick);
@@ -907,6 +913,13 @@ async function actionDialog({ title, description, fields = [], confirm = "Confir
 
 async function queueAction(action, id) {
   if (action === "claim") return api(`/api/staff/queue/${id}/claim`, { method: "POST", body: {} }).then(() => { showNotice("Claimed"); return openQueue(id); });
+  if (action === "retry-cp") {
+    showNotice("Checking GDBrowser, Boomlings, GDHistory and GDRate+…");
+    return api(`/api/staff/queue/${id}/retry-cp`, { method: "POST", body: {} }).then((result) => {
+      showNotice(result.resolution?.resolved ? `Creator Points resolved: ${result.resolution.creator_points}` : "Could not resolve yet. Automatic retry remains scheduled.");
+      return openQueue(id);
+    }).catch((error) => showNotice(error.message, true));
+  }
   if (action === "release") return actionDialog({ title: "Release claim", description: "The level will become available to other staff.", fields: [{ name: "reason", label: "Reason (required for another staff member)", type: "textarea" }], confirm: "Release", run: (body) => api(`/api/staff/queue/${id}/release`, { method: "POST", body }) });
   if (action === "reassign") {
     try {
@@ -982,10 +995,10 @@ async function newTaskDialog() {
 
 function outreachDialog(queueId = "") {
   return actionDialog({ title: "Record outreach", description: "Targets and notes are private. Confirmed submission means the level actually reached a GD moderator.", fields: [
-    { name: "queue_id", label: "Queue ID", type: "number", value: queueId, min: 1, required: true, help: "The internal outreach queue record, not the Geometry Dash level ID." },
-    { name: "route", label: "Route", type: "select", help: "How staff tried to reach a Geometry Dash moderator.", options: ["direct","network","stream","event","other"].map((v) => [v,titleCase(v)]) },
-    { name: "event", label: "Event", type: "select", help: conceptHelp.confirmedSubmission, options: ["planned","attempted","failed","submitted_to_mod","follow_up"].map((v) => [v,titleCase(v)]) },
-    { name: "target", label: "Private target", type: "text" },
+    { name: "queue_id", label: "Queue ID", type: "number", value: queueId, min: 1, required: true, help: "The internal Avenue queue entry for this level." },
+    { name: "route", label: "Route", type: "select", help: "How you are trying to reach a Geometry Dash moderator.", options: ["direct","network","stream","event","other"].map((v) => [v,titleCase(v)]) },
+    { name: "event", label: "Event", type: "select", help: "What happened during this outreach step. A confirmed submission means the level actually reached a moderator.", options: ["planned","attempted","failed","submitted_to_mod","follow_up"].map((v) => [v,titleCase(v)]) },
+    { name: "target", label: "Private target", type: "text", help: "The moderator or contact you are trying to reach. This is never shown publicly." },
     { name: "notes", label: "Private notes", type: "textarea" },
     { name: "confirmed", label: "I confirm that a submitted_to_mod event reached a moderator", type: "checkbox" },
   ], run: (body) => api("/api/staff/outreach", { method: "POST", body: { ...body, queue_id: Number(body.queue_id), timestamp: Math.floor(Date.now() / 1000) } }) });
@@ -1438,6 +1451,7 @@ document.addEventListener("keydown", (event) => {
     showJumpResults();
     return;
   }
+  if (event.key === "Escape" && $("#action-dialog").open) return;
   if (event.key === "Escape" && $("#detail-drawer").classList.contains("open")) {
     closeDrawer();
     return;
@@ -1469,14 +1483,6 @@ $("#profile-button").addEventListener("click", () => {
   if (!menu.hidden) menu.querySelector("button")?.focus();
 });
 document.addEventListener("click", (event) => {
-  const help = event.target.closest(".help-tip");
-  if (help) {
-    event.preventDefault();
-    event.stopPropagation();
-    showHelpTooltip(help);
-    return;
-  }
-  hideHelpTooltip();
   if (event.target.closest(".sidebar-profile-wrap")) return;
   $("#profile-menu").hidden = true;
   $("#profile-button").setAttribute("aria-expanded", "false");
@@ -1485,30 +1491,6 @@ document.addEventListener("click", (event) => {
     $("#global-search").setAttribute("aria-expanded", "false");
   }
 });
-document.addEventListener("pointerover", (event) => {
-  const help = event.target.closest(".help-tip");
-  if (help) showHelpTooltip(help);
-});
-document.addEventListener("pointerout", (event) => {
-  const help = event.target.closest(".help-tip");
-  if (help && !help.contains(event.relatedTarget) && document.activeElement !== help) hideHelpTooltip();
-});
-document.addEventListener("focusin", (event) => {
-  const help = event.target.closest(".help-tip");
-  if (help) showHelpTooltip(help);
-});
-document.addEventListener("focusout", (event) => {
-  if (event.target.closest(".help-tip") && !event.relatedTarget?.closest?.(".help-tip")) hideHelpTooltip();
-});
-document.addEventListener("keydown", (event) => {
-  if (event.key === "Escape") hideHelpTooltip();
-  if ((event.key === "Enter" || event.key === " ") && event.target.closest(".help-tip")) {
-    event.preventDefault();
-    showHelpTooltip(event.target.closest(".help-tip"));
-  }
-});
-window.addEventListener("resize", positionHelpTooltip);
-window.addEventListener("scroll", positionHelpTooltip, true);
 $("#logout-button").addEventListener("click", async () => {
   try {
     await fetch("/api/auth/logout", { method: "POST", headers: { "X-CSRF-Token": decodeURIComponent(cookieValue("av_staff_csrf")) }, credentials: "same-origin" });

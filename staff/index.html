@@ -90,15 +90,19 @@
   <div id="drawer-scrim" class="drawer-scrim" hidden></div>
 
   <dialog id="action-dialog" role="dialog" aria-modal="true" aria-labelledby="dialog-title" aria-describedby="dialog-description">
-    <form id="action-form" novalidate>
-      <div class="dialog-head"><h2 id="dialog-title">Confirm action</h2><button id="dialog-close" type="button" class="icon-button" aria-label="Close dialog">Close</button></div>
-      <p id="dialog-description"></p>
-      <div id="dialog-fields" class="form-grid"></div>
-      <p id="dialog-error" class="field-error" role="alert" hidden></p>
-      <div class="dialog-actions"><button id="dialog-cancel" type="button" class="button secondary">Cancel</button><button id="dialog-submit" type="submit" class="button primary">Confirm</button></div>
-    </form>
+    <div class="dialog-shell">
+      <form id="action-form" novalidate>
+        <div class="dialog-head"><h2 id="dialog-title">Confirm action</h2><button id="dialog-close" type="button" class="icon-button" aria-label="Close dialog">Close</button></div>
+        <p id="dialog-description"></p>
+        <div id="dialog-fields" class="form-grid dialog-scroll-region"></div>
+        <p id="dialog-error" class="field-error" role="alert" hidden></p>
+        <div class="dialog-actions"><button id="dialog-cancel" type="button" class="button secondary">Cancel</button><button id="dialog-submit" type="submit" class="button primary">Confirm</button></div>
+      </form>
+      <div class="overlay-tooltip-host" data-overlay-context="dialog"></div>
+    </div>
   </dialog>
 
+  <script src="help-tooltip.js" defer></script>
   <script src="staff.js" defer></script>
 </body>
 </html>
