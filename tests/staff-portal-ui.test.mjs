@@ -99,6 +99,13 @@ test("Head-level Creator Points attention can be retried from Overview", () => {
   assert.match(script, /data-queue-action="retry-cp"/);
 });
 
+test("Creator Points can be set or corrected from the queue inspector", () => {
+  assert.match(script, /supports\("creator_points_manual_override"\)/);
+  assert.match(script, /data-queue-action="creator-points"/);
+  assert.match(script, /\/api\/staff\/queue\/\$\{id\}\/creator-points/);
+  assert.match(script, /I confirm this manual Creator Points value/);
+});
+
 test("search provides keyboard jump navigation and loading uses skeletons", () => {
   assert.match(markup, /aria-keyshortcuts="Control\+K Meta\+K"/);
   assert.match(script, /event\.metaKey \|\| event\.ctrlKey/);
@@ -153,6 +160,18 @@ test("team and application workflows expose the requested operational controls",
   assert.match(script, /Open Discord thread/);
   assert.match(script, /Open interview ticket/);
   assert.match(script, /supports\("staff_manual_management"\)/);
+  assert.match(script, /solo_decision_allowed/);
+  assert.match(script, /Admin, Owner, and Dev roles may decide alone only after recording their own rubric assessment/);
+});
+
+test("appeal actions are compact, explain readiness, and open the decision dialog", () => {
+  assert.match(script, /data-appeal-action="manage"/);
+  assert.match(script, /Manage appeal review/);
+  assert.match(script, /Record \$\{remaining\} more independent/);
+  assert.match(script, /checked: appeal\.lookup_status === "found"/);
+  assert.match(script, /disabled: appeal\.lookup_status !== "found"/);
+  assert.doesNotMatch(script, /data-appeal-action="decide"[^>]+disabled/);
+  assert.doesNotMatch(script, /checked: item\.lookup_status === "found"/);
 });
 
 test("task creation uses the authoritative staff directory and explains internal concepts", () => {

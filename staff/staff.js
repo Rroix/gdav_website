@@ -404,6 +404,7 @@ async function openQueue(id) {
       <section class="drawer-section"><div class="panel-head"><h3>Actions</h3></div><div class="toolbar">
         ${item.state !== "hidden" && !item.claim && can("queue.claim") && item.components.complete ? `<button class="button primary" data-queue-action="claim" data-id="${id}">Claim</button>` : ""}
         ${item.state !== "hidden" && !item.components.complete && can("queue.manage_state") ? `<button class="button secondary" data-queue-action="retry-cp" data-id="${id}">Retry Creator Points</button>` : ""}
+        ${item.state !== "hidden" && can("pps.override") && supports("creator_points_manual_override") ? `<button class="button secondary" data-queue-action="creator-points" data-id="${id}" data-current-cp="${item.cp ?? ""}">${item.cp == null ? "Set Creator Points" : "Update Creator Points"}</button>` : ""}
         ${item.state !== "hidden" && item.claim && (item.claim.user_id === state.user.id || can("queue.reassign")) ? `<button class="button secondary" data-queue-action="release" data-id="${id}">Release</button>` : ""}
         ${item.state !== "hidden" && item.claim && can("queue.reassign") ? `<button class="button secondary" data-queue-action="reassign" data-id="${id}">Reassign</button>` : ""}
         ${item.state !== "hidden" && can("outreach.record") ? `<button class="button secondary" data-queue-action="outreach" data-id="${id}">Record outreach</button>` : ""}
@@ -546,10 +547,15 @@ function openAppeal(id) {
   const assessments = (item.assessments || []).map((assessment) => `<article class="list-row"><div><strong>${esc(identityLabel(assessment.reviewer, assessment.reviewer_id))}</strong><small>${esc(titleCase(assessment.recommendation))}${assessment.recused ? " · recused" : ""}</small><p>${esc(assessment.rationale)}</p>${Object.entries(assessment.findings || {}).map(([key,value]) => `<small><strong>${esc(titleCase(key))}:</strong> ${esc(value)}</small>`).join("")}</div></article>`).join("") || '<p class="muted">No independent assessments yet.</p>';
   const messages = (item.messages || []).map((message) => `<article class="appeal-message ${esc(message.author_type)}"><strong>${message.author_type === "applicant" ? esc(applicant) : "Appeals team"}</strong><p>${esc(message.body)}</p><small>${fmtTime(message.created_ts)}${message.dm_outbox_id ? " · DM requested" : ""}</small></article>`).join("") || '<p class="muted">No messages yet.</p>';
   const ready = item.decision_ready || { eligible_assessments: 0, minimum: 2, ready: false };
+  const ownAssessment = (item.assessments || []).some((assessment) => exactId(assessment.reviewer_id) === exactId(state.user.id));
+  const assessmentLabel = ownAssessment ? "Update assessment" : "Add assessment";
   const actions = ["decided", "withdrawn", "ineligible", "duplicate", "expired_no_action"].includes(item.status)
     ? `<button class="button secondary small" data-appeal-action="reopen" data-id="${item.id}">Reopen</button><button class="button secondary small" data-appeal-action="message" data-id="${item.id}">Message applicant</button>`
-    : `<button class="button secondary small" data-appeal-action="claim" data-id="${item.id}">Claim</button><button class="button secondary small" data-appeal-action="review" data-id="${item.id}">Start review</button><button class="button secondary small" data-appeal-action="assess" data-id="${item.id}">Add assessment</button><button class="button secondary small" data-appeal-action="request_information" data-id="${item.id}">Request information</button><button class="button secondary small" data-appeal-action="message" data-id="${item.id}">Message applicant</button><button class="button secondary small" data-appeal-action="recuse" data-id="${item.id}">Recuse</button>${can("appeals.execute") ? `<button class="button primary small" data-appeal-action="decide" data-id="${item.id}" ${ready.ready ? "" : "disabled"}>Decide appeal</button>` : ""}`;
-  openDrawer("Appeal inspector", `${applicant}'s appeal`, `<div class="drawer-meta">${pill(item.status)}${pill(item.claimed_by ? "claimed" : "unclaimed")}<span>${ready.eligible_assessments} of ${ready.minimum} independent assessments</span>${item.unban_status ? `<span>Removal: ${esc(item.unban_status)}</span>` : ""}</div>${evidence}<section class="drawer-section"><h3>Submitted appeal</h3>${answers}</section><section class="drawer-section"><h3>Independent assessments</h3>${assessments}</section><section class="drawer-section"><h3>Private portal messages</h3><div class="appeal-message-list">${messages}</div></section><section class="drawer-section"><h3>Actions</h3><div class="toolbar application-actions">${actions}</div></section>`);
+    : `<button class="button secondary small" data-appeal-action="manage" data-id="${item.id}">Manage review</button><button class="button secondary small" data-appeal-action="assess" data-id="${item.id}">${assessmentLabel}</button><button class="button secondary small" data-appeal-action="message" data-id="${item.id}">Message applicant</button>${can("appeals.execute") ? `<button class="button ${ready.ready ? "primary" : "secondary"} small" data-appeal-action="decide" data-id="${item.id}">Decide appeal</button>` : ""}`;
+  const readinessNote = can("appeals.execute") && !ready.ready
+    ? `<p class="muted">A final decision needs ${Math.max(0, Number(ready.minimum) - Number(ready.eligible_assessments))} more independent, non-conflicted assessment${Number(ready.minimum) - Number(ready.eligible_assessments) === 1 ? "" : "s"}.</p>`
+    : "";
+  openDrawer("Appeal inspector", `${applicant}'s appeal`, `<div class="drawer-meta">${pill(item.status)}${pill(item.claimed_by ? "claimed" : "unclaimed")}<span>${ready.eligible_assessments} of ${ready.minimum} independent assessments</span>${item.unban_status ? `<span>Removal: ${esc(item.unban_status)}</span>` : ""}</div>${evidence}<section class="drawer-section"><h3>Submitted appeal</h3>${answers}</section><section class="drawer-section"><h3>Independent assessments</h3>${assessments}</section><section class="drawer-section"><h3>Private portal messages</h3><div class="appeal-message-list">${messages}</div></section><section class="drawer-section"><h3>Actions</h3>${readinessNote}<div class="toolbar application-actions">${actions}</div></section>`);
 }
 
 async function renderStaff() {
@@ -615,6 +621,10 @@ function openApplication(id) {
   const answerHtml = [...answerSections.entries()].map(([section, sectionQuestions]) => `<div class="answer-section"><h4>${esc(section)}</h4>${sectionQuestions.map((question) => `<div><small>${esc(question.label || titleCase(question.key))}</small><p>${esc(item.answers?.[question.key] || "No answer provided")}</p></div>`).join("")}</div>`).join("");
   const rubricDimensions = item.rubric?.dimensions || [];
   const assessmentSummary = item.assessment_summary || { count: 0, minimum: 2 };
+  const ownApplicationAssessment = (item.assessments || []).some((assessment) => exactId(assessment.reviewer_id) === exactId(state.user.id));
+  const assessmentRequirement = item.solo_decision_allowed
+    ? `${Number(assessmentSummary.count || 0)} rubric assessment${Number(assessmentSummary.count || 0) === 1 ? "" : "s"} recorded. ${ownApplicationAssessment ? "Your own documented assessment allows you to decide alone." : `Record your own assessment to decide alone, or collect ${Number(assessmentSummary.minimum || 2)} independent assessments.`} Admin, Owner, and Dev roles may decide alone only after recording their own rubric assessment.`
+    : `${Number(assessmentSummary.count || 0)} of ${Number(assessmentSummary.minimum || 2)} independent assessments recorded.`;
   const assessmentsHtml = (item.assessments || []).map((assessment) => `<article class="rubric-assessment"><h4>${esc(identityLabel(assessment.reviewer, assessment.reviewer_id))} · ${esc(titleCase(assessment.recommendation))}</h4>${rubricDimensions.map((dimension) => `<div class="rubric-dimension"><span>${esc(dimension.label)}</span><strong>${esc(assessment.scores?.[dimension.key] ?? "-")}/5</strong><small>${esc(assessment.evidence?.[dimension.key] || "No evidence note")}</small></div>`).join("")}</article>`).join("");
   const calibration = assessmentSummary.calibration_required
     ? '<p class="inline-warning"><strong>Calibration required</strong><span>Independent assessments disagree. Resolve the differences or interview the applicant before a final decision.</span></p>'
@@ -628,7 +638,7 @@ function openApplication(id) {
     <div class="drawer-identity"><div><span>Applicant</span><strong>${esc(identityLabel(item.applicant, item.applicant_id))}</strong><small class="secondary-id">${esc(exactId(item.applicant_id))}</small></div>${copyButton(item.applicant_id, "Copy Discord ID")}</div>
     <div class="drawer-meta">${pill(item.status)}${pill(item.application_type === "judge" ? "reviewer" : item.application_type)}${interviewDelivery}<span>Submitted ${fmtTime(item.submitted_ts)}</span>${item.claimed_by ? `<span>Claimed by ${esc(identityLabel(item.claimed_by_identity, item.claimed_by))}</span>` : ""}${item.review_thread_id ? `<a class="quiet-link" href="https://discord.com/channels/${esc(item.guild_id)}/${esc(item.review_thread_id)}" target="_blank" rel="noopener noreferrer">Open Discord thread</a>` : ""}${item.interview_ticket_channel_id ? `<a class="quiet-link" href="https://discord.com/channels/${esc(item.guild_id)}/${esc(item.interview_ticket_channel_id)}" target="_blank" rel="noopener noreferrer">Open interview ticket</a>` : ""}</div>
     <section class="drawer-section"><h3>Submitted answers</h3><div class="answer-list">${answerHtml || '<p class="muted">No answers were stored.</p>'}</div></section>
-    <section class="drawer-section"><div class="panel-head"><div><h3>Independent assessments</h3><p class="muted">${Number(assessmentSummary.count || 0)} of ${Number(assessmentSummary.minimum || 2)} required assessments recorded.</p></div></div>${calibration}<div class="rubric-summary">${assessmentsHtml || '<p class="muted">No rubric assessments yet.</p>'}</div></section>
+    <section class="drawer-section"><div class="panel-head"><div><h3>Rubric assessments</h3><p class="muted">${assessmentRequirement}</p></div></div>${calibration}<div class="rubric-summary">${assessmentsHtml || '<p class="muted">No rubric assessments yet.</p>'}</div></section>
     ${(item.interviews || []).length ? `<section class="drawer-section"><h3>Interview history</h3>${interviewHtml}</section>` : ""}
     ${probationHtml}
     <details class="drawer-section" open><summary>Internal timeline (${item.timeline?.length || 0})</summary>${item.timeline?.length ? `<ol class="timeline">${item.timeline.map((event) => `<li><strong>${esc(titleCase(event.event))}</strong><br><small class="muted">${esc(identityLabel(event.actor, event.actor_id))} · ${fmtTime(event.created_ts)}</small></li>`).join("")}</ol>` : '<p class="muted">No staff activity yet.</p>'}</details>
@@ -911,7 +921,7 @@ async function actionDialog({ title, description, fields = [], confirm = "Confir
   window.setTimeout(() => first?.focus(), 0);
 }
 
-async function queueAction(action, id) {
+async function queueAction(action, id, context = {}) {
   if (action === "claim") return api(`/api/staff/queue/${id}/claim`, { method: "POST", body: {} }).then(() => { showNotice("Claimed"); return openQueue(id); });
   if (action === "retry-cp") {
     showNotice("Checking GDBrowser, Boomlings, GDHistory and GDRate+…");
@@ -920,6 +930,17 @@ async function queueAction(action, id) {
       return openQueue(id);
     }).catch((error) => showNotice(error.message, true));
   }
+  if (action === "creator-points") return actionDialog({
+    title: context.currentCp === "" ? "Set Creator Points" : "Update Creator Points",
+    description: "This audited value replaces automated provider data until the next intentional update. PPS is recalculated immediately.",
+    fields: [
+      { name: "creator_points", label: "Creator Points", type: "number", min: 0, value: context.currentCp, required: true },
+      { name: "reason", label: "Reason and source", type: "textarea", required: true },
+      { name: "confirmed", label: "I confirm this manual Creator Points value", type: "checkbox", required: true },
+    ],
+    confirm: context.currentCp === "" ? "Set Creator Points" : "Update Creator Points",
+    run: (body) => api(`/api/staff/queue/${id}/creator-points`, { method: "POST", body: { ...body, creator_points: Number(body.creator_points) } }),
+  });
   if (action === "release") return actionDialog({ title: "Release claim", description: "The level will become available to other staff.", fields: [{ name: "reason", label: "Reason (required for another staff member)", type: "textarea" }], confirm: "Release", run: (body) => api(`/api/staff/queue/${id}/release`, { method: "POST", body }) });
   if (action === "reassign") {
     try {
@@ -1179,7 +1200,7 @@ document.addEventListener("click", async (event) => {
   const openTaskButton = event.target.closest("[data-open-task]");
   if (openTaskButton && !event.target.closest("[data-complete-task]")) return openTaskInspector(openTaskButton.dataset.openTask);
   const queueButton = event.target.closest("[data-queue-action]");
-  if (queueButton) return queueAction(queueButton.dataset.queueAction, queueButton.dataset.id);
+  if (queueButton) return queueAction(queueButton.dataset.queueAction, queueButton.dataset.id, { currentCp: queueButton.dataset.currentCp });
   const action = event.target.closest("[data-action]")?.dataset.action;
   if (action === "refresh") return render();
   if (action === "queue-apply") {
@@ -1261,6 +1282,42 @@ document.addEventListener("click", async (event) => {
     const id = appealAction.dataset.id;
     const appeal = state.appeals.find((item) => String(item.id) === String(id));
     if (!appeal) return showNotice("That appeal is no longer available", true);
+    if (action === "manage") {
+      const options = [];
+      if (!appeal.claimed_by) options.push(["claim", "Claim appeal"]);
+      if (appeal.status !== "under_review") options.push(["review", "Start evidence review"]);
+      options.push(["request_information", "Request information from applicant"]);
+      options.push(["recuse", "Recuse myself"]);
+      return actionDialog({
+        title: "Manage appeal review",
+        description: "Choose the review-state change. Requests for information are saved in the portal and can also be delivered by Discord DM.",
+        fields: [
+          { name: "action", label: "Review action", type: "select", options },
+          { name: "body", label: "Information requested", type: "textarea", required: true },
+          { name: "notify_dm", label: "Also try to send a Discord DM", type: "checkbox", checked: true },
+          { name: "confirmed", label: "I confirm this review action", type: "checkbox", required: true },
+        ],
+        onReady: (form) => {
+          const actionSelect = form.elements.action;
+          const body = form.elements.body;
+          const bodyWrapper = form.querySelector('[data-field-wrapper="body"]');
+          const notify = form.elements.notify_dm;
+          const notifyWrapper = form.querySelector('[data-field-wrapper="notify_dm"]');
+          const sync = () => {
+            const requesting = actionSelect.value === "request_information";
+            bodyWrapper.hidden = !requesting;
+            notifyWrapper.hidden = !requesting;
+            body.disabled = !requesting;
+            notify.disabled = !requesting;
+          };
+          actionSelect.addEventListener("change", sync);
+          sync();
+          return () => actionSelect.removeEventListener("change", sync);
+        },
+        confirm: "Apply review action",
+        run: (body) => api(`/api/staff/appeals/${id}/action`, { method: "POST", body }),
+      });
+    }
     if (action === "assess") {
       const current = (appeal.assessments || []).find((item) => exactId(item.reviewer_id) === exactId(state.user.id));
       const dimensions = [
@@ -1290,6 +1347,11 @@ document.addEventListener("click", async (event) => {
       confirm: "Send message",
       run: (body) => api(`/api/staff/appeals/${id}/${action === "message" ? "message" : "action"}`, { method: "POST", body: action === "message" ? body : { ...body, action } }),
     });
+    if (action === "decide" && !appeal.decision_ready?.ready) {
+      const readiness = appeal.decision_ready || { eligible_assessments: 0, minimum: 2 };
+      const remaining = Math.max(0, Number(readiness.minimum) - Number(readiness.eligible_assessments));
+      return showNotice(`Record ${remaining} more independent, non-conflicted assessment${remaining === 1 ? "" : "s"} before deciding this appeal.`, true);
+    }
     if (action === "decide") return actionDialog({
       title: "Decide punishment appeal",
       description: "Two independent non-conflicted assessments are required. Avenue Guard can remove a verified ban, timeout, or configured restriction role. Applicant-reported records require manual verification.",
@@ -1297,7 +1359,7 @@ document.addEventListener("click", async (event) => {
         { name: "outcome", label: "Outcome", type: "select", options: [["upheld","Uphold"],["reduced","Reduce"],["removed","Remove"],["record_corrected","Correct record"],["returned_for_reconsideration","Return for reconsideration"],["ineligible","Ineligible"],["duplicate","Duplicate"]] },
         { name: "internal_rationale", label: "Private staff rationale", type: "textarea", required: true },
         { name: "applicant_explanation", label: "Explanation shown to applicant", type: "textarea", required: true },
-        { name: "execute_removal", label: "If the outcome is Remove, apply the verified change in Discord", type: "checkbox", checked: item.lookup_status === "found", disabled: item.lookup_status !== "found" },
+        { name: "execute_removal", label: "If the outcome is Remove, apply the verified change in Discord", type: "checkbox", checked: appeal.lookup_status === "found", disabled: appeal.lookup_status !== "found" },
         { name: "confirmed", label: "I confirm this final appeal decision", type: "checkbox", required: true },
       ],
       confirm: "Record decision",
