@@ -168,6 +168,9 @@ test("appeal actions are compact, explain readiness, and open the decision dialo
   assert.match(script, /data-appeal-action="manage"/);
   assert.match(script, /Manage appeal review/);
   assert.match(script, /Record \$\{remaining\} more independent/);
+  assert.match(script, /Record your own non-conflicted assessment to decide this appeal alone/);
+  assert.match(script, /solo decision ready/);
+  assert.match(script, /Your own non-conflicted assessment authorizes a solo decision for your role/);
   assert.match(script, /checked: appeal\.lookup_status === "found"/);
   assert.match(script, /disabled: appeal\.lookup_status !== "found"/);
   assert.doesNotMatch(script, /data-appeal-action="decide"[^>]+disabled/);

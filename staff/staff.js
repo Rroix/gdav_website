@@ -549,13 +549,16 @@ function openAppeal(id) {
   const ready = item.decision_ready || { eligible_assessments: 0, minimum: 2, ready: false };
   const ownAssessment = (item.assessments || []).some((assessment) => exactId(assessment.reviewer_id) === exactId(state.user.id));
   const assessmentLabel = ownAssessment ? "Update assessment" : "Add assessment";
+  const readinessSummary = ready.solo_decision_allowed && ready.own_assessment_recorded
+    ? `${ready.eligible_assessments} eligible assessment${Number(ready.eligible_assessments) === 1 ? "" : "s"} · solo decision ready`
+    : `${ready.eligible_assessments} of ${ready.minimum} independent assessments`;
   const actions = ["decided", "withdrawn", "ineligible", "duplicate", "expired_no_action"].includes(item.status)
     ? `<button class="button secondary small" data-appeal-action="reopen" data-id="${item.id}">Reopen</button><button class="button secondary small" data-appeal-action="message" data-id="${item.id}">Message applicant</button>`
     : `<button class="button secondary small" data-appeal-action="manage" data-id="${item.id}">Manage review</button><button class="button secondary small" data-appeal-action="assess" data-id="${item.id}">${assessmentLabel}</button><button class="button secondary small" data-appeal-action="message" data-id="${item.id}">Message applicant</button>${can("appeals.execute") ? `<button class="button ${ready.ready ? "primary" : "secondary"} small" data-appeal-action="decide" data-id="${item.id}">Decide appeal</button>` : ""}`;
   const readinessNote = can("appeals.execute") && !ready.ready
-    ? `<p class="muted">A final decision needs ${Math.max(0, Number(ready.minimum) - Number(ready.eligible_assessments))} more independent, non-conflicted assessment${Number(ready.minimum) - Number(ready.eligible_assessments) === 1 ? "" : "s"}.</p>`
+    ? `<p class="muted">${ready.solo_decision_allowed && !ready.own_assessment_recorded ? "Record your own non-conflicted assessment to decide alone, or collect two independent assessments." : `A final decision needs ${Math.max(0, Number(ready.minimum) - Number(ready.eligible_assessments))} more independent, non-conflicted assessment${Number(ready.minimum) - Number(ready.eligible_assessments) === 1 ? "" : "s"}.`}</p>`
     : "";
-  openDrawer("Appeal inspector", `${applicant}'s appeal`, `<div class="drawer-meta">${pill(item.status)}${pill(item.claimed_by ? "claimed" : "unclaimed")}<span>${ready.eligible_assessments} of ${ready.minimum} independent assessments</span>${item.unban_status ? `<span>Removal: ${esc(item.unban_status)}</span>` : ""}</div>${evidence}<section class="drawer-section"><h3>Submitted appeal</h3>${answers}</section><section class="drawer-section"><h3>Independent assessments</h3>${assessments}</section><section class="drawer-section"><h3>Private portal messages</h3><div class="appeal-message-list">${messages}</div></section><section class="drawer-section"><h3>Actions</h3>${readinessNote}<div class="toolbar application-actions">${actions}</div></section>`);
+  openDrawer("Appeal inspector", `${applicant}'s appeal`, `<div class="drawer-meta">${pill(item.status)}${pill(item.claimed_by ? "claimed" : "unclaimed")}<span>${esc(readinessSummary)}</span>${item.unban_status ? `<span>Removal: ${esc(item.unban_status)}</span>` : ""}</div>${evidence}<section class="drawer-section"><h3>Submitted appeal</h3>${answers}</section><section class="drawer-section"><h3>Independent assessments</h3>${assessments}</section><section class="drawer-section"><h3>Private portal messages</h3><div class="appeal-message-list">${messages}</div></section><section class="drawer-section"><h3>Actions</h3>${readinessNote}<div class="toolbar application-actions">${actions}</div></section>`);
 }
 
 async function renderStaff() {
@@ -1349,12 +1352,17 @@ document.addEventListener("click", async (event) => {
     });
     if (action === "decide" && !appeal.decision_ready?.ready) {
       const readiness = appeal.decision_ready || { eligible_assessments: 0, minimum: 2 };
+      if (readiness.solo_decision_allowed && !readiness.own_assessment_recorded) {
+        return showNotice("Record your own non-conflicted assessment to decide this appeal alone, or collect two independent assessments.", true);
+      }
       const remaining = Math.max(0, Number(readiness.minimum) - Number(readiness.eligible_assessments));
       return showNotice(`Record ${remaining} more independent, non-conflicted assessment${remaining === 1 ? "" : "s"} before deciding this appeal.`, true);
     }
     if (action === "decide") return actionDialog({
       title: "Decide punishment appeal",
-      description: "Two independent non-conflicted assessments are required. Avenue Guard can remove a verified ban, timeout, or configured restriction role. Applicant-reported records require manual verification.",
+      description: appeal.decision_ready?.solo_decision_allowed && appeal.decision_ready?.own_assessment_recorded
+        ? "Your own non-conflicted assessment authorizes a solo decision for your role. Avenue Guard can remove a verified ban, timeout, or configured restriction role."
+        : "Two independent non-conflicted assessments are recorded. Avenue Guard can remove a verified ban, timeout, or configured restriction role. Applicant-reported records require manual verification.",
       fields: [
         { name: "outcome", label: "Outcome", type: "select", options: [["upheld","Uphold"],["reduced","Reduce"],["removed","Remove"],["record_corrected","Correct record"],["returned_for_reconsideration","Return for reconsideration"],["ineligible","Ineligible"],["duplicate","Duplicate"]] },
         { name: "internal_rationale", label: "Private staff rationale", type: "textarea", required: true },
