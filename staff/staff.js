@@ -78,6 +78,16 @@ const formatPps = (value, fallback = "-") => {
 };
 const titleCase = (value) => String(value || "unknown").replaceAll("_", " ").replace(/\b\w/g, (char) => char.toUpperCase());
 const roleLabel = (role) => ({ reviewer: "Reviewer", head_reviewer: "Head Reviewer", admin: "Admin", owner: "Owner", dev: "Dev" })[role] || titleCase(role);
+const creatorProviderLabels = { gdbrowser: "GDBrowser", boomlings: "Boomlings", gdhistory: "GDHistory", gdrateplus: "GDRate+" };
+const creatorProviderLabel = (provider) => creatorProviderLabels[String(provider || "").toLowerCase()] || titleCase(provider);
+const creatorPointsSourceLabel = (source) => ({
+  gdbrowser: "GDBrowser API",
+  gdbrowser_api: "GDBrowser API",
+  gdbrowser_html: "GDBrowser profile",
+  boomlings: "Boomlings profile",
+  profile_consensus: "Profile consensus",
+  manual_override: "Manual override",
+})[String(source || "").toLowerCase()] || titleCase(source);
 const identityLabel = (identity, fallbackId = "") => {
   const id = String(identity?.id ?? fallbackId ?? "");
   const name = identity?.display_name || identity?.portal_nickname || identity?.discord_display_name || identity?.global_display_name || identity?.username;
@@ -94,7 +104,7 @@ const conceptHelp = {
   outbox: "The durable delivery queue Avenue Guard uses for Discord messages and role changes. Pending items retry automatically; dead items need staff review.",
   pps: "The Priority Point System orders eligible recommended levels for outreach. It does not change review decisions or claim that moderator contact has occurred.",
   priority: "The current Priority Point System total. It combines the configured prestige, creator, and waiting components when all required data is available.",
-  priorityCreator: "The creator component (G) used by the current Priority Point System model.",
+  priorityCreator: "The creator component (G) uses the uploader profile's verified total Creator Points. Level-side CP fields are never used.",
   priorityPending: "Creator Points are required before Avenue can calculate the final PPS priority.",
   creatorResolving: "Avenue is still resolving the uploader's current Creator Points. This level will enter the ranked queue automatically once its priority can be calculated.",
   priorityPrestige: "The recommendation-tier component (F) used by the current Priority Point System model.",
@@ -384,6 +394,38 @@ function creatorPointsDisplay(item) {
   return "Resolving…";
 }
 
+function ppsComponentCaption(item, component) {
+  const detail = item.component_details?.[component] || {};
+  if (component === "f") {
+    const label = detail.recommendation_label || titleCase(item.tier);
+    return `${label} recommendation${detail.prestige_t !== null && detail.prestige_t !== undefined ? ` · T ${formatPps(detail.prestige_t)}` : ""}`;
+  }
+  if (component === "g") {
+    if (detail.creator_points === null || detail.creator_points === undefined) return "Creator total CP pending";
+    const threshold = Number(detail.zero_from_cp);
+    const rule = Number.isFinite(threshold) && Number(detail.creator_points) >= threshold ? ` · G is 0 at ${threshold}+ CP` : "";
+    return `${detail.creator_points} total CP${rule}${detail.source ? ` · ${creatorPointsSourceLabel(detail.source)}` : ""}`;
+  }
+  if (component === "h") {
+    const cycles = Number(detail.waiting_cycles ?? item.waiting_cycles ?? 0);
+    const scored = Number(detail.scored_cycles ?? cycles);
+    const cap = Number(detail.cap_cycles);
+    return `${cycles} completed cycle${cycles === 1 ? "" : "s"} · ${scored} scored${Number.isFinite(cap) ? ` (cap ${cap})` : ""}`;
+  }
+  return `${detail.formula || "F + G + H"}${detail.model_version ? ` · ${String(detail.model_version).toUpperCase()}` : ""}`;
+}
+
+function creatorObservationSummary(obs) {
+  const identity = obs.account_id ? ` · account ${obs.account_id}` : obs.player_id ? ` · player ${obs.player_id}` : "";
+  if (!obs.success) return `${titleCase(obs.error_category || "unavailable")}${identity}`;
+  if (obs.value_scope === "creator_profile") {
+    const cp = obs.creator_points_usable ? `Creator total CP ${obs.creator_points}` : "Creator profile · total CP not supplied";
+    return `${cp}${identity}`;
+  }
+  const ignored = obs.creator_points !== null && obs.creator_points !== undefined ? " · level-side CP ignored" : "";
+  return `Level identity evidence${ignored}${identity}`;
+}
+
 function queueRow(item) {
   const claim = !item.components.complete ? "Waiting for Creator Points" : item.claim ? `${item.claim.user?.display_name || (item.claim.user_id === state.user.id ? "You" : "Claimed")}${item.claim.stale ? " · stale" : ""}` : "Unclaimed";
   const pendingHelp = !item.components.complete ? ` title="${esc(conceptHelp.creatorResolving)}"` : "";
@@ -400,7 +442,7 @@ async function openQueue(id) {
       <section class="level-inspector-hero" data-tier="${esc(item.tier)}">${tierArtwork(item.tier, "large")}<div><span>${esc(titleCase(item.tier))} recommendation</span><strong>${item.components.complete && item.rank ? `#${item.rank} in queue` : item.components.complete ? "Outside the active ranked queue" : "Waiting for creator data"}</strong></div><div class="priority-total"><small>Priority</small><strong>${item.components.complete ? formatPps(item.components.p) : "Pending"}</strong></div></section>
       <div class="drawer-identity"><div><span>Level ID</span><strong class="secondary-id">${esc(item.level_id)}</strong><small>Created by ${esc(item.creator)}</small></div>${copyButton(item.level_id)}</div>
       <div class="detail-grid"><div class="detail-stat"><small>State</small><strong>${item.components.complete ? esc(titleCase(item.state)) : "Waiting for creator data"}</strong></div><div class="detail-stat"><small>Creator Points</small><strong>${esc(creatorPointsDisplay(item))}</strong></div><div class="detail-stat"><small>${conceptLabel("Waiting", conceptHelp.waiting)}</small><strong>${item.waiting_cycles} cycle${item.waiting_cycles === 1 ? "" : "s"}</strong></div><div class="detail-stat"><small>Tier</small><strong class="tier-text ${esc(item.tier)}">${esc(titleCase(item.tier))}</strong></div></div>
-      <details class="drawer-section" open><summary>${conceptLabel("PPS", conceptHelp.priority)}</summary><div class="priority-breakdown"><div><small>${conceptLabel("F", conceptHelp.priorityPrestige)}</small><strong>${formatPps(item.components.f)}</strong><span>Prestige</span></div><div><small>${conceptLabel("G", conceptHelp.priorityCreator)}</small><strong>${item.components.complete ? formatPps(item.components.g) : "Pending"}</strong><span>Creator</span></div><div><small>${conceptLabel("H", conceptHelp.priorityWaiting)}</small><strong>${formatPps(item.components.h)}</strong><span>Waiting</span></div><div class="total"><small>${conceptLabel("P", conceptHelp.priority)}</small><strong>${item.components.complete ? formatPps(item.components.p) : "Pending"}</strong><span>Total</span></div></div>${item.components.complete ? "" : `<p class="muted">${esc(conceptHelp.creatorResolving)}</p>`}</details>
+      <details class="drawer-section" open><summary>${conceptLabel("PPS", conceptHelp.priority)}</summary><div class="priority-breakdown"><div><small>${conceptLabel("F", conceptHelp.priorityPrestige)}</small><strong>${formatPps(item.components.f)}</strong><span>${esc(ppsComponentCaption(item, "f"))}</span></div><div><small>${conceptLabel("G", conceptHelp.priorityCreator)}</small><strong>${item.components.complete ? formatPps(item.components.g) : "Pending"}</strong><span>${esc(ppsComponentCaption(item, "g"))}</span></div><div><small>${conceptLabel("H", conceptHelp.priorityWaiting)}</small><strong>${formatPps(item.components.h)}</strong><span>${esc(ppsComponentCaption(item, "h"))}</span></div><div class="total"><small>${conceptLabel("P", conceptHelp.priority)}</small><strong>${item.components.complete ? formatPps(item.components.p) : "Pending"}</strong><span>${esc(ppsComponentCaption(item, "p"))}</span></div></div>${item.components.complete ? "" : `<p class="muted">${esc(conceptHelp.creatorResolving)}</p>`}</details>
       <section class="drawer-section"><div class="panel-head"><h3>Actions</h3></div><div class="toolbar">
         ${item.state !== "hidden" && !item.claim && can("queue.claim") && item.components.complete ? `<button class="button primary" data-queue-action="claim" data-id="${id}">Claim</button>` : ""}
         ${item.state !== "hidden" && !item.components.complete && can("queue.manage_state") ? `<button class="button secondary" data-queue-action="retry-cp" data-id="${id}">Retry Creator Points</button>` : ""}
@@ -414,7 +456,7 @@ async function openQueue(id) {
         ${can("developer.access") && item.state !== "hidden" ? `<button class="button danger" data-queue-action="hide" data-id="${id}" ${supports("hidden_queue_entries") ? "" : 'disabled aria-disabled="true" title="Deploy the matching Avenue Guard API to enable hidden levels"'}>Hide level</button>` : ""}
         ${can("developer.access") && item.state === "hidden" ? `<button class="button primary" data-queue-action="restore" data-id="${id}" ${supports("hidden_queue_entries") ? "" : 'disabled aria-disabled="true" title="Deploy the matching Avenue Guard API to restore hidden levels"'}>Restore level</button>` : ""}
       </div></section>
-      ${data.creator_points_diagnostics ? `<details class="drawer-section"><summary>Creator Points diagnostics</summary><div class="detail-grid"><div class="detail-stat"><small>Resolution</small><strong>${esc(titleCase(data.creator_points_diagnostics.job?.state || item.creator_points_status))}</strong></div><div class="detail-stat"><small>Source</small><strong>${esc(item.creator_points_source || "Not accepted yet")}</strong></div><div class="detail-stat"><small>Next retry</small><strong>${data.creator_points_diagnostics.job?.next_attempt_ts ? ago(data.creator_points_diagnostics.job.next_attempt_ts) : "Not scheduled"}</strong></div><div class="detail-stat"><small>Identity</small><strong>${esc(item.uploader_account_id ? `Account ${item.uploader_account_id}` : item.uploader_player_id ? `Player ${item.uploader_player_id}` : item.creator)}</strong></div></div><div class="stack">${data.creator_points_diagnostics.observations.map((obs) => `<div class="list-row"><div><strong>${esc(`${titleCase(obs.provider)} · ${titleCase(obs.method)}`)}</strong><small>${obs.success ? `CP ${obs.creator_points ?? "not supplied"}` : esc(titleCase(obs.error_category || "unavailable"))}${obs.account_id ? ` · account ${esc(obs.account_id)}` : ""}</small></div><time>${ago(obs.observed_at)}</time></div>`).join("") || '<p class="muted">No provider observations yet.</p>'}</div></details>` : ""}
+      ${data.creator_points_diagnostics ? `<details class="drawer-section"><summary>Creator Points diagnostics</summary><div class="detail-grid"><div class="detail-stat"><small>Resolution</small><strong>${esc(titleCase(data.creator_points_diagnostics.job?.state || item.creator_points_status))}</strong></div><div class="detail-stat"><small>Source</small><strong>${esc(item.creator_points_source ? creatorPointsSourceLabel(item.creator_points_source) : "Not accepted yet")}</strong></div><div class="detail-stat"><small>Next retry</small><strong>${data.creator_points_diagnostics.job?.next_attempt_ts ? ago(data.creator_points_diagnostics.job.next_attempt_ts) : "Not scheduled"}</strong></div><div class="detail-stat"><small>Identity</small><strong>${esc(item.uploader_account_id ? `Account ${item.uploader_account_id}` : item.uploader_player_id ? `Player ${item.uploader_player_id}` : item.creator)}</strong></div></div><div class="stack">${data.creator_points_diagnostics.observations.map((obs) => `<div class="list-row"><div><strong>${esc(`${creatorProviderLabel(obs.provider)} · ${titleCase(obs.method)}`)}</strong><small>${esc(creatorObservationSummary(obs))}</small></div><time>${ago(obs.observed_at)}</time></div>`).join("") || '<p class="muted">No provider observations yet.</p>'}</div></details>` : ""}
       <details class="drawer-section"><summary>Outreach (${data.outreach.length})</summary>${data.outreach.length ? data.outreach.map((event) => `<div class="list-row"><div><strong>${esc(titleCase(event.status))}</strong><small>${esc(event.route_type)} · ${esc(event.private_target_label || "No target")}</small></div><small>${ago(event.event_ts)}</small></div>`).join("") : '<p class="muted">No outreach recorded.</p>'}</details>
       <details class="drawer-section"><summary>History (${data.history.length})</summary><ol class="timeline">${data.history.map((event) => `<li><strong>${esc(titleCase(event.event))}</strong><br><small class="muted">${fmtTime(event.created_ts)}</small></li>`).join("") || '<li>No history recorded.</li>'}</ol></details>
       <details class="drawer-section"><summary>Notes (${data.notes.length})</summary>${data.notes.length ? data.notes.map((note) => `<div class="list-row"><div><strong>${esc(titleCase(note.scope))}</strong><small>${esc(note.body)}</small></div><small>${ago(note.updated_ts)}</small></div>`).join("") : '<p class="muted">No visible notes.</p>'}</details>`;
@@ -673,7 +715,6 @@ async function renderOperations() {
   const data = await api("/api/staff/operations");
   const health = (ready) => pill(ready ? "healthy" : "degraded", ready ? "" : "warning");
   const cpProviders = Object.entries(data.creator_points_providers || {});
-  const providerLabels = { gdbrowser: "GDBrowser", boomlings: "Boomlings", gdhistory: "GDHistory", gdrateplus: "GDRate+" };
   const methodLabels = { html_level: "HTML level", html_profile: "HTML profile", api_profile: "API fallback", direct_profile: "Direct profile", level: "Level lookup" };
   const rate = (value) => value == null ? "No samples" : `${Math.round(Number(value) * 100)}%`;
   const creatorProvider = ([name, provider]) => {
@@ -688,7 +729,7 @@ async function renderOperations() {
       provider.last_success ? `last success ${ago(provider.last_success)}` : "no recent success",
     ];
     const methods = (provider.methods || []).map((method) => `<div class="metric-line provider-method"><span>${esc(methodLabels[method.method] || titleCase(method.method || "provider request"))}</span><strong>${method.attempts || 0} attempts · ${method.cp_successes || 0} CP · ${method.parse_failures || 0} parse failures</strong></div>`).join("");
-    return `<div class="provider-diagnostic"><div class="list-row"><div><strong>${esc(providerLabels[name] || titleCase(name))}</strong><small>${esc(details.join(" · "))}</small>${provider.last_error_category ? `<small>Last error: ${esc(titleCase(provider.last_error_category))}${provider.last_error ? ` · ${ago(provider.last_error)}` : ""}</small>` : ""}</div>${pill(status, status === "healthy" ? "" : "warning")}</div>${methods}</div>`;
+    return `<div class="provider-diagnostic"><div class="list-row"><div><strong>${esc(creatorProviderLabel(name))}</strong><small>${esc(details.join(" · "))}</small>${provider.last_error_category ? `<small>Last error: ${esc(titleCase(provider.last_error_category))}${provider.last_error ? ` · ${ago(provider.last_error)}` : ""}</small>` : ""}</div>${pill(status, status === "healthy" ? "" : "warning")}</div>${methods}</div>`;
   };
   return `<div class="summary-band operations-summary"><div><p class="eyebrow">Avenue Guard</p><h2><span class="state-dot ${data.runtime.ready ? "healthy" : "degraded"}" aria-hidden="true"></span>${esc(data.service.state || "Unknown")}</h2><small>${esc(data.service.detail || "No service detail")}</small></div><div><small>Bot readiness</small><strong>${health(data.runtime.ready)}</strong></div><div><small>Database</small><strong>${health(data.database.connected)}</strong></div><div><small>Open incidents</small><strong>${data.incidents.length}</strong></div></div>
     <section class="system-status-line" aria-label="Operations summary">${countMetric("Gateway", data.runtime.responsive ? "Healthy" : "Degraded")}${countMetric("Outbox pending", data.outbox.pending || 0)}${countMetric("Current wave", titleCase(data.request_wave.state || "unknown"))}${countMetric("CP providers", `${cpProviders.filter(([, item]) => item.status === "healthy").length} healthy`)}</section>

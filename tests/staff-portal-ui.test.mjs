@@ -75,6 +75,18 @@ test("operational records use inspectors and compact queue columns", () => {
   assert.doesNotMatch(script, /item\.components\.(?:f|g|h) \?\? "-"/);
 });
 
+test("PPS component cards explain their source inputs", () => {
+  assert.match(script, /function ppsComponentCaption/);
+  assert.match(script, /recommendation_label/);
+  assert.match(script, /total CP/);
+  assert.match(script, /G is 0 at/);
+  assert.match(script, /completed cycle/);
+  assert.match(script, /detail\.formula \|\| "F \+ G \+ H"/);
+  assert.match(script, /ppsComponentCaption\(item, "f"\)/);
+  assert.match(script, /ppsComponentCaption\(item, "g"\)/);
+  assert.match(styles, /\.priority-breakdown > div \{ min-width: 0/);
+});
+
 test("Operations exposes private Creator Points provider diagnostics", () => {
   assert.match(script, /data\.creator_points_providers/);
   assert.match(script, /Creator Points providers/);
@@ -90,6 +102,14 @@ test("Operations exposes private Creator Points provider diagnostics", () => {
   assert.match(script, /gdrateplus: "GDRate\+"/);
   assert.match(script, /api_profile: "API fallback"/);
   assert.match(styles, /\.provider-method/);
+});
+
+test("Creator Points diagnostics distinguish profile totals from level evidence", () => {
+  assert.match(script, /function creatorObservationSummary/);
+  assert.match(script, /obs\.value_scope === "creator_profile"/);
+  assert.match(script, /Creator total CP/);
+  assert.match(script, /level-side CP ignored/);
+  assert.match(script, /creatorObservationSummary\(obs\)/);
 });
 
 test("Head-level Creator Points attention can be retried from Overview", () => {

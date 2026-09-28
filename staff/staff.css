@@ -454,10 +454,10 @@ body.drawer-open { overflow: hidden; }
 .priority-total { padding-left: 14px; border-left: 1px solid var(--line); text-align: right; }
 .priority-total strong { font-size: 1.65rem; font-variant-numeric: tabular-nums; }
 .priority-breakdown { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
-.priority-breakdown > div { padding: 12px 8px; border-right: 1px solid var(--line); }
+.priority-breakdown > div { min-width: 0; padding: 12px 8px; border-right: 1px solid var(--line); }
 .priority-breakdown > div:last-child { border-right: 0; }
 .priority-breakdown small, .priority-breakdown strong, .priority-breakdown span { display: block; }
-.priority-breakdown small, .priority-breakdown span { color: var(--muted); font-size: .72rem; }
+.priority-breakdown small, .priority-breakdown span { color: var(--muted); font-size: .72rem; line-height: 1.4; overflow-wrap: anywhere; }
 .priority-breakdown strong { margin: 3px 0; font-size: 1.08rem; font-variant-numeric: tabular-nums; }
 .priority-breakdown .total strong { color: var(--accent); }
 
