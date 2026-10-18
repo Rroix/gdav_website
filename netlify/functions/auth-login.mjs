@@ -2,7 +2,8 @@ import { OAUTH_COOKIE, cookie, createOAuthState, required, siteUrl } from "./_sh
 
 export async function handler(event) {
   try {
-    const destination = event.queryStringParameters?.return === "apply" ? "/apply" : "/staff";
+    const requested = String(event.queryStringParameters?.return || "").toLowerCase();
+    const destination = requested === "apply" ? "/apply" : requested === "feedback" ? "/feedback" : "/staff";
     const state = createOAuthState(destination);
     const redirectUri = `${siteUrl(event)}/api/auth/callback`;
     const params = new URLSearchParams({
@@ -22,6 +23,6 @@ export async function handler(event) {
       body: "",
     };
   } catch {
-    return { statusCode: 503, body: "Staff sign-in is not configured" };
+    return { statusCode: 503, body: "Discord sign-in is not configured" };
   }
 }

@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Build, repair, and copy a readable Geometry Dash color palette in the GD Avenue Palette Lab.">
+  <meta name="theme-color" content="#07131b">
+  <link rel="icon" href="favicon.ico">
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="community.css?v=20261018-6">
+  <title>Palette Lab | GD Avenue</title>
+</head>
+<body class="community-site palette-page">
+  <a class="skip-link" href="#main-content">Skip to content</a>
+  <header class="site-header" data-site-header>
+    <a class="site-brand" href="/" aria-label="GD Avenue home"><img src="/assets/community/gd-avenue-logo.png" alt="" width="44" height="44"><span><strong>GD Avenue</strong></span></a>
+    <button class="site-menu" type="button" aria-expanded="false" aria-controls="site-navigation">Menu</button>
+    <nav class="site-nav" id="site-navigation" aria-label="Primary navigation">
+      <div class="site-nav__links"><a href="/">Home</a><a href="/levels/">Levels</a><a href="/palette.html" aria-current="page">Palette Lab</a><a href="/generator.html">Idea Generator</a><a href="/rules.html">Community</a><a href="/about.html">About</a></div>
+      <div class="site-nav__actions"><a href="/bot.html">Avenue Guard</a><a href="/feedback.html">Get feedback</a><a href="/apply/">Apply</a><a class="site-nav__join" href="https://discord.gg/matVTsj">Join Discord</a></div>
+    </nav>
+  </header>
+
+  <main id="main-content" class="palette-main">
+    <section class="palette-intro">
+      <div class="section-wrap palette-intro__inner">
+        <div>
+          <p class="community-kicker">For your next project</p>
+          <h1>Palette Lab</h1>
+          <p>Give each color a job, lock what already works, and repair contrast.</p>
+        </div>
+        <div class="palette-intro__mark" aria-hidden="true"><img src="/assets/community/gd-avenue-logo.png" alt="" width="150" height="150"></div>
+      </div>
+    </section>
+
+    <section class="palette-workspace section-wrap" aria-labelledby="palette-editor-title">
+      <div class="palette-toolbar">
+        <div>
+          <h2 id="palette-editor-title">Build a five-role palette <span class="no-ai-label">NO AI</span></h2>
+          <p>Locked colors stay untouched when you generate or repair.</p>
+        </div>
+        <label class="palette-mode">Direction
+          <select id="palette-mode">
+            <option value="balanced">Balanced</option>
+            <option value="complementary">Complementary</option>
+            <option value="triadic">Triadic</option>
+            <option value="analogous">Analogous</option>
+            <option value="monochrome">Monochrome</option>
+          </select>
+        </label>
+      </div>
+
+      <div class="palette-editor" id="palette-editor">
+        <article class="palette-swatch" data-role="background">
+          <div class="palette-swatch__color"><input type="color" value="#0b1020" aria-label="Choose background color"></div>
+          <div class="palette-swatch__body"><span>Background</span><input class="palette-hex" value="#0B1020" maxlength="7" spellcheck="false" aria-label="Background hexadecimal color"><button class="palette-lock" type="button" aria-pressed="false">Lock</button></div>
+        </article>
+        <article class="palette-swatch" data-role="structure">
+          <div class="palette-swatch__color"><input type="color" value="#24335e" aria-label="Choose structure color"></div>
+          <div class="palette-swatch__body"><span>Structure</span><input class="palette-hex" value="#24335E" maxlength="7" spellcheck="false" aria-label="Structure hexadecimal color"><button class="palette-lock" type="button" aria-pressed="false">Lock</button></div>
+        </article>
+        <article class="palette-swatch" data-role="primary">
+          <div class="palette-swatch__color"><input type="color" value="#04d9d9" aria-label="Choose primary color"></div>
+          <div class="palette-swatch__body"><span>Primary</span><input class="palette-hex" value="#04D9D9" maxlength="7" spellcheck="false" aria-label="Primary hexadecimal color"><button class="palette-lock" type="button" aria-pressed="false">Lock</button></div>
+        </article>
+        <article class="palette-swatch" data-role="accent">
+          <div class="palette-swatch__color"><input type="color" value="#ff4fa3" aria-label="Choose accent color"></div>
+          <div class="palette-swatch__body"><span>Accent</span><input class="palette-hex" value="#FF4FA3" maxlength="7" spellcheck="false" aria-label="Accent hexadecimal color"><button class="palette-lock" type="button" aria-pressed="false">Lock</button></div>
+        </article>
+        <article class="palette-swatch" data-role="gameplay">
+          <div class="palette-swatch__color"><input type="color" value="#ffe45e" aria-label="Choose gameplay cue color"></div>
+          <div class="palette-swatch__body"><span>Gameplay cue</span><input class="palette-hex" value="#FFE45E" maxlength="7" spellcheck="false" aria-label="Gameplay cue hexadecimal color"><button class="palette-lock" type="button" aria-pressed="false">Lock</button></div>
+        </article>
+      </div>
+
+      <div class="palette-actions" aria-label="Palette actions">
+        <button class="community-button community-button--sun" id="palette-generate" type="button">Generate palette</button>
+        <button class="community-button palette-action-secondary" id="palette-fix" type="button">Fix contrast</button>
+        <button class="community-button palette-action-secondary" id="palette-copy" type="button">Copy colors</button>
+        <button class="palette-reset" id="palette-reset" type="button">Reset</button>
+        <p id="palette-status" role="status" aria-live="polite"></p>
+      </div>
+
+      <div class="palette-analysis">
+        <div class="palette-preview" id="palette-preview" aria-label="Palette preview">
+          <div class="palette-preview__moon"></div>
+          <div class="palette-preview__structure"><i></i><i></i><i></i></div>
+          <div class="palette-preview__path"><span></span><span></span><span></span></div>
+          <div class="palette-preview__player" aria-hidden="true"><b></b><b></b></div>
+          <div class="palette-preview__accent" aria-hidden="true"></div>
+        </div>
+        <div class="palette-checks" aria-labelledby="contrast-title">
+          <p class="community-kicker community-kicker--dark">Readability check</p>
+          <h3 id="contrast-title">Keep gameplay separated from visuals.</h3>
+          <div class="palette-check" data-contrast="gameplay"><span>Gameplay cue / background</span><strong>Checking</strong></div>
+          <div class="palette-check" data-contrast="primary"><span>Primary / background</span><strong>Checking</strong></div>
+          <div class="palette-check" data-contrast="structure"><span>Structure / background</span><strong>Checking</strong></div>
+          <p class="palette-checks__note">Contrast ratios are useful, but they aren't magic. Effects, pulses, or blends can still clutter everything.</p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="site-footer__inner">
+      <div class="site-footer__identity"><img src="/assets/community/gd-avenue-logo.png" alt="" width="58" height="58"><div><strong>Geometry Dash Avenue</strong><p>A community made for creators, players, and honest feedback.</p></div></div>
+      <div class="site-footer__links"><div><strong>Explore</strong><a href="/levels/">Levels</a><a href="/generator.html">Idea Generator</a><a href="/feedback.html">Level Feedback</a></div><div><strong>Community</strong><a href="/rules.html">Rules</a><a href="/about.html">About Us</a><a href="/apply/">Apply or Appeal</a></div><div><strong>More</strong><a href="/bot.html">Avenue Guard</a><a href="/privacy.html">Privacy</a><a href="/staff/">Staff Portal</a><a href="https://discord.gg/matVTsj">Discord</a></div></div>
+    </div>
+    <div class="site-footer__base"><span>Geometry Dash Avenue &copy; <span data-current-year>2026</span></span><span>Not affiliated with RobTop Games.</span></div>
+  </footer>
+  <script src="site.js?v=20261018-4" defer></script>
+  <script src="palette.js" defer></script>
+</body>
+</html>

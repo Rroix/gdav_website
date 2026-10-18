@@ -19,6 +19,14 @@ sections.forEach((section) => {
   }
 });
 
+const tocDetails = document.querySelector(".methodology-toc details");
+const compactToc = window.matchMedia("(max-width: 900px)");
+function syncTocForViewport(event) {
+  if (tocDetails) tocDetails.open = !event.matches;
+}
+syncTocForViewport(compactToc);
+compactToc.addEventListener("change", syncTocForViewport);
+
 const tierX = { rate: 0, feature: 1.25, epic: 2.5, legendary: 3.75, mythic: 5 };
 const form = document.querySelector("#ppsCalculator");
 const output = document.querySelector("#calcOutput");

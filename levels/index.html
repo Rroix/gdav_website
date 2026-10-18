@@ -3,23 +3,30 @@
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="Search public GD Avenue level recommendations">
-  <meta name="theme-color" content="#090b0d">
+  <meta name="theme-color" content="#07131b">
   <title>Search Your Level | GD Avenue</title>
-  <link rel="stylesheet" href="../staff/staff.css"><link rel="stylesheet" href="public-levels.css">
+  <link rel="stylesheet" href="../styles.css"><link rel="stylesheet" href="../community.css?v=20261018-6"><link rel="stylesheet" href="public-levels.css?v=20261018-3">
 </head>
-<body class="public-levels">
-  <header class="public-nav"><a class="brand" href="/"><img src="https://cdn.discordapp.com/avatars/1454985687177887866/d268221fd7a7a5529897730d18edd5a0.webp?size=128" alt="" width="38" height="38"><span><strong>GD Avenue</strong><small>Level recommendations</small></span></a><nav><a href="/">Rules</a><a href="/about.html">About</a><a href="/apply/">Apply</a><a href="/staff">Staff</a></nav></header>
-  <main class="levels-main">
+<body class="public-levels community-site levels-page">
+  <a class="skip-link" href="#main-content">Skip to content</a>
+  <header class="site-header" data-site-header>
+    <a class="site-brand" href="/" aria-label="GD Avenue home"><img src="/assets/community/gd-avenue-logo.png" alt="" width="44" height="44"><span><strong>GD Avenue</strong></span></a>
+    <button class="site-menu" type="button" aria-expanded="false" aria-controls="site-navigation">Menu</button>
+    <nav class="site-nav" id="site-navigation" aria-label="Primary navigation"><div class="site-nav__links"><a href="/">Home</a><a href="/levels/" aria-current="page">Levels</a><a href="/palette.html">Palette Lab</a><a href="/generator.html">Idea Generator</a><a href="/rules.html">Community</a><a href="/about.html">About</a></div><div class="site-nav__actions"><a href="/bot.html">Avenue Guard</a><a href="/feedback.html">Get feedback</a><a href="/apply/">Apply</a><a class="site-nav__join" href="https://discord.gg/matVTsj">Join Discord</a></div></nav>
+  </header>
+  <section class="levels-community-hero" aria-labelledby="levels-community-title"><img src="/assets/community/gd-avenue-banner.png" alt="" aria-hidden="true"><div aria-hidden="true"></div><div><p class="community-kicker">From our community to the wider game</p><h1 id="levels-community-title">GD Avenue recommendations</h1><p>Find levels reviewed by the team and follow their public journey from recommendation to rate.</p></div></section>
+  <main class="levels-main" id="main-content">
     <section class="search-hero">
       <p class="eyebrow">Public recommendation index</p>
-      <h1>Search your level</h1>
-      <p>Find a level recommended by GD Avenue and follow its public outreach status.</p>
+      <h2>Search your level</h2>
+      <p>Input a level name, ID, or creator.</p>
       <p><a class="methodology-link" href="/methodology/queue/">How we order the queue</a></p>
       <label class="search-field"><span class="sr-only">Search by level name, ID, or creator</span><input id="level-search" type="search" placeholder="Search by level name, ID or creator" autocomplete="off" autofocus></label>
     </section>
     <section id="level-results" class="level-results" aria-live="polite"><div class="loading-state"><span class="spinner"></span>Loading recommendations</div></section>
   </main>
-  <footer class="public-footer">GD Avenue · Public recommended levels only</footer>
+  <footer class="site-footer"><div class="site-footer__inner"><div class="site-footer__identity"><img src="/assets/community/gd-avenue-logo.png" alt="" width="58" height="58"><div><strong>Geometry Dash Avenue</strong><p>A community made for creating, improving, and connecting.</p></div></div><div class="site-footer__links"><div><strong>Explore</strong><a href="/levels/">Levels</a><a href="/generator.html">Idea Generator</a><a href="/bot.html">Avenue Guard</a></div><div><strong>Community</strong><a href="/rules.html">Rules</a><a href="/about.html">About Us</a><a href="/apply/">Apply or Appeal</a></div><div><strong>More</strong><a href="/privacy.html">Privacy</a><a href="/staff/">Staff Portal</a><a href="https://discord.gg/matVTsj">Discord</a></div></div></div><div class="site-footer__base"><span>Geometry Dash Avenue &copy; <span data-current-year>2026</span></span><span>Public recommended levels only.</span></div></footer>
+  <script src="../site.js?v=20261018-4" defer></script>
   <script src="levels.js" defer></script>
 </body>
 </html>

@@ -18,6 +18,9 @@ const user = {
   avatar_url: "https://cdn.discordapp.com/avatars/1454985687177887866/d268221fd7a7a5529897730d18edd5a0.webp?size=128",
   role: "dev",
   role_label: "Dev",
+  about_quote: "Build something worth sharing.",
+  about_visible: true,
+  about_visibility_customized: true,
   staff_access: true,
   capabilities: ["staff.access", "admin.access", "queue.view", "queue.claim", "queue.reassign", "queue.manage_state", "outreach.record", "tasks.assign", "tasks.manage_team", "notes.owner", "review.qa", "review.adjust_tier", "applications.review_judge", "appeals.review", "appeals.execute", "staff.manage", "staff.view", "staff.manage_standard_roles", "staff.manage_all", "staff.manage_nicknames", "requests.manage", "requests.schedule", "tracking.manage", "pps.manage_cycles", "pps.override", "operations.view", "audit.view", "audit.view_full", "config.manage_safe", "developer.access"],
 };
@@ -29,8 +32,8 @@ const viewRoles = [
   ["dev", "Dev", user.capabilities],
 ];
 const api = {
-  version: legacyApi ? 0 : 13,
-  features: legacyApi ? [] : ["application_data_reset", "application_interviews", "application_type_availability", "application_review_embeds", "application_review_threads", "application_cooldown", "multi_type_applications", "hidden_queue_entries", "staff_manual_management", "staff_assignee_directory", "task_assignment_dm", "task_recipient_dm", "view_role_preview", "punishment_appeals", "appeal_discord_evidence", "appeal_portal_messages", "appeal_unban_outbox", "creator_points_manual_override", "privileged_appeal_solo_decision", "pps_component_explanations"],
+  version: legacyApi ? 0 : 15,
+  features: legacyApi ? [] : ["application_data_reset", "application_interviews", "application_type_availability", "application_review_embeds", "application_review_threads", "application_cooldown", "multi_type_applications", "hidden_queue_entries", "staff_manual_management", "staff_assignee_directory", "task_assignment_dm", "task_recipient_dm", "view_role_preview", "punishment_appeals", "appeal_discord_evidence", "appeal_portal_messages", "appeal_unban_outbox", "creator_points_manual_override", "privileged_appeal_solo_decision", "pps_component_explanations", "community_level_feedback", "public_staff_profiles"],
 };
 const queue = [
   { id: 1, rank: 1, level_id: "101935961", level_name: "Synergy", creator: "CreatorName", tier: "mythic", cp: 6, creator_points_source: "gdbrowser_api", waiting_cycles: 2, components: { f: 8.062998208338442, g: 0, h: 4.2426406871, p: 12.3056388954, complete: true }, component_details: { f: { recommendation_type: "mythic", recommendation_label: "Mythic", prestige_t: 5, base: 1.8 }, g: { creator_points: 6, zero_from_cp: 4, source: "gdbrowser_api", confidence: "verified_single_source" }, h: { waiting_cycles: 2, scored_cycles: 2, cap_cycles: 4, multiplier: 1.5, exponent: 1.5 }, p: { formula: "F + G + H", model_version: "pps_v1" } }, state: "queued", claim: null },
@@ -48,13 +51,16 @@ const publicLevels = queue.filter((item) => item.state !== "hidden").map((item) 
   public_outcome_state: "unknown",
   public_priority_band: item.rank === 1 ? "top_priority" : "high_priority",
 }));
+const feedbackRequests = [];
 
 const payloads = {
   "/api/bot": { schema_version: 4, service: "Avenue Guard", bot_name: "Avenue Guard", avatar_url: user.avatar_url, state: "online", status: "Operational", online: true, ready: true, responsive: true, version: "3.24.0", service_started_ts: now - 86400 * 5, service_uptime_seconds: 86400 * 5, latency_ms: 46, guild_count: 1, member_count: 2431, uptime_percentage: 99.94, uptime_tracking_since_ts: now - 86400 * 30, updated_ts: now - 240, systems: [{ name: "Discord gateway", status: "operational", detail: "Connected and responsive" }, { name: "Database", status: "operational", detail: "Connected" }, { name: "Background services", status: "operational", detail: "Core tasks running" }, { name: "GD validation providers", status: "degraded", detail: "2 of 3 available" }], health_history: Array.from({ length: 48 }, (_value, index) => ({ sample_ts: now - (47 - index) * 1800, healthy: index !== 31, database_ok: true, gateway_latency_ms: 38 + Math.round(Math.sin(index / 5) * 12), database_latency_ms: 4 + index % 3, provider_available: index < 40 ? 3 : 2, provider_total: 3 })) },
   "/api/releases": { schema_version: 1, count: 2, releases: [{ version: "3.24.0", title: "Staff workflow reliability", summary: "Improved application controls, public health history, and team profile freshness.", changes: ["Added per-type application availability", "Added public system health graphs"], published_ts: now - 3600 }, { version: "3.23.0", title: "Application workflow", summary: "Introduced Reviewer and Mod application workflows.", changes: ["Added typed application forms"], published_ts: now - 86400 * 3 }] },
-  "/api/team": { schema_version: 1, count: 1, members: [{ id: user.id, display_name: user.display_name, avatar_url: user.avatar_url }] },
+  "/api/team": { schema_version: 2, count: 1, members: [{ id: user.id, display_name: user.display_name, avatar_url: user.avatar_url, role_label: user.role_label, quote: user.about_quote }] },
   "/api/staff/session": { user, api, view_mode: { active: false, actual_role: "dev", roles: viewRoles.map(([key, label, capabilities]) => ({ key, label, capabilities })) } },
+  "/api/staff/profile": { profile: user },
   "/api/apply/session": { user: { ...user, role: "applicant", role_label: "Applicant", staff_access: false, capabilities: ["applications.self"] }, api },
+  "/api/feedback/session": { user, api },
   "/api/apply/mine": { items: withdrawnApplication ? [{ id: 1, application_type: "judge", status: "withdrawn", answers: {}, created_ts: now - 86400, updated_ts: now - 3600 }] : [] },
   "/api/apply/options": { items: [{ application_type: "judge", label: "Reviewer application", description: "Review Geometry Dash levels and recommend rating tiers.", enabled: true, open: true, cooldown: { days: 5, active: false } }, { application_type: "mod", label: "Mod application", description: "Help moderate GD Avenue and support the community.", enabled: true, open: true, cooldown: { days: 5, active: false } }, { application_type: "appeal", label: "Punishment appeal", description: "Ask GD Avenue to review a ban, timeout, mute, or configured access restriction.", enabled: true, open: true, cooldown: { days: 30, active: false } }], applications_open: true, application_open_by_type: { judge: true, mod: true }, cooldown: { days: 5, active: false }, cooldowns: { judge: { days: 5, active: false }, mod: { days: 5, active: false } }, active_applications: [], active_application: null, guild_member: true },
   "/api/apply/form": { application: { id: 15, application_type: "judge", status: "draft", answers: {} }, questions: [
@@ -106,18 +112,65 @@ const payloads = {
 };
 payloads["/api/apply/form/judge"] = payloads["/api/apply/form"];
 
-function json(response, body) {
-  response.writeHead(200, { "Content-Type": "application/json", "Cache-Control": "no-store" });
+function json(response, body, status = 200) {
+  response.writeHead(status, { "Content-Type": "application/json", "Cache-Control": "no-store" });
   response.end(JSON.stringify(body));
+}
+
+async function requestBody(request) {
+  const chunks = [];
+  for await (const chunk of request) chunks.push(chunk);
+  try { return JSON.parse(Buffer.concat(chunks).toString("utf8") || "{}"); }
+  catch { return {}; }
 }
 
 http.createServer(async (request, response) => {
   const url = new URL(request.url, `http://${request.headers.host}`);
+  if (url.pathname === "/api/team") {
+    const members = user.about_visible ? [{ id: user.id, display_name: user.display_name, avatar_url: user.avatar_url, role_label: user.role_label, quote: user.about_quote }] : [];
+    return json(response, { schema_version: 2, count: members.length, members });
+  }
+  if (url.pathname === "/api/feedback/requests") {
+    if (request.method === "GET") return json(response, { items: feedbackRequests });
+    if (request.method === "POST") {
+      const body = await requestBody(request);
+      const item = {
+        id: feedbackRequests.length + 1,
+        level_id: String(body.level_id || ""),
+        level_name: "",
+        creator_name: "",
+        feedback_focus: String(body.feedback_focus || "overall"),
+        project_stage: String(body.project_stage || "finished"),
+        context: String(body.context || ""),
+        showcase_url: String(body.showcase_url || ""),
+        status: "queued",
+        created_ts: Math.floor(Date.now() / 1000),
+        updated_ts: Math.floor(Date.now() / 1000),
+        responded_ts: null,
+        delivery_status: "pending",
+      };
+      feedbackRequests.unshift(item);
+      return json(response, { ok: true, request: item }, 201);
+    }
+  }
   if (url.pathname === "/api/staff/session") {
     const selected = viewRoles.find(([key]) => key === request.headers["x-staff-view-role"]);
     if (!selected) return json(response, payloads["/api/staff/session"]);
     const [role, label, capabilities] = selected;
     return json(response, { user: { ...user, role, role_label: label, staff_access: capabilities.includes("staff.access"), capabilities }, api, view_mode: { active: true, actual_role: "dev", roles: viewRoles.map(([key, itemLabel, itemCapabilities]) => ({ key, label: itemLabel, capabilities: itemCapabilities })) } });
+  }
+  if (url.pathname === "/api/staff/profile/about" && request.method === "PATCH") {
+    const body = await requestBody(request);
+    user.about_quote = String(body.about_quote || "").trim().slice(0, 240);
+    user.about_visible = Boolean(body.about_visible);
+    user.about_visibility_customized = true;
+    return json(response, { ok: true, profile: user });
+  }
+  if (url.pathname === "/api/staff/profile" && request.method === "PATCH") {
+    const body = await requestBody(request);
+    user.portal_nickname = String(body.portal_nickname || "").trim().slice(0, 40);
+    user.display_name = user.portal_nickname || user.discord_display_name;
+    return json(response, { ok: true, profile: user });
   }
   if (url.pathname === "/api/levels") {
     const term = (url.searchParams.get("q") || "").trim().toLowerCase();

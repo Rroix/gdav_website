@@ -4,27 +4,24 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="description" content="Live service information and recent updates for Avenue Guard, the Geometry Dash Avenue utility bot" />
-  <meta name="theme-color" content="#0b0b0c" />
+  <meta name="theme-color" content="#07131b" />
   <link rel="icon" href="favicon.ico" />
   <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="community.css?v=20261018-6" />
   <title>Avenue Guard Status</title>
 </head>
-<body>
-  <header>
-    <div class="logo">Geometry Dash Avenue</div>
-    <nav>
-      <a href="index.html">Rules</a>
-      <a href="generator.html">Idea Generator</a>
-      <a href="about.html">About Us</a>
-      <a href="bot.html" class="active">Avenue Guard</a>
-      <a href="/levels/">Levels</a>
-      <a href="/apply/">Apply</a>
-      <a href="/staff/">Staff</a>
-      <a href="https://discord.com/invite/matVTsj">Join Us!</a>
+<body class="community-site bot-status-page">
+  <a class="skip-link" href="#main-content">Skip to content</a>
+  <header class="site-header" data-site-header>
+    <a class="site-brand" href="/" aria-label="GD Avenue home"><img src="/assets/community/gd-avenue-logo.png" alt="" width="44" height="44"><span><strong>GD Avenue</strong></span></a>
+    <button class="site-menu" type="button" aria-expanded="false" aria-controls="site-navigation">Menu</button>
+    <nav class="site-nav" id="site-navigation" aria-label="Primary navigation">
+      <div class="site-nav__links"><a href="/">Home</a><a href="/levels/">Levels</a><a href="/palette.html">Palette Lab</a><a href="/generator.html">Idea Generator</a><a href="/rules.html">Community</a><a href="/about.html">About</a></div>
+      <div class="site-nav__actions"><a href="/bot.html" aria-current="page">Avenue Guard</a><a href="/feedback.html">Get feedback</a><a href="/apply/">Apply</a><a class="site-nav__join" href="https://discord.gg/matVTsj">Join Discord</a></div>
     </nav>
   </header>
 
-  <main class="bot-page">
+  <main class="bot-page" id="main-content">
     <section class="bot-heading" aria-labelledby="bot-title">
       <div class="bot-identity">
         <img
@@ -135,11 +132,12 @@
     <div class="divider"></div>
   </main>
 
-  <footer>
-    <span>Geometry Dash Avenue &mdash; &copy;2026</span>
-    <a href="privacy.html">Privacy Policy</a>
+  <footer class="site-footer">
+    <div class="site-footer__inner"><div class="site-footer__identity"><img src="/assets/community/gd-avenue-logo.png" alt="" width="58" height="58"><div><strong>Geometry Dash Avenue</strong><p>A community made for creating, improving, and connecting.</p></div></div><div class="site-footer__links"><div><strong>Explore</strong><a href="/levels/">Levels</a><a href="/generator.html">Idea Generator</a><a href="/bot.html">Avenue Guard</a></div><div><strong>Community</strong><a href="/rules.html">Rules</a><a href="/about.html">About Us</a><a href="/apply/">Apply or Appeal</a></div><div><strong>More</strong><a href="/privacy.html">Privacy</a><a href="/staff/">Staff Portal</a><a href="https://discord.gg/matVTsj">Discord</a></div></div></div>
+    <div class="site-footer__base"><span>Geometry Dash Avenue &copy; <span data-current-year>2026</span></span><span>Not affiliated with RobTop Games.</span></div>
   </footer>
 
+  <script src="site.js?v=20261018-4" defer></script>
   <script src="bot-core.js" defer></script>
   <script src="bot.js" defer></script>
 </body>

@@ -4,51 +4,52 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="description" content="About Geometry Dash Avenue" />
-  <meta name="theme-color" content="#0b0b0c" />
+  <meta name="theme-color" content="#07131b" />
   <link rel="icon" href="favicon.ico" />
   <link rel="stylesheet" href="styles.css" />
-  <title>Geometry Dash Avenue</title>
+  <link rel="stylesheet" href="community.css?v=20261018-6" />
+  <title>About the Community | GD Avenue</title>
 </head>
-<body>
-  <header>
-    <div class="logo">Geometry Dash Avenue</div>
-    <nav>
-      <a href="index.html">Rules</a>
-      <a href="generator.html">Idea Generator</a>
-      <a href="about.html" class="active">About Us</a>
-      <a href="bot.html">Avenue Guard</a>
-      <a href="/levels/">Levels</a>
-      <a href="/apply/">Apply</a>
-      <a href="/staff/">Staff</a>
-      <a href="https://discord.gg/matVTsj">Join Us!</a>
+<body class="community-site about-page">
+  <a class="skip-link" href="#main-content">Skip to content</a>
+  <header class="site-header" data-site-header>
+    <a class="site-brand" href="/" aria-label="GD Avenue home"><img src="/assets/community/gd-avenue-logo.png" alt="" width="44" height="44"><span><strong>GD Avenue</strong></span></a>
+    <button class="site-menu" type="button" aria-expanded="false" aria-controls="site-navigation">Menu</button>
+    <nav class="site-nav" id="site-navigation" aria-label="Primary navigation">
+      <div class="site-nav__links"><a href="/">Home</a><a href="/levels/">Levels</a><a href="/palette.html">Palette Lab</a><a href="/generator.html">Idea Generator</a><a href="/rules.html">Community</a><a href="/about.html" aria-current="page">About</a></div>
+      <div class="site-nav__actions"><a href="/bot.html">Avenue Guard</a><a href="/feedback.html">Get feedback</a><a href="/apply/">Apply</a><a class="site-nav__join" href="https://discord.gg/matVTsj">Join Discord</a></div>
     </nav>
   </header>
 
-  <main>
-    <section class="about-hero surface">
-      <h1>About Geometry Dash Avenue</h1>
-      <p class="about-copy">
-        Geometry Dash Avenue is a community server centered around Geometry Dash creation, feedback, collaboration,
-        and discussion. It is meant to be a place where creators and players can share ideas, improve their skills, and connect with others in a clean and organized environment.
-      </p>
+  <main id="main-content" class="site-page-main">
+    <section class="page-hero-community about-hero-community" aria-labelledby="about-title">
+      <img src="/assets/community/welcome-clouds.png" alt="" aria-hidden="true">
+      <div class="page-hero-community__shade" aria-hidden="true"></div>
+      <div class="page-hero-community__copy"><p class="community-kicker">About GD Avenue</p><h1 id="about-title">A community built around making things together.</h1><p>Creators and players share ideas, improve their skill, collaborate, and talk about the game in a safe space.</p></div>
     </section>
 
-    <section class="section">
+    <section class="about-story" aria-labelledby="about-story-title">
+      <div><p class="community-kicker community-kicker--dark">Why we are here</p><h2 id="about-story-title">More than another Geometry Dash server.</h2></div>
+      <p>GD Avenue is meant to feel like a familiar corner of the community. You can bring an unfinished idea, ask a question, find a collaborator, or simply spend time with people who understand level creation and completion.</p>
+    </section>
+
+    <section class="section team-section" aria-labelledby="team-title">
+      <div class="section-heading-community"><div><p class="community-kicker community-kicker--dark">The people behind it</p><h2 id="team-title">Meet the team</h2></div><p>Staff members keep GD Avenue useful, welcoming, and moving forward.</p></div>
       <div class="team-grid">
-        <article class="profile-card surface">
+        <article class="profile-card surface" data-team-user-id="1102884420207255653" hidden>
           <div class="profile-media">
             <img class="profile-avatar" data-team-user-id="1102884420207255653" data-avatar-url="https://cdn.discordapp.com/avatars/1102884420207255653/b9c532dbe1a94a3d6da89f141cad4203.webp?size=1024" src="/assets/send-types/pps_rate.png" alt="Profile picture of Average" />
           </div>
           <div class="profile-body">
             <h2 class="profile-name">Average</h2>
-            <p class="profile-role">Server owner</p>
+            <p class="profile-role">Server owner / Dev</p>
             <p class="profile-desc">
-              Zek is mean :/
+              Zek quoted me on something
             </p>
           </div>
         </article>
 
-        <article class="profile-card surface">
+        <article class="profile-card surface" data-team-user-id="705529842342428764" hidden>
           <div class="profile-media">
             <img class="profile-avatar" data-team-user-id="705529842342428764" data-avatar-url="https://cdn.discordapp.com/avatars/705529842342428764/a_277006e8309da9d04230a3dfd7be3363.gif?size=1024&animated=true" src="/assets/send-types/pps_rate.png" alt="Profile picture of Guzzy" />
           </div>
@@ -61,7 +62,7 @@
           </div>
         </article>
 
-        <article class="profile-card surface">
+        <article class="profile-card surface" data-team-user-id="1447023401347584103" hidden>
           <div class="profile-media">
             <img class="profile-avatar" data-team-user-id="1447023401347584103" data-avatar-url="https://cdn.discordapp.com/avatars/1447023401347584103/0d5e75446843329dcc1553e30bcc4391.webp?size=1024" src="/assets/send-types/pps_rate.png" alt="Profile picture of Automania" />
           </div>
@@ -74,20 +75,20 @@
           </div>
         </article>
 
-        <article class="profile-card surface">
+        <article class="profile-card surface" data-team-user-id="1253449240966070303" hidden>
           <div class="profile-media">
             <img class="profile-avatar" data-team-user-id="1253449240966070303" data-avatar-url="https://cdn.discordapp.com/avatars/1253449240966070303/5a3d72782d3d91d3af4edeb4405b894f.webp?size=1024" src="/assets/send-types/pps_rate.png" alt="Profile picture of Deadlykrede" />
           </div>
           <div class="profile-body">
             <h2 class="profile-name">Deadlykrede</h2>
-            <p class="profile-role">Server staff</p>
+            <p class="profile-role">Server head staff</p>
             <p class="profile-desc">
               They tell me to find x, but then give me a zero because I circled the places I found x. Sorry for doing what you told me to.
             </p>
           </div>
         </article>
 
-        <article class="profile-card surface">
+        <article class="profile-card surface" data-team-user-id="1156180438977617990" hidden>
           <div class="profile-media">
             <img class="profile-avatar" data-team-user-id="1156180438977617990" data-avatar-url="https://cdn.discordapp.com/avatars/1156180438977617990/0300779800b84aed42a4f687bea33e98.webp?size=1024" src="/assets/send-types/pps_rate.png" alt="Profile picture of Zek" />
           </div>
@@ -95,12 +96,12 @@
             <h2 class="profile-name">Zek</h2>
             <p class="profile-role">Server Admin</p>
             <p class="profile-desc">
-              "The most important thing is to keep the most important thing the most important thing." - some braindead guy prob Average
+              "The most important thing is to keep the most important thing the most important thing." - some guy prob Average
             </p>
           </div>
         </article>
       
-        <article class="profile-card surface">
+        <article class="profile-card surface" data-team-user-id="914081687883874314" hidden>
           <div class="profile-media">
             <img class="profile-avatar" data-team-user-id="914081687883874314" data-avatar-url="https://cdn.discordapp.com/avatars/914081687883874314/7f9bd376d92094a74ec99c2bb8020bcf.webp?size=1024" src="/assets/send-types/pps_rate.png" alt="Profile picture of Puiskor" />
           </div>
@@ -115,15 +116,22 @@
 
 
       </div>
+      <p id="team-profile-status" class="team-profile-status">Loading team profiles...</p>
+      <template id="team-card-template">
+        <article class="profile-card surface" hidden>
+          <div class="profile-media"><img class="profile-avatar using-fallback" src="/assets/send-types/pps_rate.png" alt="" /></div>
+          <div class="profile-body"><h2 class="profile-name">GD Avenue staff</h2><p class="profile-role">GD Avenue staff</p><p class="profile-desc"></p></div>
+        </article>
+      </template>
     </section>
 
-    <div class="divider"></div>
   </main>
 
-  <footer>
-    <span>Geometry Dash Avenue &mdash; &copy;2026</span>
-    <a href="privacy.html">Privacy Policy</a>
+  <footer class="site-footer">
+    <div class="site-footer__inner"><div class="site-footer__identity"><img src="/assets/community/gd-avenue-logo.png" alt="" width="58" height="58"><div><strong>Geometry Dash Avenue</strong><p>A community made for creating, improving, and connecting.</p></div></div><div class="site-footer__links"><div><strong>Explore</strong><a href="/levels/">Levels</a><a href="/generator.html">Idea Generator</a><a href="/bot.html">Avenue Guard</a></div><div><strong>Community</strong><a href="/rules.html">Rules</a><a href="/about.html">About Us</a><a href="/apply/">Apply or Appeal</a></div><div><strong>More</strong><a href="/privacy.html">Privacy</a><a href="/staff/">Staff Portal</a><a href="https://discord.gg/matVTsj">Discord</a></div></div></div>
+    <div class="site-footer__base"><span>Geometry Dash Avenue &copy; <span data-current-year>2026</span></span><span>Not affiliated with RobTop Games.</span></div>
   </footer>
-  <script src="about.js" defer></script>
+  <script src="site.js?v=20261018-4" defer></script>
+  <script src="about.js?v=20261018-5" defer></script>
 </body>
 </html>

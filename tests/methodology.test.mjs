@@ -25,6 +25,8 @@ test("methodology math, calculator, anchors, and live status are accessible", ()
   assert.match(script, /P \$\{tidy\(f \+ g \+ h\)\}/);
   assert.match(script, /section-permalink/);
   assert.match(script, /\/api\/methodology\/queue\/status/);
+  assert.match(script, /matchMedia\("\(max-width: 900px\)"\)/);
+  assert.match(script, /tocDetails\.open = !event\.matches/);
   assert.match(styles, /position: sticky/);
   assert.match(styles, /grid-template-columns: 245px minmax\(0, 820px\)/);
   assert.match(styles, /@media \(max-width: 900px\)/);

@@ -44,22 +44,28 @@ test("public status page exposes system availability and accessible graphs", () 
   assert.match(botScript, /renderLatencyChart/);
 });
 
-test("About Us keeps static fallbacks and refreshes curated Discord avatars", () => {
+test("About Us renders only enabled staff profiles with live public fields", () => {
   assert.match(aboutMarkup, /data-team-user-id=/);
+  assert.match(aboutMarkup, /data-team-user-id="1102884420207255653" hidden/);
   assert.match(aboutMarkup, /data-avatar-url="https:\/\/cdn\.discordapp\.com\/avatars\//);
   assert.match(aboutMarkup, /src="\/assets\/send-types\/pps_rate\.png"/);
+  assert.match(aboutMarkup, /id="team-card-template"/);
   assert.match(aboutScript, /avenue-guard\.onrender\.com/);
   assert.match(aboutScript, /location\.origin/);
   assert.match(aboutScript, /function applyAvatar/);
+  assert.match(aboutScript, /function applyMember/);
+  assert.match(aboutScript, /member\.quote/);
+  assert.match(aboutScript, /member\.role_label/);
   assert.match(aboutScript, /image\.onerror/);
   assert.match(aboutScript, /image\.src = fallbackUrl/);
-  assert.match(aboutScript, /checked-in image remains a stable fallback/);
+  assert.match(aboutScript, /preferences fail closed/);
 });
 
 test("web aesthetics guide records both design systems and every product surface", () => {
   assert.match(aesthetics, /Public-Site Tokens/);
   assert.match(aesthetics, /Staff And Application Tokens/);
-  assert.match(aesthetics, /Rules \(`index\.html`\)/);
+  assert.match(aesthetics, /Community Home \(`index\.html`\)/);
+  assert.match(aesthetics, /Rules \(`rules\.html`\)/);
   assert.match(aesthetics, /Avenue Guard Status \(`bot\.html`\)/);
   assert.match(aesthetics, /Applications \(`apply\/index\.html`\)/);
   assert.match(aesthetics, /Staff Portal \(`staff\/index\.html`\)/);

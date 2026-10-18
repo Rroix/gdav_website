@@ -4,31 +4,29 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="description" content="Privacy Policy for Geometry Dash Avenue" />
-  <meta name="theme-color" content="#0b0b0c" />
+  <meta name="theme-color" content="#07131b" />
   <link rel="icon" href="favicon.ico" />
   <link rel="stylesheet" href="styles.css" />
-  <title>Privacy Policy</title>
+  <link rel="stylesheet" href="community.css?v=20261018-6" />
+  <title>Privacy Policy | GD Avenue</title>
 </head>
-<body>
-  <header>
-    <div class="logo">Geometry Dash Avenue</div>
-    <nav>
-      <a href="index.html">Rules</a>
-      <a href="generator.html">Idea Generator</a>
-      <a href="about.html">About Us</a>
-      <a href="bot.html">Avenue Guard</a>
-      <a href="/levels/">Levels</a>
-      <a href="/apply/">Apply</a>
-      <a href="/staff/">Staff</a>
-      <a href="https://discord.com/invite/matVTsj">Join Us!</a>
+<body class="community-site privacy-page">
+  <a class="skip-link" href="#main-content">Skip to content</a>
+  <header class="site-header" data-site-header>
+    <a class="site-brand" href="/" aria-label="GD Avenue home"><img src="/assets/community/gd-avenue-logo.png" alt="" width="44" height="44"><span><strong>GD Avenue</strong></span></a>
+    <button class="site-menu" type="button" aria-expanded="false" aria-controls="site-navigation">Menu</button>
+    <nav class="site-nav" id="site-navigation" aria-label="Primary navigation">
+      <div class="site-nav__links"><a href="/">Home</a><a href="/levels/">Levels</a><a href="/palette.html">Palette Lab</a><a href="/generator.html">Idea Generator</a><a href="/rules.html">Community</a><a href="/about.html">About</a></div>
+      <div class="site-nav__actions"><a href="/bot.html">Avenue Guard</a><a href="/feedback.html">Get feedback</a><a href="/apply/">Apply</a><a class="site-nav__join" href="https://discord.gg/matVTsj">Join Discord</a></div>
     </nav>
   </header>
 
-  <main>
+  <main id="main-content" class="site-page-main">
+    <section class="page-hero-community privacy-hero-community" aria-labelledby="privacy-title"><img src="/assets/community/information-art.png" alt="" aria-hidden="true"><div class="page-hero-community__shade" aria-hidden="true"></div><div class="page-hero-community__copy"><p class="community-kicker">Privacy at GD Avenue</p><h1 id="privacy-title">Clear about what we keep and why.</h1><p>This policy covers the public website, Avenue Guard, applications, appeals, recommendations, and the staff systems that support them.</p></div></section>
     <section class="privacy-hero surface">
-      <h1>Privacy Policy</h1>
+      <h2>Privacy Policy</h2>
       <p class="privacy-copy">
-        Last updated: September 21, 2026. This policy explains how Geometry Dash Avenue and Avenue Guard handle information across the public website, Discord bot, staff portal, applications, punishment appeals, level requests, support tools, and operational systems.
+        Last updated: October 18, 2026. This policy explains how Geometry Dash Avenue and Avenue Guard handle information across the public website, Discord bot, staff portal, applications, punishment appeals, level and feedback requests, support tools, and operational systems.
       </p>
     </section>
 
@@ -43,7 +41,7 @@
       <article class="privacy-section surface">
         <h2>Public Website</h2>
         <p>
-          Most pages are public and do not require an account. The Idea Generator runs in your browser and does not send its selections to GD Avenue. Public bot and level pages request approved service status, recent component-health samples, release information, recommendation details, and Geometry Dash metadata from Avenue Guard. The About Us page may request the current Discord display name and avatar URL for a small, configured list of public team profiles; the checked-in profile image remains the fallback if Avenue Guard is unavailable.
+          Most pages are public and do not require an account. The Idea Generator runs in your browser and does not send its selections to GD Avenue. Public bot and level pages request approved service status, recent component-health samples, release information, recommendation details, and Geometry Dash metadata from Avenue Guard. Staff may choose to publish an About card containing their current Discord display name and avatar, staff role, and a self-written quote. They can hide that card at any time in the Staff Portal. About cards remain hidden when Avenue Guard cannot confirm the current preference.
         </p>
         <p>
           We do not use advertising trackers or sell browsing profiles. Netlify and other infrastructure providers may process standard request information such as IP address, browser type, requested page, and time for delivery, security, diagnostics, and abuse prevention.
@@ -115,6 +113,16 @@
       </article>
 
       <article class="privacy-section surface">
+        <h2>Level Feedback Requests</h2>
+        <p>
+          Current GD Avenue members may sign in with Discord and ask a judge for private feedback on a Geometry Dash level. Avenue Guard stores the requester's Discord ID, verified public level details, selected feedback focus and project stage, the context and optional showcase link they submit, claim and status history, the judge's written response, and Discord delivery state. The request is posted to the configured private judge gallery, not to a public website or channel.
+        </p>
+        <p>
+          A judge may claim the request and send a response through Avenue Guard. The final response is queued for delivery to the requester by Discord DM; Discord may prevent delivery, and a failed DM remains visible to authorized staff for retry or follow-up. Feedback is advisory and does not create or promise a recommendation, rating, or moderation outcome.
+        </p>
+      </article>
+
+      <article class="privacy-section surface">
         <h2>Requests, Recommendations, And Automation</h2>
         <p>
           Request validation may retrieve current public Geometry Dash level and creator information. The priority system can help order approved recommendations for staff outreach, but it does not guarantee moderator contact, a Geometry Dash rating, or any outcome. Human reviewers choose the review result and recommendation type.
@@ -133,7 +141,7 @@
       <article class="privacy-section surface">
         <h2>Service Providers And Sharing</h2>
         <p>
-          Geometry Dash Avenue does not sell personal information. Data is available only to authorized staff where their role requires it and to service providers that operate the system. These currently include Discord for identity, current public team avatars, and community features; Netlify for the website and serverless gateway; Render for Avenue Guard; and Turso/libSQL for durable database storage.
+          Geometry Dash Avenue does not sell personal information. Data is available only to authorized staff where their role requires it and to service providers that operate the system. These currently include Discord for identity, opted-in public team profiles, and community features; Netlify for the website and serverless gateway; Render for Avenue Guard; and Turso/libSQL for durable database storage.
         </p>
         <p>
           Level IDs and other public Geometry Dash identifiers may be sent to metadata providers used by the validation and thumbnail systems. External images may be served by Discord, ImgBB, or the configured level thumbnail service. Information may also be disclosed to Discord Trust and Safety, safety partners, or legal authorities where reasonably necessary or legally required. Each external provider processes data under its own policy.
@@ -182,12 +190,12 @@
       </article>
     </section>
 
-    <div class="divider"></div>
   </main>
 
-  <footer>
-    <span>Geometry Dash Avenue &middot; &copy;2026</span>
-    <a href="privacy.html" aria-current="page">Privacy Policy</a>
+  <footer class="site-footer">
+    <div class="site-footer__inner"><div class="site-footer__identity"><img src="/assets/community/gd-avenue-logo.png" alt="" width="58" height="58"><div><strong>Geometry Dash Avenue</strong><p>A community made for creating, improving, and connecting.</p></div></div><div class="site-footer__links"><div><strong>Explore</strong><a href="/levels/">Levels</a><a href="/generator.html">Idea Generator</a><a href="/bot.html">Avenue Guard</a></div><div><strong>Community</strong><a href="/rules.html">Rules</a><a href="/about.html">About Us</a><a href="/apply/">Apply or Appeal</a></div><div><strong>More</strong><a href="/privacy.html" aria-current="page">Privacy</a><a href="/staff/">Staff Portal</a><a href="https://discord.gg/matVTsj">Discord</a></div></div></div>
+    <div class="site-footer__base"><span>Geometry Dash Avenue &copy; <span data-current-year>2026</span></span><span>Not affiliated with RobTop Games.</span></div>
   </footer>
+  <script src="site.js?v=20261018-4" defer></script>
 </body>
 </html>

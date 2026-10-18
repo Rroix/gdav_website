@@ -15,6 +15,7 @@ The production API routes are Netlify rewrites, not browser-side aliases:
 /api/auth/logout      -> /.netlify/functions/auth-logout
 /api/staff/<path>     -> /.netlify/functions/api-proxy/staff/<path>
 /api/apply/<path>     -> /.netlify/functions/api-proxy/apply/<path>
+/api/feedback/<path>  -> /.netlify/functions/api-proxy/feedback/<path>
 ```
 
 The path-based proxy target is intentional. A query-string wildcard such as
@@ -46,12 +47,18 @@ The OAuth flow requests only `identify`. Avenue Guard resolves server membership
 After Discord returns the authorization code, the Netlify callback exchanges it
 server-side, requests `/users/@me`, and sends the Discord user ID plus sanitized
 display identity to Avenue Guard. Avenue Guard looks up the user in the configured guild with the bot and
-maps the live member roles to `judge`, `head_judge`, or `owner`. The callback then
+maps the live member roles to `reviewer`, `head_reviewer`, `admin`, `owner`, or `dev`. The callback then
 sets an `HttpOnly`, `Secure`, `SameSite=Strict` session cookie and returns a 303
 redirect to the absolute, canonical `/staff/` URL. Absolute trailing-slash URLs
 prevent Netlify's directory canonicalization from carrying the callback query into
 the portal. The authorization code and state are never stored in browser
 application state.
+
+Feedback sign-in uses the same OAuth callback with a `feedback` session purpose.
+Avenue Guard still verifies live GD Avenue membership before returning session or
+request data. Set `staff_portal.level_feedback_channel_id` to the private Discord
+forum, media, or text channel where the bot should create review threads; the
+checked-in production configuration points to channel `1561344442974212136`.
 
 The role mapping is refreshed on every authenticated bot API request. A member
 who leaves the guild or loses an authorized role receives HTTP 403 on the next
@@ -77,10 +84,12 @@ reason to Discord, Avenue Guard can preserve that official Discord reason. If
 the live ban reason and audit reason disagree, both are retained for staff and
 the conflict is flagged. Missing evidence is never invented.
 
-Appeal decisions require two independent assessments, and the moderator identified
-as the issuer cannot assess or make the final decision. An approved removal can
-enqueue an idempotent Discord unban. The private portal thread is the durable
-contact record; a staff member may additionally request a best-effort Discord DM.
+Appeal decisions normally require two independent assessments, and the moderator
+identified as the issuer cannot assess or make the final decision. An Admin,
+Owner, or Dev may decide alone after recording their own non-conflicted assessment.
+An approved removal can enqueue an idempotent Discord unban. The private portal
+thread is the durable contact record; a staff member may additionally request a
+best-effort Discord DM.
 
 If a mobile or embedded browser revisits a callback after the first code exchange,
 the callback verifies the already-created secure session and redirects to the
@@ -99,7 +108,7 @@ bot-first deployment order below.
 
 1. Set `STAFF_API_TOKEN` on Render and deploy Avenue Guard first.
 2. Confirm `https://avenue-guard.onrender.com/ready` returns HTTP 200.
-3. Confirm database schema version 13 completed successfully.
+3. Confirm database schema version 17 completed successfully.
 4. Set all five Netlify variables above.
 5. Configure the Discord redirect URL.
 6. Deploy this website directory to Netlify.
@@ -110,6 +119,11 @@ bot-first deployment order below.
 - Request `/api/staff/session` signed out and confirm HTTP 401, not HTTP 404.
 - Visit `/staff/` signed out and complete OAuth; confirm the final URL is exactly `/staff/` without `code` or `state`.
 - Verify an ordinary member can use `/apply` but cannot access staff data.
+- Visit `/feedback.html`, sign in as an ordinary server member, and submit a
+  level ID. Confirm Avenue Guard creates one private gallery thread in channel
+  `1561344442974212136` with working **Claim** and **Send feedback** controls.
+- Complete that request and confirm the response is stored, its controls become
+  disabled, and the requester receives exactly one best-effort Discord DM.
 - Verify a banned account outside the guild can sign in to `/apply`, sees staff
   applications disabled, and can open a punishment appeal with its Discord reason.
 - Verify Judge, Head Judge, and Owner navigation and mutation permissions.
@@ -130,20 +144,23 @@ bot-first deployment order below.
 - Confirm the applicant sees `accepted` after role delivery even before staff reopen Applications.
 - Submit a test punishment appeal and confirm the staff inspector shows the
   Discord reason source, date when available, and any reason conflict.
-- Confirm the issuing moderator cannot assess the appeal and that a final decision
-  remains disabled until two independent assessments exist.
+- Confirm the issuing moderator cannot assess the appeal. As a Reviewer, verify
+  that a final decision remains disabled until two independent assessments exist;
+  as an Admin, Owner, or Dev, verify one own non-conflicted assessment is enough.
 - Send a portal message with Discord DM disabled, then enabled; confirm the portal
   message persists in both cases and the DM status is separately visible.
 - Approve a test removal, execute the unban, and confirm the outbox becomes
   delivered and the punishment snapshot becomes `unbanned_by_appeal`.
 - Add and remove a test staff profile by Discord ID as Dev, then confirm the role delivery and audit history.
+- Edit the signed-in staff member's About quote and visibility, then confirm
+  `/api/team` and `/about.html` update without changing their Discord role.
 - Hide and restore a test queue entry as Dev; confirm it disappears from public levels, queue counts, and normal internal filters while hidden.
 - Assign a task to another staff member and confirm Avenue Guard sends the assignment DM once.
 - Deactivate a test Judge and confirm the inactive record remains available for Restore after Discord removes the role.
 - Search `/levels` by ID, name, and creator and inspect that no exact PPS, CP, requester, reviewer, note, target, or route is exposed.
 - Check `/staff`, `/apply`, `/levels`, and `/level/[id]` at desktop and mobile widths.
 
-For a local UI fixture with production-shaped responses, run `node tests/staff-preview-server.mjs` and open `http://127.0.0.1:4174/staff/`. To verify version-mismatch behavior, run `PORT=4175 LEGACY_API=1 WITHDRAWN_APPLICATION=1 node tests/staff-preview-server.mjs`; Add Staff and application deletion must remain visible but disabled. The fixture never connects to production or Turso.
+For a local UI fixture with production-shaped responses, run `node tests/staff-preview-server.mjs` and open `http://127.0.0.1:4174/staff/`, `/feedback.html`, or `/about.html`. To verify version-mismatch behavior, run `PORT=4175 LEGACY_API=1 WITHDRAWN_APPLICATION=1 node tests/staff-preview-server.mjs`; Add Staff and application deletion must remain visible but disabled. The fixture never connects to production, Discord, or Turso, and production code does not import it.
 
 ## Rollback
 

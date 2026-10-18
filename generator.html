@@ -3,30 +3,28 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="description" content="Geometry Dash Avenue — Level Idea Generator" />
-  <meta name="theme-color" content="#0b0b0c" />
+  <meta name="description" content="Build a fresh Geometry Dash level concept with the GD Avenue idea generator." />
+  <meta name="theme-color" content="#07131b" />
   <link rel="icon" href="favicon.ico" />
+  <link rel="preconnect" href="https://i.ibb.co" crossorigin />
+  <link rel="dns-prefetch" href="//i.ibb.co" />
   <link rel="stylesheet" href="styles.css" />
-  <title>Geometry Dash Avenue</title>
+  <link rel="stylesheet" href="community.css?v=20261018-6" />
+  <title>Idea Generator | GD Avenue</title>
 </head>
-<body>
-  <header>
-    <div class="logo">Geometry Dash Avenue</div>
-    <nav>
-      <a href="index.html">Rules</a>
-      <a href="generator.html" class="active">Idea Generator</a>
-      <a href="about.html">About Us</a>
-      <a href="bot.html">Avenue Guard</a>
-      <a href="/levels/">Levels</a>
-      <a href="/apply/">Apply</a>
-      <a href="/staff/">Staff</a>
-      <a href="https://discord.com/invite/matVTsj">Join Us!</a>
+<body class="community-site generator-page">
+  <a class="skip-link" href="#main-content">Skip to content</a>
+  <header class="site-header" data-site-header>
+    <a class="site-brand" href="/" aria-label="GD Avenue home"><img src="/assets/community/gd-avenue-logo.png" alt="" width="44" height="44"><span><strong>GD Avenue</strong></span></a>
+    <button class="site-menu" type="button" aria-expanded="false" aria-controls="site-navigation">Menu</button>
+    <nav class="site-nav" id="site-navigation" aria-label="Primary navigation">
+      <div class="site-nav__links"><a href="/">Home</a><a href="/levels/">Levels</a><a href="/palette.html">Palette Lab</a><a href="/generator.html" aria-current="page">Idea Generator</a><a href="/rules.html">Community</a><a href="/about.html">About</a></div>
+      <div class="site-nav__actions"><a href="/bot.html">Avenue Guard</a><a href="/feedback.html">Get feedback</a><a href="/apply/">Apply</a><a class="site-nav__join" href="https://discord.gg/matVTsj">Join Discord</a></div>
     </nav>
   </header>
 
-  <main>
-    <h1>Geometry Dash Idea Generator</h1>
-    <p class="intro">Use random mode for quick inspiration, or personalized mode to build a style prompt from your favorite reference levels.</p>
+  <main id="main-content" class="site-page-main">
+    <section class="page-hero-community generator-hero-community" aria-labelledby="generator-title"><img src="/assets/community/gd-avenue-banner.png" alt="" aria-hidden="true"><div class="page-hero-community__shade" aria-hidden="true"></div><div class="page-hero-community__copy"><p class="community-kicker">Create something new</p><h1 id="generator-title">Your next level can start here.</h1><p>Use random mode for a quick spark or build a personalized direction from reference levels.</p></div></section>
 
     <div class="generator-layout">
       <section class="generator-toolbar">
@@ -40,8 +38,8 @@
       </section>
 
       <section id="randomMode" class="generator-panel">
-        <h2 class="panel-title">Random mode</h2>
-        <p class="panel-copy">This mode builds a level concept by picking one random prompt for each category.</p>
+        <div class="panel-title-row"><h2 class="panel-title">Random mode</h2><span class="no-ai-label">NO AI</span></div>
+        <p class="panel-copy">Build a practical Geometry Dash direction from curated gameplay, sync, art, and pacing ideas.</p>
         <div class="action-row">
           <button class="primary-btn" id="generateRandomBtn" type="button">Generate</button>
         </div>
@@ -50,15 +48,15 @@
       </section>
 
       <section id="personalizedMode" class="generator-panel hidden">
-        <h2 class="panel-title">Personalized mode</h2>
+        <div class="panel-title-row"><h2 class="panel-title">Personalized mode</h2><span class="no-ai-label">NO AI</span></div>
         <p class="panel-copy">Choose the image you prefer in each pair. The generator learns on what you are feeling like doing.</p>
 
         <div class="action-row">
-          <button class="primary-btn" id="startQuizBtn" type="button">Start</button>
+          <button class="primary-btn" id="startQuizBtn" type="button" disabled>Start</button>
           <button class="secondary-btn hidden" id="restartQuizBtn" type="button">Restart</button>
         </div>
 
-        <div class="small-note" id="datasetNote">Waiting to load <code>levels.json</code>…</div>
+        <div class="small-note" id="datasetNote" aria-live="polite">Loading reference levels...</div>
         <div class="error-box hidden" id="errorBox"></div>
 
         <div class="status-bar hidden" id="statusBar">
@@ -98,29 +96,48 @@
       </section>
     </div>
 
-    <div class="divider"></div>
   </main>
 
-  <footer>
-    <span>Geometry Dash Avenue &mdash; &copy;2026</span>
-    <a href="privacy.html">Privacy Policy</a>
+  <footer class="site-footer">
+    <div class="site-footer__inner"><div class="site-footer__identity"><img src="/assets/community/gd-avenue-logo.png" alt="" width="58" height="58"><div><strong>Geometry Dash Avenue</strong><p>A community made for creating, improving, and connecting.</p></div></div><div class="site-footer__links"><div><strong>Explore</strong><a href="/levels/">Levels</a><a href="/generator.html">Idea Generator</a><a href="/bot.html">Avenue Guard</a></div><div><strong>Community</strong><a href="/rules.html">Rules</a><a href="/about.html">About Us</a><a href="/apply/">Apply or Appeal</a></div><div><strong>More</strong><a href="/privacy.html">Privacy</a><a href="/staff/">Staff Portal</a><a href="https://discord.gg/matVTsj">Discord</a></div></div></div>
+    <div class="site-footer__base"><span>Geometry Dash Avenue &copy; <span data-current-year>2026</span></span><span>Not affiliated with RobTop Games.</span></div>
   </footer>
 
+  <script src="site.js?v=20261018-4" defer></script>
   <script src="tagaggregation.js"></script>
   <script>
     document.addEventListener("DOMContentLoaded", function () {
       var mode = "random";
       var images = [];
+      var imagePreloads = Object.create(null);
       var state = null;
       var quizConfig = { maxRounds: 8, loserPenalty: 0.3 };
 
       var randomPools = {
-        theme: ["tech", "nature", "arcade", "space", "industrial", "minimalism", "abstract", "surrealism", "noir", "fever dream", "urban", "rural"],
-        atmosphere: ["calm & mysterious", "intense & overwhelming", "cold & clinical", "dreamy & elegant", "hostile & unstable", "playful & energetic", "chill & dreamful"],
-        palette: ["cyan + white", "orange + gold", "purple + magenta", "green + lime", "blue + black", "white + red", "rainbow", "purple + orange", "brown + ocre", "white + black", "your fav color + your least fav color", "the color of your eyes + your fav color", "your icon colors"],
-        structure: ["layered depth", "symmetry", "freeform shapes", "a lot of details", "clean brutalism", "interference", "almost symmetrical elements"],
-        gimmick: ["flashyness", "moving structures", "fake orbs, spikes...", "collapsing elements", "stuff that follows you around", "same speed throughout the level", "a side-scroller platformer", "an actual story", "a deep philosophical quote", "no shaders", "one click throughout the entire level"],
-        ending: ["fake ending", "peaceful and silent ending", "climatic ending", "complete style change", "resemblance to the intro", "sudden and unclimatic ending"]
+        format: [
+          "a focused 45-60 second Harder level", "a one-minute Insane level with a readable difficulty curve", "a compact Easy Demon built around one mechanic", "a two-player-friendly Normal level", "a long-form level with three clearly separated acts", "a short platformer room sequence with optional coins"
+        ],
+        theme: [
+          "an overgrown factory reclaimed by nature", "a storm-powered observatory", "a submerged neon city", "a corrupted arcade cabinet", "an ancient clockwork shrine", "a train crossing rapidly changing biomes", "a frozen cavern that thaws into sunrise", "a celestial garden above the clouds", "a volcanic foundry", "a dream archive made from forgotten levels", "a weather station at the edge of space", "a flooded subway full of living machinery"
+        ],
+        gameplay: [
+          "spider teleports mapped to the snare", "a ship corridor that opens and closes with the melody", "robot jumps whose height follows the vocal phrasing", "a cube route that reuses the same structure at new speeds", "asymmetrical dual gameplay that reunites before the drop", "wave slopes that mirror the main synth", "ball gravity changes telegraphed by background motion", "UFO clicks arranged as a call-and-response pattern", "swing gameplay that alternates wide and tight arcs", "a platformer chase with one persistent hazard", "dash-orb chains broken up by short control resets", "gamemode transitions hidden inside moving structures"
+        ],
+        sync: [
+          "reserve the strongest movement for the drop", "sync foreground pulses to percussion and background motion to melody", "use short camera eases to mark phrase changes", "let a repeating visual motif answer the lead instrument", "build anticipation with two deliberately quiet measures", "use speed changes only at musical section boundaries", "make every major orb hit land on an audible accent", "repeat one gameplay rhythm with a harder variation later"
+        ],
+        visual: [
+          "clean modern block design with selective glow", "layered art style with strong silhouettes", "effect style built around one reusable shader", "pixel art with limited animation frames", "bold 1.9-inspired structures with modern lighting", "high-contrast tech design with readable gameplay colors", "hand-built nature forms over simple structures", "minimal decoration that puts movement and sync first", "mixed 2D and 3D depth with restrained camera movement", "a monochrome base that gains color at the drop"
+        ],
+        palette: [
+          "deep blue, cyan, and one warm warning color", "black and white with a single lime accent", "sunset orange against cold violet shadows", "desaturated green with bright yellow gameplay cues", "navy, silver, and electric magenta", "warm cream, red, and near-black", "icy cyan that gradually shifts into gold", "your icon colors with one neutral background tone", "a two-color palette that inverts for the final act", "muted earth tones with sparing white flashes"
+        ],
+        setpiece: [
+          "a bridge that collapses behind the player", "a boss silhouette that changes the route without becoming a fight", "a city block rotating ninety degrees", "a giant mechanism assembling around the player", "a calm fake-out before the full drop returns", "a background creature that guides the safe path", "a tunnel whose walls become the next gameplay structure", "a single room revisited in three states", "a vertical escape section with rising hazards", "a wide reveal where the camera briefly pulls back", "a seamless transition from editor-style blocks into full artwork", "a coin route that exposes a second layer of the scene"
+        ],
+        ending: [
+          "return to the opening motif with one visible change", "strip the decoration back for the final inputs", "end on a held note with the scene still moving", "use a short credits tableau built into the world", "finish with a clean final click instead of a fake-out", "let the palette resolve from cold to warm", "show the main setpiece from a new angle", "close with a quiet platformer-style walk-off"
+        ]
       };
 
       var els = {
@@ -167,6 +184,54 @@
           .join(" ");
       }
 
+      function preloadSource(src) {
+        if (imagePreloads[src]) return imagePreloads[src];
+        imagePreloads[src] = new Promise(function (resolve) {
+          var image = new Image();
+          var settled = false;
+          var timeout = window.setTimeout(finish, 5000);
+
+          function finish() {
+            if (settled) return;
+            settled = true;
+            window.clearTimeout(timeout);
+            image.onload = null;
+            image.onerror = null;
+            resolve(src);
+          }
+
+          image.decoding = "async";
+          image.onload = finish;
+          image.onerror = finish;
+          image.src = src;
+          if (image.complete) finish();
+        });
+        return imagePreloads[src];
+      }
+
+      function preloadPool(pool) {
+        var sources = Array.from(new Set(pool.map(function (item) { return item.src; }).filter(Boolean)));
+        var completed = 0;
+        if (!sources.length) return Promise.resolve();
+        els.datasetNote.textContent = "Preparing reference artwork 0 / " + sources.length;
+        return Promise.all(sources.map(function (src) {
+          return preloadSource(src).then(function () {
+            completed += 1;
+            els.datasetNote.textContent = "Preparing reference artwork " + completed + " / " + sources.length;
+          });
+        })).then(function () {
+          els.datasetNote.textContent = "Reference artwork ready.";
+        });
+      }
+
+      function preparePair(pair) {
+        els.leftChoiceBtn.disabled = true;
+        els.rightChoiceBtn.disabled = true;
+        return Promise.all([preloadSource(pair.left.src), preloadSource(pair.right.src)]).then(function () {
+          renderPair(pair);
+        });
+      }
+
       function setMode(nextMode) {
         mode = nextMode;
         els.randomMode.classList.toggle("hidden", mode !== "random");
@@ -180,26 +245,30 @@
 
       function generateRandomIdea() {
         var data = {
+          format: pick(randomPools.format),
           theme: pick(randomPools.theme),
-          atmosphere: pick(randomPools.atmosphere),
+          gameplay: pick(randomPools.gameplay),
+          sync: pick(randomPools.sync),
+          visual: pick(randomPools.visual),
           palette: pick(randomPools.palette),
-          structure: pick(randomPools.structure),
-          gimmick: pick(randomPools.gimmick),
+          setpiece: pick(randomPools.setpiece),
           ending: pick(randomPools.ending)
         };
 
-        var order = ["theme", "atmosphere", "palette", "structure", "gimmick", "ending"];
+        var labels = { format: "Scope", visual: "Visual language" };
+        var order = ["format", "theme", "gameplay", "sync", "visual", "palette", "setpiece", "ending"];
         els.randomGrid.innerHTML = order.map(function (key) {
-          return '<article class="mini-card"><h3>' + titleCase(key) + '</h3><p>' + data[key] + '</p></article>';
+          return '<article class="mini-card"><h3>' + (labels[key] || titleCase(key)) + '</h3><p>' + data[key] + '</p></article>';
         }).join("");
 
         var prompt = [
-          "Build a Geometry Dash level with a " + data.theme + " style.",
-          "Make the atmosphere feel " + data.atmosphere + ".",
-          "Use a " + data.palette + " palette.",
-          "The structure should use " + data.structure + ".",
-          "Add a gimmick based on " + data.gimmick + ".",
-          "Finish with a " + data.ending + "."
+          "Build " + data.format + " around " + data.theme + ".",
+          "Gameplay direction: " + data.gameplay + ".",
+          "Sync rule: " + data.sync + ".",
+          "Visual language: " + data.visual + ".",
+          "Palette: " + data.palette + ".",
+          "Main setpiece: " + data.setpiece + ".",
+          "Ending: " + data.ending + "."
         ].join("\n");
 
         els.randomPrompt.textContent = prompt;
@@ -240,6 +309,8 @@
 
         els.leftChoiceBtn.dataset.id = pair.left.id;
         els.rightChoiceBtn.dataset.id = pair.right.id;
+        els.leftChoiceBtn.disabled = false;
+        els.rightChoiceBtn.disabled = false;
 
         updateProgress();
       }
@@ -298,7 +369,7 @@
 
         state = started.state;
         els.restartQuizBtn.classList.add("hidden");
-        renderPair(started.pair);
+        preparePair(started.pair);
       }
 
       function choose(choiceId) {
@@ -315,7 +386,7 @@
         if (outcome.done) {
           renderResult(outcome.result);
         } else {
-          renderPair(outcome.pair);
+          preparePair(outcome.pair);
         }
       }
 
@@ -334,7 +405,7 @@
       }
 
       function loadLevels() {
-        fetch("levels.json", { cache: "no-store" })
+        fetch("levels.json", { cache: "force-cache" })
           .then(function (response) {
             if (!response.ok) throw new Error("Could not fetch levels.json");
             return response.json();
@@ -343,10 +414,12 @@
             images = Array.isArray(data) ? data : [];
             var check = window.QuizEngine.validateImages(images);
             if (!check.ok) throw new Error(check.error);
-            els.datasetNote.innerHTML = "";
+            els.startQuizBtn.disabled = false;
+            preloadPool(images);
           })
           .catch(function (error) {
             images = [];
+            els.startQuizBtn.disabled = true;
             els.datasetNote.innerHTML = "Could not load <code>levels.json</code>. Add the file next to this page and serve the site from a local or remote server.";
             showError(error.message || "Unknown dataset error");
           });

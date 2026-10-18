@@ -27,6 +27,11 @@
   to = "/.netlify/functions/api-proxy/apply/:splat"
   status = 200
 
+[[redirects]]
+  from = "/api/feedback/*"
+  to = "/.netlify/functions/api-proxy/feedback/:splat"
+  status = 200
+
 [[headers]]
   for = "/*"
   [headers.values]
@@ -42,5 +47,10 @@
 
 [[headers]]
   for = "/apply/*"
+  [headers.values]
+    Cache-Control = "no-store"
+
+[[headers]]
+  for = "/feedback.html"
   [headers.values]
     Cache-Control = "no-store"

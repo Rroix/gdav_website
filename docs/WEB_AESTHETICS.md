@@ -1,6 +1,6 @@
 # GD Avenue Web Aesthetics And Interface System
 
-Last reviewed: September 20, 2026
+Last reviewed: October 18, 2026
 
 This document is the implementation guide for the public GD Avenue website, the Avenue Guard status pages, the application experience, and the authenticated Staff Portal. It records the visual language, CSS architecture, interaction rules, responsive behavior, and accessibility expectations currently implemented in the repository.
 
@@ -10,49 +10,50 @@ The canonical CSS remains in the source files. This guide explains how those sty
 
 | Surface | Primary files | Purpose |
 |---|---|---|
-| Public website | `styles.css` | Rules, generator, About Us, privacy, Avenue Guard status, and the public recommendation detail page |
+| Community shell and home | `community.css`, `site.js`, `index.html` | Shared brand navigation, footer, manually selected artwork, public page framing, and the community homepage |
+| Palette Lab | `palette.html`, `palette.js`, `community.css` | Local five-role palette generation, locks, contrast repair, preview, copy, and persistence |
+| Community level feedback | `feedback.html`, `feedback.js`, Netlify auth/proxy functions | Discord-authenticated member requests, request history, and the bridge to Avenue Guard's private judge-gallery workflow |
+| Public content and tools | `styles.css` | Rules, generator, About Us, privacy, Avenue Guard status, and the public recommendation detail page |
 | Staff and applications | `staff/staff.css` | Discord sign-in, application chooser/forms/status, and every Staff Portal module |
-| Public level directory | `levels/public-levels.css` | Compact additions for `/levels/`; inherits the Staff Portal tokens loaded before it |
+| Public level directory | `levels/public-levels.css` | Search-first community styling for `/levels/`; inherits public community tokens, never Staff Portal density tokens |
+| Owned visual assets | `assets/community/` | Original GD Avenue logo and server artwork. Source pixels are never redrawn or recolored; layout crops use CSS only |
 | Shared public status logic | `bot-core.js`, `bot.js` | Relative time, health-history normalization, system states, and canvas graphs |
 | Page-specific behavior | `about.js`, `generator.js`, `level.js`, `levels/levels.js`, `apply/apply.js`, `staff/staff.js` | Data loading and interaction behavior; these files should not introduce unrelated visual tokens |
 
 ## Product Character
 
-The public site is calm, dark, and editorial. Content has generous breathing room, clear page-level hierarchy, and restrained elevated surfaces. It is designed for reading rather than for looking like a software dashboard.
+The public site is a bright, recognizable front door to the GD Avenue community. It combines deep ink surfaces with pale sky sections, cyan, yellow, coral, and original server artwork. It should feel active and human without becoming noisy. The homepage leads with the community itself; tools and documents sit inside that larger identity instead of competing as unrelated links.
 
 The Staff Portal is a dense operational workspace. It uses flatter sections, compact tables, stable controls, and short travel distances. It must feel practical during repeated daily use. Decorative cards, oversized headings, and marketing composition do not belong in the portal.
 
 Across both systems:
 
-- Information hierarchy comes from spacing, type weight, borders, and surface contrast.
-- Color communicates state. It is not used as decoration.
+- Information hierarchy comes from spacing, type weight, art direction, borders, and surface contrast.
+- On public pages, brand color and original artwork establish place and warmth. In operational surfaces, color remains state-driven.
 - Controls use familiar shapes and explicit labels.
 - Layout dimensions are stable so loading, hover, and dynamic status changes do not shift nearby content.
 - Text must remain readable without relying on color alone.
 
 ## Public-Site Tokens
 
-Defined in `styles.css`:
+The community layer is defined in `community.css`; legacy content components remain in `styles.css` underneath it:
 
 | Token | Value | Use |
 |---|---|---|
-| `--bg` | `#0b0b0c` | Page background |
-| `--bg-elev` | `#111214` | Primary public surfaces |
-| `--bg-soft` | `#17181b` | Secondary surface and navigation hover |
-| `--bg-hover` | `#1d1f23` | Interactive hover state |
-| `--text` | `#f2f2f3` | Primary copy |
-| `--muted` | `#b3b7bf` | Supporting copy and metadata |
-| `--line` | `#2a2d33` | Standard dividers and borders |
-| `--line-strong` | `#3a3e46` | Inputs and emphasized boundaries |
-| `--accent` | `#f2f2f3` | Neutral public accent |
-| `--maxw` | `920px` | Default public content width |
-| `--radius` | `14px` | Public surface radius |
-| `--shadow` | `0 1px 2px rgba(0,0,0,.28)` | Default surface depth |
-| `--shadow-soft` | `0 8px 22px rgba(0,0,0,.22)` | Elevated interactive depth |
-| `--t-fast` | `140ms` | Hover/focus transitions |
-| `--t-med` | `220ms` | Larger interface transitions |
+| `--community-ink` | `#07131b` | Header, footer, hero shade, and strong contrast bands |
+| `--community-paper` | `#f4f8fb` | Main public-page background |
+| `--community-paper-blue` | `#eaf5fb` | Quiet supporting surfaces |
+| `--community-sky` | `#08aeea` | Links, focus accents, and creator pathways |
+| `--community-cyan` | `#00d8de` | Eyebrows and active brand details |
+| `--community-sun` | `#ffd43b` | Discord and primary community invitations |
+| `--community-coral` | `#ff6655` | Secondary warmth and team-card rhythm |
+| `--community-text` | `#112b39` | Primary text on light surfaces |
+| `--community-muted` | `#5b7180` | Supporting text on light surfaces |
+| `--community-line` | `#c9dbe5` | Public dividers and card boundaries |
+| `--community-max` | `1180px` | Shared public content and navigation width |
+| `--site-header-height` | `72px` | Desktop brand-navigation height |
 
-The public palette is intentionally neutral. Health visualization adds semantic green `#52d273`, amber `#f2c14e`, and red `#f16b74`. The status chart line uses `#58d5ba`. These colors are reserved for meaning and should always be paired with text or an accessible label.
+The palette comes from GD Avenue's supplied server artwork but the artwork itself remains unmodified. Cyan, yellow, and coral are distributed across the experience so no single hue dominates. Health visualization retains semantic green, amber, and red; those meanings are always paired with text or an accessible label.
 
 ## Staff And Application Tokens
 
@@ -87,7 +88,7 @@ Defined in `staff/staff.css`:
 | `--t-fast` | `140ms` | Hover, focus, and row-state transitions |
 | `--t-med` | `210ms` | Drawers and larger workspace transitions |
 
-The portal does not use the public site's 14px radius. Its tighter 6px radius is deliberate: the workspace should feel precise, not soft or promotional.
+The portal does not use the public site's 7–8px radius. Its tighter 6px radius is deliberate: the workspace should feel precise, not soft or promotional.
 
 ## Typography
 
@@ -104,9 +105,12 @@ The portal does not use the public site's 14px radius. Its tighter 6px radius is
 
 ### Public pages
 
-- The shared main column is at most `920px`, with `18px` horizontal padding.
-- The sticky header uses `14px 20px`; navigation wraps rather than overflowing.
-- Public surfaces use a one-pixel border, 14px radius, and minimal shadow.
+- The shared public shell is at most `1180px`, with at least `20px` horizontal breathing room. Reading columns remain narrower inside that shell.
+- The sticky header groups discovery links separately from Avenue Guard, applications, and the primary Discord invitation. At `1120px` and below, it becomes one explicit Menu control before the links can wrap.
+- Every main public page starts with either the full community artwork carousel or a real server-art hero. Artwork is never redrawn, recolored, blurred, or composited into a fake illustration; `object-fit` cropping is the only permitted adaptation.
+- Homepage body content gives each destination one primary focal link. Header navigation may repeat it as orientation and the complete footer may repeat it as an index, but body sections do not compete by sending several tiles to the same resource.
+- Artwork carrying its own lettering is shown in an unobstructed image region. The homepage carousel and its live heading/actions occupy separate grid rows, so no supplied title is covered by website copy. Other supporting headings sit beside or below art, never over embedded lettering.
+- Public surfaces use one-pixel boundaries, 7–8px radii, and restrained shadows. Full-width art bands and reading sections remain unframed.
 - Repeated page sections are separated by margin and dividers. Sections are not wrapped in redundant nested cards.
 - About profiles use repeated cards because each profile is a discrete item.
 - The Avenue Guard status page uses a stable metric grid, a system grid, and two graph panels. Graph canvases have a fixed CSS height of `190px` and resize their backing resolution for the current device pixel ratio.
@@ -120,9 +124,11 @@ The portal does not use the public site's 14px radius. Its tighter 6px radius is
 - Panels are usually unframed sections divided by one-pixel rules. Cards are reserved for a genuine contained tool, modal, repeated record, or sign-in/application surface.
 - Application pages use a focused `780px` column with a three-pixel accent top border.
 
-## Geometric Signature
+## Visual Signature
 
-The shared GD Avenue signature is a restrained line-and-diamond language, not a decorative illustration system. It appears only where it helps orientation or state recognition:
+The public identity is led by GD Avenue's original server artwork: bright city scenes, the yellow Geometry Dash character, clear cyan skies, and the circular community mark. Deep ink navigation and footers give that artwork enough contrast to remain legible. Yellow is reserved for the strongest community invitation, while cyan, sky, coral, and violet distribute energy through the rest of the page.
+
+The Staff workspace retains a restrained line-and-diamond language where it helps orientation or state recognition:
 
 - A small outlined diamond accompanies the public wordmark and portal Overview module.
 - The Staff sidebar has a single cut-corner line and simple CSS-drawn module glyphs.
@@ -130,13 +136,13 @@ The shared GD Avenue signature is a restrained line-and-diamond language, not a 
 - Pipelines, timelines, application stages, milestones, service states, and empty states use compact diamond or check markers.
 - The inspector has one shallow clipped corner with a short mint edge.
 
-Do not add geometric backgrounds, repeated patterns, floating shapes, gradients, or large ornamental art. The signature must remain secondary to content.
+Do not invent geometric backgrounds, repeated patterns, floating shapes, gradients, or replacement illustrations. Public artwork should be actual supplied community art; Staff geometry remains secondary to operational content.
 
 ## Components
 
 ### Navigation
 
-- Public navigation is a sticky, lightly translucent header with a blur backdrop.
+- Public navigation is a sticky deep-ink header with a compact logo lockup, grouped links, an explicit Discord action, and a single mobile Menu control. It closes after navigation, outside click, Escape, or return to desktop width.
 - Portal navigation is a fixed left rail with compact module glyphs and a two-pixel active indicator.
 - The active location must be visible in text/color and not depend only on URL state.
 - The portal's top-level structure is Overview, Work, Team, and Admin. Secondary tabs remain horizontally scrollable rather than wrapping into an unpredictable grid.
@@ -217,17 +223,29 @@ Do not add geometric backgrounds, repeated patterns, floating shapes, gradients,
 
 ## Page Inventory
 
-### Rules (`index.html`)
+### Community Home (`index.html`)
 
-Reading-focused public layout with section surfaces, clear hierarchy, restrained controls, and shared sticky navigation.
+The first viewport makes GD Avenue itself unmistakable. Its first row is uninterrupted original server art; the second is a deep-ink identity/action band containing the primary logo, literal community name, concise purpose copy, and direct Discord and level-directory actions. Artwork advances in its authored order on a restrained timer and can be selected directly through dots; there is no competing arrow or pause control. Dot and keyboard selection restart the full timer from the chosen artwork, after which rotation continues in sequence. Rotation pauses in background tabs and is disabled for reduced-motion users. The removed Create/Improve/Connect trio must not return. Following sections give one clear focal destination to creator tools, feedback, applications/appeals, and the community team without repeating a flat feature-card directory.
+
+### Rules (`rules.html`)
+
+Reading-focused public layout with a cropped server-art introduction, clear hierarchy, restrained disclosure controls, and shared community navigation.
 
 ### Idea Generator (`generator.html`)
 
-Interactive public tool using the shared surface language. Generated choices remain in the browser. Controls must remain keyboard operable and must not resize the layout when results change.
+Interactive public tool using the shared surface language. It is explicitly labelled `NO AI`: random prompts come from curated Geometry Dash-specific pools and personalized prompts are calculated locally. Reference artwork is preconnected and preloaded into the browser cache before pair changes to avoid blank or delayed comparisons. Generated choices remain in the browser. Controls must remain keyboard operable and must not resize the layout when results change.
+
+### Palette Lab (`palette.html`)
+
+Local `NO AI` creator tool built around five explicit jobs: Background, Structure, Primary, Accent, and Gameplay cue. Visitors can edit hexadecimal values or native color inputs, lock individual colors, generate several harmony directions, repair unlocked colors that fail practical contrast thresholds, copy the named palette, reset it, and preview the result in a stable Geometry Dash-inspired scene. The current palette persists in browser storage; no project data leaves the browser.
+
+### Level Feedback (`feedback.html`)
+
+Discord-authenticated community workflow for current GD Avenue members. The form asks for a verified level ID, a focused review area, project stage, concise context, and an optional HTTPS showcase. Successful submissions enter Avenue Guard's durable outbox and become a private post in the configured judge gallery with persistent Claim and Send feedback controls. The creator sees private request status on the web and Avenue Guard queues the final written response by DM. This is feedback, not a rating guarantee, and the UI says so before submission.
 
 ### About Us (`about.html`)
 
-Introductory copy followed by repeated staff profile cards. Each avatar has a stable checked-in source plus a configured Discord user ID. `about.js` requests `/api/team` and replaces only valid HTTPS avatar URLs returned by Avenue Guard.
+Introductory copy followed by repeated staff profile cards. Staff manage their own public quote and card visibility from the Personal profile drawer in Staff Portal. Existing curated profiles are visible by default until their owner explicitly opts out; other active staff can opt in. `about.js` requests `/api/team`, applies only sanitized public display names, roles, quotes, and HTTPS avatar URLs, and creates a card for an opted-in staff member who has no checked-in card. Every checked-in card starts hidden and is revealed only after Avenue Guard confirms it is currently enabled, so a stale fallback can never override a staff member's privacy choice.
 
 ### Avenue Guard Status (`bot.html`)
 
@@ -235,7 +253,7 @@ Live service identity, overall state, version, process uptime, measured availabi
 
 ### Public Levels (`levels/index.html`)
 
-Wide, search-first directory. Stable 78px rows prioritize level identity, creator and ID, recommendation artwork, queue state, and public priority band. The compact `public-levels.css` layer inherits portal tokens for a consistent operational feel without importing private portal behavior.
+Wide, search-first directory. Stable 78px rows prioritize level identity, creator and ID, recommendation artwork, queue state, and public priority band. The compact `public-levels.css` layer inherits public community tokens and does not import Staff Portal styling or private portal behavior.
 
 ### Recommendation Detail (`level.html`)
 
@@ -243,7 +261,7 @@ Public immutable route keyed by Geometry Dash level ID. The visual is dominated 
 
 ### Applications (`apply/index.html`)
 
-Focused authenticated workflow. The first view is always the application-type chooser. Existing drafts are labelled “Return to draft.” Forms support short text, long text, single choice, browser-suggested timezone, and embedded reviewer showcases. Submitted/final records show stages and status without exposing application record numbers.
+Focused authenticated workflow inside the shared branded header. The form itself remains a dark, calm secure workspace rather than borrowing decorative homepage composition. The first view is always the application-type chooser. Existing drafts are labelled “Return to draft.” Forms support short text, long text, single choice, browser-suggested timezone, and embedded reviewer showcases. Submitted/final records show stages and status without exposing application record numbers.
 
 ### Staff Portal (`staff/index.html`)
 
@@ -262,12 +280,15 @@ Long-form reading layout using the public surface system. Policy sections use he
 
 ### Queue Methodology (`methodology/queue/`)
 
-Public editorial documentation, not a dashboard. A sticky left contents rail sits outside a 700–800px reading column on desktop and becomes a collapsible contents panel on mobile. Sections are unframed, anchorable, and separated by quiet rules. Formula surfaces use accessible MathML, restrained accent borders, and overflow protection. The PPS calculator is the only tool-like block; it never reads private queue data. Live model status is one compact sentence and never exposes evidence counts, routes, targets, posterior parameters, or staff identities. Public spacing, typography rhythm, and 14px surface radius apply; Staff Portal density does not.
+Public editorial documentation, not a dashboard. It uses the shared community header, supplied artwork, and footer. A sticky left contents rail sits outside a 700–800px reading column on desktop and becomes a collapsible contents panel on mobile. Sections are unframed, anchorable, and separated by quiet rules. Formula surfaces use accessible MathML, restrained accent borders, and overflow protection. The PPS calculator is the only tool-like block; it never reads private queue data. Live model status is one compact sentence and never exposes evidence counts, routes, targets, posterior parameters, or staff identities. Public spacing and typography apply; Staff Portal density does not.
 
 ## Motion And Interaction
 
 - Motion is short and functional. Public transitions use `140ms` or `220ms`; Staff transitions use `140ms` or `210ms`.
-- The portal respects `prefers-reduced-motion`.
+- The homepage artwork advances sequentially every 6.5 seconds while the page is visible. Changes use a 900ms opacity-only crossfade when motion is allowed. Dots use a roving tab stop and support arrow, Home, and End keys; direct selection restarts the 6.5-second interval from that artwork, and reduced-motion users receive manual-only controls without the fade.
+- Palette Lab generation and contrast repair preserve locked swatches, announce the result without moving controls, and keep all processing local.
+- Level feedback disables duplicate submission while validation is running, preserves entered text after an error, and clears the form only after the request is accepted.
+- Both public and portal experiences respect `prefers-reduced-motion`.
 - Hover never carries information that focus cannot reveal.
 - Tooltip, drawer, modal, menu, and search behavior must be operable from a keyboard.
 - Refreshes update content without forcing page navigation or clearing active form input.
@@ -276,7 +297,8 @@ Public editorial documentation, not a dashboard. A sticky left contents rail sit
 
 ## Responsive Rules
 
-- Public navigation wraps on medium screens and layouts collapse to a single column where needed.
+- Public navigation becomes a deliberate full-width menu at `1120px` and below; it does not wrap into an ambiguous second header row.
+- Artwork, copy, resource, profile, and footer grids collapse in stages at `1100px`, `740px`, and `460px` without scaling type from viewport width.
 - Public system and graph grids become one column below `560px`.
 - Portal breakpoints are `900px`, `680px`, and `430px`.
 - Below the portal desktop breakpoint, the fixed sidebar yields to compact navigation and the content column uses the full viewport.
@@ -311,6 +333,12 @@ Public editorial documentation, not a dashboard. A sticky left contents rail sit
 
 - Desktop widths: 1440px and 1024px.
 - Mobile widths: 430px and 375px.
+- Homepage artwork remains legible at every width, controls stay reachable, and the next content section is visible without an unusually tall hero.
+- Homepage headings and buttons remain in the separate content band and never cover lettering baked into any carousel artwork.
+- Palette Lab swatches, lock states, preview, contrast results, and action buttons remain usable at 1440px, 1024px, 768px, 430px, 375px, and 200% zoom.
+- Level feedback covers signed-out, non-member, empty-history, validation-error, queued, claimed, completed, and Discord-delivery-error states without leaking the private gallery.
+- The mobile community menu opens and closes without moving page content underneath the sticky header or trapping focus in a hidden navigation region.
+- Original artwork uses only CSS cropping; no checked-in community image differs byte-for-byte from its supplied source.
 - Keyboard-only navigation through header, application form, portal navigation, filters, dialogs, drawers, and help.
 - Browser zoom at 200% with no clipped labels or inaccessible actions.
 - Long display names, IDs, errors, and status labels wrap without overlap.

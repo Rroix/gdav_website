@@ -8,6 +8,7 @@ const markup = readFileSync(new URL("../staff/index.html", import.meta.url), "ut
 const styles = readFileSync(new URL("../staff/staff.css", import.meta.url), "utf8");
 const application = readFileSync(new URL("../apply/apply.js", import.meta.url), "utf8");
 const publicStyles = readFileSync(new URL("../styles.css", import.meta.url), "utf8");
+const communityStyles = readFileSync(new URL("../community.css", import.meta.url), "utf8");
 const publicLevelStyles = readFileSync(new URL("../levels/public-levels.css", import.meta.url), "utf8");
 const publicLevels = readFileSync(new URL("../levels/levels.js", import.meta.url), "utf8");
 const aesthetics = readFileSync(new URL("../docs/WEB_AESTHETICS.md", import.meta.url), "utf8");
@@ -39,9 +40,13 @@ test("profile, drawer, and modal controls are explicit and accessible", () => {
   assert.match(script, /event\.key !== "Tab"/);
   assert.match(styles, /body\.modal-open/);
   assert.match(styles, /\.checkbox-row/);
-  assert.match(script, /profileDialog\(false\)/);
-  assert.match(script, /profileDialog\(true\)/);
+  assert.match(script, /loadProfileDialog\("view"\)/);
+  assert.match(script, /loadProfileDialog\("nickname"\)/);
   assert.match(script, /profile-nickname-form/);
+  assert.match(script, /profile-about-form/);
+  assert.match(script, /\/api\/staff\/profile\/about/);
+  assert.match(script, /Show my card on the public About page/);
+  assert.match(script, /never changes your staff role or portal access/i);
   assert.match(script, /if \(nav\) \{[^]*profile-menu[^]*aria-expanded[^]*navigate\(module, section\)/);
   assert.match(script, /body\.classList\.add\("drawer-open"\)/);
   assert.match(script, /event\.key === "Escape"[^]*detail-drawer/);
@@ -387,15 +392,15 @@ test("workspace hierarchy keeps queue, people, and diagnostics scannable", () =>
 });
 
 test("public polish keeps editorial pages separate from the dense level directory", () => {
-  assert.match(publicStyles, /\.about-hero\.surface,\s*\.privacy-hero\.surface[^}]+background: transparent/s);
-  assert.match(publicStyles, /\.privacy-section\.surface[^}]+border-radius: 0/s);
-  assert.match(publicStyles, /\.bot-metrics[^}]+border-top: 1px solid var\(--line-strong\)/s);
-  assert.match(publicStyles, /nav[^}]+overflow-x: auto/s);
-  assert.match(publicStyles, /nav a[^}]+flex: 0 0 auto/s);
+  assert.match(communityStyles, /\.community-site \.about-hero\.surface,\s*\.community-site \.privacy-hero\.surface[^}]+background: transparent/s);
+  assert.match(communityStyles, /\.community-site \.privacy-section\.surface[^}]+border-radius: 0/s);
+  assert.match(communityStyles, /\.community-site \.bot-metrics[^}]+border-top: 1px solid var\(--line-strong\)/s);
+  assert.match(communityStyles, /\.site-nav[^}]+overflow-x: auto/s);
+  assert.match(communityStyles, /\.site-nav a[^}]+flex: 0 0 auto/s);
   assert.match(publicLevelStyles, /\.public-level-row[^}]+min-height: 78px/s);
   assert.match(publicLevelStyles, /\.public-tier\.mythic/);
   assert.match(publicLevels, /assets\/send-types\/pps_\$\{safe\}\.png/);
-  assert.match(aesthetics, /## Geometric Signature/);
+  assert.match(aesthetics, /## Visual Signature/);
   assert.match(aesthetics, /### Shared Component Families/);
   assert.match(aesthetics, /Reviewer, Head Reviewer, Admin, Owner, and Dev/);
 });

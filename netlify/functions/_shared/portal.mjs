@@ -39,9 +39,12 @@ function signature(value) {
 }
 
 export function createOAuthState(destination) {
+  const approvedDestination = ["/apply", "/feedback", "/staff"].includes(destination)
+    ? destination
+    : "/staff";
   const payload = Buffer.from(JSON.stringify({
     nonce: crypto.randomBytes(24).toString("base64url"),
-    destination: destination === "/apply" ? "/apply" : "/staff",
+    destination: approvedDestination,
     created: Date.now(),
   })).toString("base64url");
   return `${payload}.${signature(payload)}`;
@@ -70,7 +73,11 @@ export function siteUrl(event) {
 }
 
 export function portalDestinationUrl(event, destination, params = {}) {
-  const pathname = destination === "/apply" ? "/apply/" : "/staff/";
+  const pathname = destination === "/apply"
+    ? "/apply/"
+    : destination === "/feedback"
+      ? "/feedback.html"
+      : "/staff/";
   const target = new URL(pathname, `${siteUrl(event)}/`);
   for (const [key, value] of Object.entries(params)) {
     if (value !== undefined && value !== null && String(value)) {

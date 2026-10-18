@@ -25,6 +25,11 @@ export async function handler(event) {
     parsedState.destination,
     params,
   );
+  const sessionPath = parsedState.destination === "/apply"
+    ? "/api/apply/session"
+    : parsedState.destination === "/feedback"
+      ? "/api/feedback/session"
+      : "/api/staff/session";
   if (!stateCookie || !secureEqual(stateCookie, state)) {
     // Some mobile browsers revisit the callback after the first exchange has
     // already created the session and cleared the one-time state cookie. Check
@@ -32,10 +37,7 @@ export async function handler(event) {
     // cookie must not bounce between the portal and the callback forever.
     if (jar[SESSION_COOKIE]) {
       try {
-        const session = await botRequest(
-          parsedState.destination === "/apply" ? "/api/apply/session" : "/api/staff/session",
-          { session: jar[SESSION_COOKIE] },
-        );
+        const session = await botRequest(sessionPath, { session: jar[SESSION_COOKIE] });
         if (session.status < 400) {
           return {
             statusCode: 303,
@@ -108,7 +110,11 @@ export async function handler(event) {
       method: "POST",
       body: {
         user_id: identity.id,
-        purpose: parsedState.destination === "/apply" ? "apply" : "staff",
+        purpose: parsedState.destination === "/apply"
+          ? "apply"
+          : parsedState.destination === "/feedback"
+            ? "feedback"
+            : "staff",
         username: identity.username || "",
         global_name: identity.global_name || "",
         avatar_url: avatarUrl,

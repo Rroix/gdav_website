@@ -44,10 +44,11 @@ test("privacy policy explains punishment appeal evidence and communication", () 
   assert.match(policy, /private portal message/i);
 });
 
-test("privacy policy covers public health samples and curated Discord avatars", () => {
+test("privacy policy covers public health samples and staff-controlled About cards", () => {
   assert.match(policy, /recent component-health samples/);
-  assert.match(policy, /small, configured list of public team profiles/);
-  assert.match(policy, /checked-in profile image remains the fallback/);
+  assert.match(policy, /self-written quote/);
+  assert.match(policy, /hide that card at any time in the Staff Portal/);
+  assert.match(policy, /About cards remain hidden when Avenue Guard cannot confirm/);
 });
 
 test("privacy policy covers model evidence and durable Discord subscriptions", () => {

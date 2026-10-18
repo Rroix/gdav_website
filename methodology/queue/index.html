@@ -4,35 +4,40 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="description" content="How GD Avenue orders recommended levels, records outreach evidence, and publishes probability estimates">
-  <meta name="theme-color" content="#090b0d">
+  <meta name="theme-color" content="#07131b">
   <meta property="og:title" content="How we order the queue | GD Avenue">
   <meta property="og:description" content="The public methodology for GD Avenue review, queue priority, outreach evidence, and statistical estimates.">
   <meta property="og:type" content="article">
   <link rel="canonical" href="https://gdavenue.netlify.app/methodology/queue/">
   <title>Queue Methodology | GD Avenue</title>
   <link rel="icon" href="/favicon.ico">
-  <link rel="stylesheet" href="/staff/staff.css">
+  <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="/community.css?v=20261018-6">
   <link rel="stylesheet" href="/methodology/queue/methodology.css">
 </head>
-<body class="methodology-page">
+<body class="community-site methodology-page">
   <a class="skip-link" href="#methodologyArticle">Skip to methodology</a>
-  <header class="methodology-nav">
-    <a class="brand" href="/"><strong>GD Avenue</strong><small>Queue methodology</small></a>
-    <nav><a href="/levels/">Search levels</a><a href="/about.html">About</a></nav>
+  <header class="site-header" data-site-header>
+    <a class="site-brand" href="/" aria-label="GD Avenue home"><img src="/assets/community/gd-avenue-logo.png" alt="" width="44" height="44"><span><strong>GD Avenue</strong></span></a>
+    <button class="site-menu" type="button" aria-expanded="false" aria-controls="site-navigation">Menu</button>
+    <nav class="site-nav" id="site-navigation" aria-label="Primary navigation"><div class="site-nav__links"><a href="/">Home</a><a href="/levels/" aria-current="page">Levels</a><a href="/palette.html">Palette Lab</a><a href="/generator.html">Idea Generator</a><a href="/rules.html">Community</a><a href="/about.html">About</a></div><div class="site-nav__actions"><a href="/bot.html">Avenue Guard</a><a href="/feedback.html">Get feedback</a><a href="/apply/">Apply</a><a class="site-nav__join" href="https://discord.gg/matVTsj">Join Discord</a></div></nav>
   </header>
   <main class="methodology-shell">
     <aside class="methodology-toc" aria-label="On this page">
-      <details open>
+      <details>
         <summary>On this page</summary>
         <ol id="tocList"></ol>
       </details>
     </aside>
     <article class="methodology-article" id="methodologyArticle">
       <header class="methodology-hero">
-        <p class="eyebrow">Public methodology · version 2026.09</p>
-        <h1>How we order the queue</h1>
-        <p>GD Avenue separates staff review, deterministic queue priority, human outreach, confirmed moderator submission, observed outcomes, and statistical estimates. A probability is never a promise and a current rating does not prove Avenue caused it.</p>
-        <div class="model-live" id="modelLive" role="status" aria-live="polite">Loading live model status…</div>
+        <div class="methodology-hero__art" aria-hidden="true"><img src="/assets/community/information-art.png" alt=""></div>
+        <div class="methodology-hero__copy">
+          <p class="community-kicker community-kicker--dark">Public methodology · version 2026.09</p>
+          <h1>How we order the queue</h1>
+          <p>GD Avenue separates staff review, deterministic queue priority, human outreach, confirmed moderator submission, observed outcomes, and statistical estimates. A probability is never a promise and a current rating does not prove Avenue caused it.</p>
+          <div class="model-live" id="modelLive" role="status" aria-live="polite">Loading live model status…</div>
+        </div>
       </header>
 
       <section id="scope"><h2>1. Scope</h2><p>This page documents the production request queue and its shadow evidence models. The deterministic PPS v1 score continues to order eligible levels. Bayesian models observe outcomes; they do not change request decisions or queue order.</p></section>
@@ -67,6 +72,11 @@
       <section id="governance"><h2>30. Governance, glossary, FAQ, and changelog</h2><p>Model versions are immutable. Changes to priors, likelihoods, features, readiness rules, or prediction meaning require a new version and a human-readable changelog entry.</p><details><summary>Glossary</summary><dl><dt>Recommendation</dt><dd>A reviewer’s human judgment about a suitable rate type.</dd><dt>Priority</dt><dd>The deterministic order among approved levels.</dd><dt>Creator Points</dt><dd>The creator’s current official point count used by component G.</dd><dt>Outreach Cycle</dt><dd>A staff-managed round of human outreach work.</dd><dt>Attempt</dt><dd>A real effort to create contact.</dd><dt>Follow-up</dt><dd>Further contact with the same target in the same opportunity.</dd><dt>Confirmed Submission</dt><dd>Verified delivery of the level to a moderator.</dd><dt>Outreach Episode</dt><dd>One preserved run from queueing through its fixed outcome.</dd><dt>Outcome</dt><dd>The episode-level observed result.</dd><dt>Network Era</dt><dd>A period with broadly comparable moderator-access conditions.</dd><dt>Prior</dt><dd>The probability distribution before the current evidence is added.</dd><dt>Posterior</dt><dd>The updated distribution after eligible evidence.</dd><dt>Credible Interval</dt><dd>A range containing a stated share of the posterior distribution.</dd><dt>Calibration</dt><dd>How closely saved probabilities match later outcomes.</dd><dt>Capacity Commitment</dt><dd>A conservative posterior predictive lower bound such as K90.</dd></dl></details><details><summary>Frequently asked questions</summary><h3>Does being Mythic guarantee a rating?</h3><p>No. Recommendation tier is human review, not a guarantee.</p><h3>Does 0 CP change the reviewer’s judgment?</h3><p>No. CP affects queue priority only after review.</p><h3>Why did my priority change?</h3><p>Current CP, completed waiting cycles, and the composition of the active queue can change relative ordering.</p><h3>Why do you not show exact queue rank?</h3><p>Stable public bands communicate useful progress without exposing volatile operational ordering.</p><h3>Why are probabilities not visible yet?</h3><p>The models may be collecting, provisional, degraded, or paused. Queue ordering continues normally.</p><h3>Can a probability disappear?</h3><p>Yes. A new era, stale evidence, calibration safeguards, or an authorized pause removes public numbers automatically.</p><h3>Does Avenue know which moderator will rate my level?</h3><p>No. There is no guarantee, and all target identities and contact routes remain private.</p></details><details><summary>Public privacy boundary</summary><p>Exact rank, raw PPS score, moderator identities, contact routes, target-specific estimates, staff notes, workloads, exclusions with private detail, and subscriber Discord IDs are never public.</p></details><details><summary>Changelog</summary><p><strong>2026.09:</strong> PPS v1 remains authoritative; outreach episodes and opportunities were formalized; Bayesian shadow mode, network eras, calibration safeguards, capacity forecasts, notification subscriptions, and automatic publication gates were introduced.</p></details></section>
     </article>
   </main>
+  <footer class="site-footer">
+    <div class="site-footer__inner"><div class="site-footer__identity"><img src="/assets/community/gd-avenue-logo.png" alt="" width="58" height="58"><div><strong>Geometry Dash Avenue</strong><p>A community made for creating, improving, and connecting.</p></div></div><div class="site-footer__links"><div><strong>Explore</strong><a href="/levels/">Levels</a><a href="/generator.html">Idea Generator</a><a href="/bot.html">Avenue Guard</a></div><div><strong>Community</strong><a href="/rules.html">Rules</a><a href="/about.html">About Us</a><a href="/apply/">Apply or Appeal</a></div><div><strong>More</strong><a href="/privacy.html">Privacy</a><a href="/staff/">Staff Portal</a><a href="https://discord.gg/matVTsj">Discord</a></div></div></div>
+    <div class="site-footer__base"><span>Geometry Dash Avenue &copy; <span data-current-year>2026</span></span><span>Not affiliated with RobTop Games.</span></div>
+  </footer>
+  <script src="/site.js?v=20261018-4" defer></script>
   <script src="/methodology/queue/methodology.js" defer></script>
 </body>
 </html>

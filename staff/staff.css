@@ -431,6 +431,11 @@ progress::-moz-progress-bar { background: var(--accent); }
 .profile-hero { display: flex; align-items: center; gap: 14px; padding: 18px 0; }
 .profile-hero img { border-radius: 50%; background: var(--surface-2); }
 .profile-hero > div { display: flex; gap: 6px; }
+.profile-actions { display: flex; flex-wrap: wrap; gap: 9px; }
+.profile-about-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.profile-about-heading h3 { margin: 0; }
+.profile-about-quote { margin: 10px 0; color: var(--text); line-height: 1.55; overflow-wrap: anywhere; }
+.pill.published { color: var(--success); border-color: #315c50; background: #102721; }
 body.drawer-open { overflow: hidden; }
 .detail-grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 8px; }
 .pps-lab { margin-top: 24px; }

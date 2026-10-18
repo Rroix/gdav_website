@@ -1069,14 +1069,29 @@ function outreachDialog(queueId = "") {
   ], run: (body) => api("/api/staff/outreach", { method: "POST", body: { ...body, queue_id: Number(body.queue_id), timestamp: Math.floor(Date.now() / 1000) } }) });
 }
 
-function profileDialog(editNickname = false) {
+function profileDialog(mode = "view") {
   const user = state.user;
   const identity = `<div class="profile-hero">${user.avatar_url ? `<img src="${esc(user.avatar_url)}" alt="" width="72" height="72">` : ""}<div>${pill(user.role_label || roleLabel(user.role))}</div></div>
     <div class="profile-detail"><small>Display name</small><strong>${esc(user.display_name)}</strong></div>
     <div class="profile-detail"><small>Discord username</small><strong>${esc(user.username || "Not available")}</strong></div>
     <div class="profile-detail"><small>Exact Discord ID</small><span><strong class="secondary-id">${esc(exactId(user.id))}</strong>${copyButton(user.id)}</span></div>`;
-  const nickname = `<form id="profile-nickname-form" class="drawer-section form-grid"><label>Portal nickname<input name="portal_nickname" value="${esc(user.portal_nickname || "")}" maxlength="64"></label><p class="muted">This affects the staff portal only. Your Discord nickname is unchanged.</p><button class="button primary" type="submit">Save nickname</button></form>`;
-  openDrawer("Personal profile", editNickname ? "Edit portal nickname" : "My staff profile", `${identity}${editNickname ? nickname : `<section class="drawer-section"><button class="button secondary" data-profile-action="nickname">Edit portal nickname</button></section>`}`);
+  const nickname = `<form id="profile-nickname-form" class="drawer-section form-grid"><h3>Portal nickname</h3><label>Nickname<input name="portal_nickname" value="${esc(user.portal_nickname || "")}" maxlength="40"></label><p class="muted">This affects the staff portal only. Your Discord nickname is unchanged.</p><button class="button primary" type="submit">Save nickname</button></form>`;
+  const aboutSummary = supports("public_staff_profiles") ? `<section class="drawer-section profile-about-summary"><div class="profile-about-heading"><h3>Public About card</h3>${pill(user.about_visible ? "Published" : "Hidden")}</div><p class="profile-about-quote">${esc(user.about_quote || "No custom quote yet.")}</p><p class="muted">This controls only your card on the public About page. It never changes your staff role or portal access.</p></section>` : "";
+  const aboutForm = `<form id="profile-about-form" class="drawer-section form-grid"><h3>Public About card</h3><label>Personal quote<textarea name="about_quote" maxlength="240" rows="4" placeholder="A short line that sounds like you">${esc(user.about_quote || "")}</textarea></label><p class="muted">Up to 240 characters. If an existing curated card has no custom quote, its checked-in text remains the fallback.</p><label class="checkbox-row"><input name="about_visible" type="checkbox" ${user.about_visible ? "checked" : ""}><span>Show my card on the public About page</span></label><p class="muted">Turning this off hides the card without changing your Discord role or Staff Portal access.</p><button class="button primary" type="submit">Save About card</button></form>`;
+  const actions = `<section class="drawer-section profile-actions"><button class="button secondary" data-profile-action="nickname">Edit portal nickname</button>${supports("public_staff_profiles") ? `<button class="button secondary" data-profile-action="about">Edit About card</button>` : ""}</section>`;
+  const body = mode === "nickname" ? `${identity}${nickname}` : mode === "about" ? `${identity}${aboutForm}` : `${identity}${aboutSummary}${actions}`;
+  const title = mode === "nickname" ? "Edit portal nickname" : mode === "about" ? "Edit public About card" : "My staff profile";
+  openDrawer("Personal profile", title, body);
+}
+
+async function loadProfileDialog(mode = "view") {
+  try {
+    const data = await api("/api/staff/profile");
+    state.user = { ...state.user, ...data.profile };
+    profileDialog(mode);
+  } catch (error) {
+    showNotice(error.message, true);
+  }
 }
 
 function requestAdminDialog(action, scheduled = null) {
@@ -1189,9 +1204,10 @@ document.addEventListener("click", async (event) => {
   if (profileAction) {
     $("#profile-menu").hidden = true;
     $("#profile-button").setAttribute("aria-expanded", "false");
-    if (profileAction.dataset.profileAction === "view") return profileDialog(false);
-    if (profileAction.dataset.profileAction === "nickname") return profileDialog(true);
-    if (profileAction.dataset.profileAction === "identity") return profileDialog(false);
+    if (profileAction.dataset.profileAction === "view") return loadProfileDialog("view");
+    if (profileAction.dataset.profileAction === "nickname") return loadProfileDialog("nickname");
+    if (profileAction.dataset.profileAction === "about") return loadProfileDialog("about");
+    if (profileAction.dataset.profileAction === "identity") return loadProfileDialog("view");
   }
   const copy = event.target.closest("[data-copy]");
   if (copy) {
@@ -1536,18 +1552,22 @@ $("#view-mode-select").addEventListener("change", async (event) => {
 });
 
 document.addEventListener("submit", async (event) => {
-  if (event.target.id !== "profile-nickname-form") return;
+  if (!["profile-nickname-form", "profile-about-form"].includes(event.target.id)) return;
   event.preventDefault();
   const submit = event.target.querySelector('button[type="submit"]');
   submit.disabled = true;
   try {
-    const portal_nickname = new FormData(event.target).get("portal_nickname")?.toString().trim() || "";
-    const result = await api("/api/staff/profile", { method: "PATCH", body: { portal_nickname } });
+    const form = new FormData(event.target);
+    const editingAbout = event.target.id === "profile-about-form";
+    const result = editingAbout
+      ? await api("/api/staff/profile/about", { method: "PATCH", body: { about_quote: form.get("about_quote")?.toString().trim() || "", about_visible: Boolean(event.target.elements.about_visible.checked) } })
+      : await api("/api/staff/profile", { method: "PATCH", body: { portal_nickname: form.get("portal_nickname")?.toString().trim() || "" } });
     state.user = { ...state.user, ...result.profile };
     $("#user-name").textContent = state.user.display_name;
     $("#profile-menu-name").textContent = state.user.display_name;
-    showNotice("Portal nickname saved");
-    closeDrawer();
+    showNotice(editingAbout ? "Public About card saved" : "Portal nickname saved");
+    if (editingAbout) profileDialog("view");
+    else closeDrawer();
   } catch (error) {
     showNotice(error.message, true);
   } finally {

@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Request private, practical Geometry Dash level feedback from the GD Avenue judge team.">
+  <meta name="theme-color" content="#07131b">
+  <link rel="icon" href="favicon.ico">
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="community.css?v=20261018-6">
+  <title>Level Feedback | GD Avenue</title>
+</head>
+<body class="community-site feedback-page">
+  <a class="skip-link" href="#main-content">Skip to content</a>
+  <header class="site-header" data-site-header>
+    <a class="site-brand" href="/" aria-label="GD Avenue home"><img src="/assets/community/gd-avenue-logo.png" alt="" width="44" height="44"><span><strong>GD Avenue</strong></span></a>
+    <button class="site-menu" type="button" aria-expanded="false" aria-controls="site-navigation">Menu</button>
+    <nav class="site-nav" id="site-navigation" aria-label="Primary navigation">
+      <div class="site-nav__links"><a href="/">Home</a><a href="/levels/">Levels</a><a href="/palette.html">Palette Lab</a><a href="/generator.html">Idea Generator</a><a href="/rules.html">Community</a><a href="/about.html">About</a></div>
+      <div class="site-nav__actions"><a href="/bot.html">Avenue Guard</a><a href="/feedback.html" aria-current="page">Get feedback</a><a href="/apply/">Apply</a><a class="site-nav__join" href="https://discord.gg/matVTsj">Join Discord</a></div>
+    </nav>
+  </header>
+
+  <main id="main-content" class="feedback-main">
+    <section class="feedback-intro">
+      <div class="section-wrap feedback-intro__inner">
+        <div class="feedback-intro__copy">
+          <p class="community-kicker">Improve your level</p>
+          <h1>Request level feedback</h1>
+          <p>Tell us what you are trying to improve. A GD Avenue judge will claim your request, review your level, and send practical feedback back through Avenue Guard.</p>
+        </div>
+        <img src="/assets/community/night-flight-art.png" alt="GD Avenue ship flying through a Geometry Dash level" width="1080" height="780">
+      </div>
+    </section>
+
+    <section class="feedback-shell section-wrap">
+      <div id="feedback-loading" class="feedback-notice" role="status">Checking your Discord sign-in...</div>
+      <div id="feedback-auth" class="feedback-auth" hidden>
+        <p class="community-kicker community-kicker--dark">Discord sign-in</p>
+        <h2>Connect the account that is in GD Avenue.</h2>
+        <p>Sign-in verifies you are in GD Avenue and gives Avenue Guard somewhere private to deliver the response. It does not join servers or post as you.</p>
+        <p id="feedback-auth-error" class="feedback-error" hidden></p>
+        <a class="community-button community-button--sun" href="/api/auth/login?return=feedback">Continue with Discord</a>
+      </div>
+
+      <div id="feedback-workspace" hidden>
+        <div class="feedback-account">
+          <div class="feedback-account__identity"><img id="feedback-avatar" src="/assets/community/gd-avenue-logo.png" alt="" width="48" height="48"><div><span>Signed in as</span><strong id="feedback-user">Discord member</strong></div></div>
+          <button id="feedback-logout" type="button">Sign out</button>
+        </div>
+
+        <div class="feedback-layout">
+          <form id="feedback-form" class="feedback-form">
+            <div class="feedback-form__heading"><p class="community-kicker community-kicker--dark">New request</p><h2>What should the judge look at?</h2><p>One focused question usually gets a more useful response than a general “thoughts?”</p></div>
+            <label>Geometry Dash level ID <span aria-hidden="true">*</span>
+              <input id="feedback-level-id" name="level_id" inputmode="numeric" pattern="[0-9]{7,10}" minlength="7" maxlength="10" required autocomplete="off" placeholder="148134343">
+            </label>
+            <div class="feedback-form__row">
+              <label>Feedback focus <span aria-hidden="true">*</span>
+                <select id="feedback-focus" name="feedback_focus" required>
+                  <option value="overall">Overall direction</option>
+                  <option value="gameplay">Gameplay and readability</option>
+                  <option value="decoration">Decoration and visual consistency</option>
+                  <option value="optimization">Optimization and performance</option>
+                  <option value="effects">Effects and transitions</option>
+                  <option value="rate_readiness">Rate readiness</option>
+                </select>
+              </label>
+              <label>Project stage <span aria-hidden="true">*</span>
+                <select id="feedback-stage" name="project_stage" required>
+                  <option value="work_in_progress">Work in progress</option>
+                  <option value="nearly_finished">Nearly finished</option>
+                  <option value="finished" selected>Finished</option>
+                </select>
+              </label>
+            </div>
+            <label>What would make the response useful?
+              <textarea id="feedback-context" name="context" maxlength="900" rows="6" placeholder="Point to the section, concern, or decision you are stuck on."></textarea>
+              <span class="feedback-field-note"><span id="feedback-context-count">0</span>/900</span>
+            </label>
+            <label>Showcase link <span class="feedback-optional">Optional</span>
+              <input id="feedback-showcase" name="showcase_url" type="url" maxlength="500" placeholder="https://youtu.be/...">
+            </label>
+            <label class="feedback-confirm"><input id="feedback-confirm" type="checkbox" required><span>I understand this is a request for constructive feedback, not a guaranteed rating recommendation.</span></label>
+            <div class="feedback-submit-row"><button id="feedback-submit" class="community-button community-button--sun" type="submit">Send to the judge gallery</button><p id="feedback-form-status" role="status" aria-live="polite"></p></div>
+          </form>
+
+          <aside class="feedback-history" aria-labelledby="feedback-history-title">
+            <p class="community-kicker community-kicker--dark">Your requests</p>
+            <h2 id="feedback-history-title">Follow the response</h2>
+            <div id="feedback-request-list" class="feedback-request-list"><p class="feedback-empty">No feedback requests yet.</p></div>
+            <p class="feedback-history__note">Requests are visible only to you and the staff reviewing them. Avenue Guard will also try to DM the final response.</p>
+          </aside>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="site-footer__inner">
+      <div class="site-footer__identity"><img src="/assets/community/gd-avenue-logo.png" alt="" width="58" height="58"><div><strong>Geometry Dash Avenue</strong><p>A community made for creators, players, and honest feedback.</p></div></div>
+      <div class="site-footer__links"><div><strong>Explore</strong><a href="/levels/">Levels</a><a href="/palette.html">Palette Lab</a><a href="/generator.html">Idea Generator</a></div><div><strong>Community</strong><a href="/rules.html">Rules</a><a href="/about.html">About Us</a><a href="/apply/">Apply or Appeal</a></div><div><strong>More</strong><a href="/bot.html">Avenue Guard</a><a href="/privacy.html">Privacy</a><a href="/staff/">Staff Portal</a><a href="https://discord.gg/matVTsj">Discord</a></div></div>
+    </div>
+    <div class="site-footer__base"><span>Geometry Dash Avenue &copy; <span data-current-year>2026</span></span><span>Not affiliated with RobTop Games.</span></div>
+  </footer>
+  <script src="site.js?v=20261018-4" defer></script>
+  <script src="feedback.js?v=20261018-1" defer></script>
+</body>
+</html>

@@ -6,7 +6,7 @@ const ALLOWED_METHODS = new Set(["GET", "POST", "PATCH", "DELETE"]);
 export function resolveProxyRoute(event) {
   const queryScope = event.queryStringParameters?.scope;
   const queryTail = String(event.queryStringParameters?.path || "").replace(/^\/+/, "");
-  if (["staff", "apply"].includes(queryScope) && queryTail && !queryTail.includes("..")) {
+  if (["staff", "apply", "feedback"].includes(queryScope) && queryTail && !queryTail.includes("..")) {
     return { scope: queryScope, tail: queryTail };
   }
 
@@ -17,7 +17,7 @@ export function resolveProxyRoute(event) {
       catch { return String(value).split("?", 1)[0]; }
     });
   for (const path of candidates) {
-    const match = path.match(/^(?:\/api|\/\.netlify\/functions\/api-proxy)\/(staff|apply)\/(.+)$/);
+    const match = path.match(/^(?:\/api|\/\.netlify\/functions\/api-proxy)\/(staff|apply|feedback)\/(.+)$/);
     if (!match) continue;
     let tail;
     try {

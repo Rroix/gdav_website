@@ -51,14 +51,17 @@ test("OAuth state is signed, destination-bound, and tamper evident", () => {
   const parsed = verifyOAuthState(value);
   assert.equal(parsed.destination, "/apply");
   assert.equal(verifyOAuthState(`${value}tampered`), null);
+  assert.equal(verifyOAuthState(createOAuthState("/feedback")).destination, "/feedback");
 });
 
 test("portal destinations are absolute, canonical, and contain only approved query values", () => {
   process.env.URL = "https://gdavenue.netlify.app";
   const staff = new URL(portalDestinationUrl({}, "/staff"));
   const apply = new URL(portalDestinationUrl({}, "/apply", { auth_error: "Try again" }));
+  const feedback = new URL(portalDestinationUrl({}, "/feedback"));
   assert.equal(staff.href, "https://gdavenue.netlify.app/staff/");
   assert.equal(apply.pathname, "/apply/");
+  assert.equal(feedback.pathname, "/feedback.html");
   assert.equal(apply.searchParams.get("auth_error"), "Try again");
   assert.equal(apply.searchParams.has("code"), false);
   assert.equal(apply.searchParams.has("state"), false);
@@ -83,7 +86,7 @@ test("private proxy denies unauthenticated requests before contacting the bot", 
   assert.equal(JSON.parse(response.body).error.code, "session_required");
 });
 
-test("production staff and application rewrites resolve without query splats", async () => {
+test("production staff, application, and feedback rewrites resolve without query splats", async () => {
   assert.deepEqual(
     resolveProxyRoute({ rawUrl: "https://gdavenue.netlify.app/api/staff/session" }),
     { scope: "staff", tail: "session" },
@@ -99,6 +102,10 @@ test("production staff and application rewrites resolve without query splats", a
   assert.deepEqual(
     resolveProxyRoute({ path: "/.netlify/functions/api-proxy/apply/form/mod" }),
     { scope: "apply", tail: "form/mod" },
+  );
+  assert.deepEqual(
+    resolveProxyRoute({ rawUrl: "https://gdavenue.netlify.app/api/feedback/requests" }),
+    { scope: "feedback", tail: "requests" },
   );
   assert.equal(resolveProxyRoute({ rawUrl: "https://gdavenue.netlify.app/api/staff/../private" }), null);
   assert.equal(resolveProxyRoute({ rawUrl: "https://gdavenue.netlify.app/api/staff/%E0%A4%A" }), null);
@@ -216,6 +223,10 @@ test("OAuth login uses identify only and the server callback route", async () =>
   assert.equal(authorize.searchParams.get("scope"), "identify");
   assert.equal(authorize.searchParams.get("redirect_uri"), "https://gdavenue.netlify.app/api/auth/callback");
   assert.match(response.headers["Set-Cookie"], /HttpOnly/);
+
+  const feedbackResponse = await login({ queryStringParameters: { return: "feedback" }, headers: {} });
+  const feedbackState = new URL(feedbackResponse.headers.Location).searchParams.get("state");
+  assert.equal(verifyOAuthState(feedbackState).destination, "/feedback");
 });
 
 test("OAuth callback exchanges identity server-side and creates a clean staff session", async () => {
@@ -317,6 +328,32 @@ test("application callback requests an application session instead of staff elev
   });
 });
 
+test("feedback callback requests a member feedback session and returns to the tool", async () => {
+  process.env.DISCORD_CLIENT_ID = "client-id";
+  process.env.DISCORD_CLIENT_SECRET = "discord-client-secret";
+  process.env.AVENUE_GUARD_API_URL = "https://avenue-guard.example";
+  process.env.AVENUE_GUARD_API_TOKEN = "private-service-token";
+  process.env.URL = "https://gdavenue.netlify.app";
+  const state = createOAuthState("/feedback");
+  let backendBody;
+  globalThis.fetch = async (url, options = {}) => {
+    if (String(url).includes("/oauth2/token")) return jsonResponse(200, { access_token: "discord-access-token" });
+    if (String(url).includes("/users/@me")) return jsonResponse(200, {
+      id: "999",
+      username: "community-member",
+      global_name: "Community Member",
+      avatar: "avatar-hash",
+    });
+    backendBody = JSON.parse(options.body);
+    return jsonResponse(201, { session_token: "session", csrf_token: "csrf", expires_ts: Math.floor(Date.now() / 1000) + 3600 });
+  };
+  const response = await callback(oauthEvent(state, "/feedback"));
+  assert.equal(response.statusCode, 303);
+  assert.equal(response.headers.Location, "https://gdavenue.netlify.app/feedback.html");
+  assert.equal(backendBody.purpose, "feedback");
+  assert.equal(backendBody.user_id, "999");
+});
+
 test("revisited OAuth callback redirects an existing session without reusing the code", async () => {
   process.env.AVENUE_GUARD_API_URL = "https://avenue-guard.example";
   process.env.AVENUE_GUARD_API_TOKEN = "private-service-token";
@@ -414,13 +451,23 @@ test("proxy forwards add-staff and application deletion mutations exactly", asyn
     body: JSON.stringify({ confirmation: "DELETE" }),
     queryStringParameters: {},
   });
+  const feedbackRequest = await proxy({
+    httpMethod: "POST",
+    headers: { ...headers, "idempotency-key": "workflow-test-key-789" },
+    rawUrl: "https://gdavenue.netlify.app/api/feedback/requests",
+    body: JSON.stringify({ level_id: "148134343", feedback_focus: "overall" }),
+    queryStringParameters: {},
+  });
   assert.equal(addStaff.statusCode, 200);
   assert.equal(deleteApplication.statusCode, 200);
+  assert.equal(feedbackRequest.statusCode, 200);
   assert.equal(calls[0].url, "https://avenue-guard.example/api/staff/staff");
   assert.equal(calls[0].options.method, "POST");
   assert.equal(calls[1].url, "https://avenue-guard.example/api/apply/mine");
   assert.equal(calls[1].options.method, "DELETE");
   assert.deepEqual(JSON.parse(calls[1].options.body), { confirmation: "DELETE" });
+  assert.equal(calls[2].url, "https://avenue-guard.example/api/feedback/requests");
+  assert.equal(calls[2].options.method, "POST");
 });
 
 test("invalid OAuth state is rejected before Discord or Avenue Guard is contacted", async () => {
