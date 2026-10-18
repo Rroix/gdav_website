@@ -10,6 +10,8 @@
   var submit = document.getElementById("feedback-submit");
   var list = document.getElementById("feedback-request-list");
   var context = document.getElementById("feedback-context");
+  var eligibilityNotice = document.getElementById("feedback-eligibility");
+  var policyAllowsSubmission = true;
   var statusLabels = {
     queued: "Waiting for a judge",
     claimed: "Being reviewed",
@@ -76,6 +78,44 @@
     return Math.floor(seconds / 86400) + "d ago";
   }
 
+  function waitLabel(seconds) {
+    var remaining = Math.max(0, Number(seconds || 0));
+    var days = Math.floor(remaining / 86400);
+    var hours = Math.ceil((remaining % 86400) / 3600);
+    var parts = [];
+    if (days) parts.push(days + " day" + (days === 1 ? "" : "s"));
+    if (hours) parts.push(hours + " hour" + (hours === 1 ? "" : "s"));
+    return parts.slice(0, 2).join(" and ") || "less than an hour";
+  }
+
+  function setSubmissionAvailable(available) {
+    policyAllowsSubmission = available;
+    form.querySelectorAll("input, select, textarea").forEach(function (control) {
+      control.disabled = !available;
+    });
+    submit.disabled = !available;
+    form.classList.toggle("is-policy-locked", !available);
+  }
+
+  function applyEligibility(eligibility) {
+    if (!eligibility || eligibility.can_submit !== false) {
+      eligibilityNotice.dataset.state = "available";
+      eligibilityNotice.textContent = "One review at a time. After a judge sends feedback, a 48-hour cooldown begins.";
+      setSubmissionAvailable(true);
+      return;
+    }
+    if (eligibility.reason === "active_request") {
+      var active = eligibility.active_request || {};
+      var level = active.level_name || (active.level_id ? "Level " + active.level_id : "Your level");
+      eligibilityNotice.dataset.state = "active";
+      eligibilityNotice.textContent = level + " already has a review in progress. You can start another request after that feedback is sent and the 48-hour cooldown ends.";
+    } else {
+      eligibilityNotice.dataset.state = "cooldown";
+      eligibilityNotice.textContent = "Your latest feedback has been sent. The 48-hour cooldown has " + waitLabel(eligibility.remaining_seconds) + " remaining.";
+    }
+    setSubmissionAvailable(false);
+  }
+
   function renderRequests(items) {
     if (!Array.isArray(items) || !items.length) {
       list.innerHTML = '<p class="feedback-empty">No feedback requests yet.</p>';
@@ -97,6 +137,7 @@
   async function loadRequests() {
     var data = await api("/api/feedback/requests");
     renderRequests(data.items || []);
+    applyEligibility(data.eligibility);
   }
 
   function showAuth(error) {
@@ -135,9 +176,10 @@
     event.preventDefault();
     if (!form.reportValidity()) return;
     submit.disabled = true;
+    submit.dataset.submitting = "true";
     formStatus.textContent = "Validating the level and preparing the judge request...";
     try {
-      await api("/api/feedback/requests", {
+      var result = await api("/api/feedback/requests", {
         method: "POST",
         body: {
           level_id: document.getElementById("feedback-level-id").value,
@@ -150,11 +192,16 @@
       form.reset();
       document.getElementById("feedback-context-count").textContent = "0";
       formStatus.textContent = "Your request is queued for the judge gallery.";
+      applyEligibility(result.eligibility);
       await loadRequests();
     } catch (error) {
       formStatus.textContent = error.message;
+      if (["feedback_active_limit", "feedback_cooldown"].includes(error.code)) {
+        await loadRequests().catch(function () {});
+      }
     } finally {
-      submit.disabled = false;
+      delete submit.dataset.submitting;
+      submit.disabled = !policyAllowsSubmission;
     }
   });
 

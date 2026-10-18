@@ -1,9 +1,32 @@
-import { OAUTH_COOKIE, cookie, createOAuthState, required, siteUrl } from "./_shared/portal.mjs";
+import {
+  OAUTH_COOKIE,
+  cookie,
+  createOAuthState,
+  requestOrigin,
+  required,
+  siteUrl,
+} from "./_shared/portal.mjs";
 
 export async function handler(event) {
   try {
     const requested = String(event.queryStringParameters?.return || "").toLowerCase();
     const destination = requested === "apply" ? "/apply" : requested === "feedback" ? "/feedback" : "/staff";
+    const canonicalOrigin = new URL(siteUrl(event)).origin;
+    const incomingOrigin = requestOrigin(event);
+    if (incomingOrigin && incomingOrigin !== canonicalOrigin) {
+      const canonicalLogin = new URL("/api/auth/login", `${canonicalOrigin}/`);
+      if (requested === "apply" || requested === "feedback") {
+        canonicalLogin.searchParams.set("return", requested);
+      }
+      return {
+        statusCode: 302,
+        headers: {
+          Location: canonicalLogin.toString(),
+          "Cache-Control": "no-store",
+        },
+        body: "",
+      };
+    }
     const state = createOAuthState(destination);
     const redirectUri = `${siteUrl(event)}/api/auth/callback`;
     const params = new URLSearchParams({

@@ -178,11 +178,16 @@ test("level feedback is Discord-authenticated and posts a focused private reques
   assert.match(feedback, /Feedback focus/);
   assert.match(feedback, /Project stage/);
   assert.match(feedback, /Send to the judge gallery/);
+  assert.match(feedback, /After a judge sends feedback, a 48-hour cooldown begins/);
   assert.match(feedbackScript, /\/api\/feedback\/session/);
   assert.match(feedbackScript, /\/api\/feedback\/requests/);
   assert.match(feedbackScript, /X-CSRF-Token/);
   assert.match(feedbackScript, /Idempotency-Key/);
   assert.match(feedbackScript, /form\.reset\(\)/);
+  assert.match(feedbackScript, /feedback_active_limit/);
+  assert.match(feedbackScript, /applyEligibility/);
+  assert.match(feedbackScript, /active_request/);
+  assert.match(styles, /\.feedback-eligibility\[data-state="cooldown"\]/);
   assert.match(styles, /\.feedback-intro__inner\s*\{[^}]*grid-template-areas:\s*"art copy"/s);
   assert.match(styles, /\.feedback-intro h1\s*\{[^}]*text-align:\s*left/s);
   assert.match(previewServer, /"\/api\/feedback\/session"/);

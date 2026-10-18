@@ -229,6 +229,18 @@ test("OAuth login uses identify only and the server callback route", async () =>
   assert.equal(verifyOAuthState(feedbackState).destination, "/feedback");
 });
 
+test("OAuth login moves alternate Netlify hosts to the canonical origin before setting state", async () => {
+  process.env.URL = "https://gdavenue.netlify.app";
+  const response = await login({
+    rawUrl: "https://avenue.netlify.app/api/auth/login?return=feedback",
+    headers: { host: "avenue.netlify.app" },
+    queryStringParameters: { return: "feedback" },
+  });
+  assert.equal(response.statusCode, 302);
+  assert.equal(response.headers.Location, "https://gdavenue.netlify.app/api/auth/login?return=feedback");
+  assert.equal(response.headers["Set-Cookie"], undefined);
+});
+
 test("OAuth callback exchanges identity server-side and creates a clean staff session", async () => {
   process.env.DISCORD_CLIENT_ID = "client-id";
   process.env.DISCORD_CLIENT_SECRET = "discord-client-secret";
@@ -290,6 +302,7 @@ test("OAuth callback reads the standardized Avenue Guard error contract", async 
     assert.equal(response.statusCode, 303);
     const destination = new URL(response.headers.Location);
     assert.equal(destination.searchParams.get("auth_error"), "A current staff role is required");
+    assert.equal(destination.searchParams.get("auth_code"), "staff_role_required");
     assert.equal(destination.pathname, "/staff/");
     assert.equal(destination.searchParams.has("code"), false);
   } finally {

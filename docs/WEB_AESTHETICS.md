@@ -241,7 +241,7 @@ Local `NO AI` creator tool built around five explicit jobs: Background, Structur
 
 ### Level Feedback (`feedback.html`)
 
-Discord-authenticated community workflow for current GD Avenue members. The form asks for a verified level ID, a focused review area, project stage, concise context, and an optional HTTPS showcase. Successful submissions enter Avenue Guard's durable outbox and become a private post in the configured judge gallery with persistent Claim and Send feedback controls. The creator sees private request status on the web and Avenue Guard queues the final written response by DM. This is feedback, not a rating guarantee, and the UI says so before submission.
+Discord-authenticated community workflow for current GD Avenue members. The form asks for a verified level ID, a focused review area, project stage, concise context, and an optional HTTPS showcase. Successful submissions enter Avenue Guard's durable outbox and become a private post in the configured judge gallery with persistent Claim and Send feedback controls. The creator sees private request status on the web and Avenue Guard queues the final written response by DM. The form exposes its server-authoritative submission state: one active request per member, followed by a 48-hour cooldown beginning when the judge sends the response. Locked controls remain visibly present with a concise reason and remaining time. This is feedback, not a rating guarantee, and the UI says so before submission.
 
 ### About Us (`about.html`)
 

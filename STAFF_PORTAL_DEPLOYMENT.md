@@ -42,7 +42,7 @@ Add this production redirect to the Avenue Guard application:
 https://gdavenue.netlify.app/api/auth/callback
 ```
 
-The OAuth flow requests only `identify`. Avenue Guard resolves server membership and current role IDs for every private request, so role changes take effect without trusting browser state.
+The OAuth flow requests only `identify`. Avenue Guard resolves server membership and current role IDs for every private request, so role changes take effect without trusting browser state. If an alternate Netlify hostname starts sign-in, the login endpoint first moves the browser to the configured canonical origin so the one-time state cookie and Discord callback remain on the same host.
 
 After Discord returns the authorization code, the Netlify callback exchanges it
 server-side, requests `/users/@me`, and sends the Discord user ID plus sanitized
@@ -59,6 +59,9 @@ Avenue Guard still verifies live GD Avenue membership before returning session o
 request data. Set `staff_portal.level_feedback_channel_id` to the private Discord
 forum, media, or text channel where the bot should create review threads; the
 checked-in production configuration points to channel `1561344442974212136`.
+Each member may have one queued or claimed feedback request. When a judge sends
+the response, `responded_ts` starts a 48-hour cooldown; merely creating or
+cancelling a request does not start that cooldown.
 
 The role mapping is refreshed on every authenticated bot API request. A member
 who leaves the guild or loses an authorized role receives HTTP 403 on the next
@@ -108,7 +111,7 @@ bot-first deployment order below.
 
 1. Set `STAFF_API_TOKEN` on Render and deploy Avenue Guard first.
 2. Confirm `https://avenue-guard.onrender.com/ready` returns HTTP 200.
-3. Confirm database schema version 17 completed successfully.
+3. Confirm database schema version 18 completed successfully.
 4. Set all five Netlify variables above.
 5. Configure the Discord redirect URL.
 6. Deploy this website directory to Netlify.
@@ -123,10 +126,13 @@ bot-first deployment order below.
   level ID. Confirm Avenue Guard creates one private gallery thread in channel
   `1561344442974212136` with working **Claim** and **Send feedback** controls.
 - Complete that request and confirm the response is stored, its controls become
-  disabled, and the requester receives exactly one best-effort Discord DM.
+  disabled, the requester receives exactly one best-effort Discord DM, and the
+  web form reports the 48-hour cooldown. Confirm a second active request is rejected.
 - Verify a banned account outside the guild can sign in to `/apply`, sees staff
   applications disabled, and can open a punishment appeal with its Discord reason.
-- Verify Judge, Head Judge, and Owner navigation and mutation permissions.
+- Verify Judge, Head Judge, Admin, and Owner navigation and mutation permissions.
+- Verify every role in `roles.admin_owner_role_ids` is admitted as Portal Admin
+  unless a higher explicit Owner or Dev mapping applies.
 - As Dev, use **View as** for every role and confirm all preview requests are read-only.
 - Remove a test Judge role and confirm their next request is denied.
 - Reload `/staff` and confirm the secure cookie preserves the authorized session.

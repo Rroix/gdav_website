@@ -1123,10 +1123,13 @@ async function showIncident(fingerprint) {
   }
 }
 
-function showAuth(message = "Use Discord to verify your current server role and continue.") {
+function showAuth(message = "Use Discord to verify your current server role and continue.", reason = "") {
   $("#app").hidden = true;
   $("#auth-gate").hidden = false;
   $("#auth-message").textContent = message;
+  $("#auth-discord-link").textContent = reason ? "Use another Discord account" : "Continue with Discord";
+  $("#auth-application-link").hidden = reason !== "staff_role_required";
+  $("#auth-membership-link").hidden = !["not_a_member", "membership_required"].includes(reason);
 }
 
 function applySession(data) {
@@ -1193,8 +1196,9 @@ async function initialize() {
   } catch (error) {
     const params = new URLSearchParams(location.search);
     const authError = params.get("auth_error");
+    const authCode = params.get("auth_code") || "";
     if (authError) history.replaceState(null, "", `${location.pathname}${location.hash}`);
-    if (authError || [401, 403].includes(error.status)) showAuth(authError || error.message);
+    if (authError || [401, 403].includes(error.status)) showAuth(authError || error.message, authCode || error.code || "");
     else showAuth("The secure portal service is temporarily unavailable. Please try again shortly.");
   }
 }

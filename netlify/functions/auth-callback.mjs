@@ -121,6 +121,7 @@ export async function handler(event) {
       },
     });
     if (sessionResponse.status >= 400) {
+      const reasonCode = String(sessionResponse.payload?.error?.code || "access_denied");
       const reason = String(
         sessionResponse.payload?.error?.message
         || sessionResponse.payload?.message
@@ -129,7 +130,7 @@ export async function handler(event) {
       return {
         statusCode: 303,
         headers: {
-          Location: cleanDestination({ auth_error: reason }),
+          Location: cleanDestination({ auth_error: reason, auth_code: reasonCode }),
           "Set-Cookie": cookie(OAUTH_COOKIE, "", { httpOnly: true, sameSite: "Lax", maxAge: 0 }),
           "Cache-Control": "no-store",
         },

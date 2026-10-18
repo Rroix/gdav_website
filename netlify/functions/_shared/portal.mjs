@@ -72,6 +72,18 @@ export function siteUrl(event) {
   return `${proto}://${host}`;
 }
 
+export function requestOrigin(event) {
+  try {
+    if (event.rawUrl) return new URL(event.rawUrl).origin;
+    const host = event.headers?.["x-forwarded-host"] || event.headers?.host;
+    if (!host) return "";
+    const proto = event.headers?.["x-forwarded-proto"] || "https";
+    return new URL(`${proto}://${host}`).origin;
+  } catch {
+    return "";
+  }
+}
+
 export function portalDestinationUrl(event, destination, params = {}) {
   const pathname = destination === "/apply"
     ? "/apply/"

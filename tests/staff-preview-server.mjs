@@ -32,8 +32,8 @@ const viewRoles = [
   ["dev", "Dev", user.capabilities],
 ];
 const api = {
-  version: legacyApi ? 0 : 15,
-  features: legacyApi ? [] : ["application_data_reset", "application_interviews", "application_type_availability", "application_review_embeds", "application_review_threads", "application_cooldown", "multi_type_applications", "hidden_queue_entries", "staff_manual_management", "staff_assignee_directory", "task_assignment_dm", "task_recipient_dm", "view_role_preview", "punishment_appeals", "appeal_discord_evidence", "appeal_portal_messages", "appeal_unban_outbox", "creator_points_manual_override", "privileged_appeal_solo_decision", "pps_component_explanations", "community_level_feedback", "public_staff_profiles"],
+  version: legacyApi ? 0 : 16,
+  features: legacyApi ? [] : ["application_data_reset", "application_interviews", "application_type_availability", "application_review_embeds", "application_review_threads", "application_cooldown", "multi_type_applications", "hidden_queue_entries", "staff_manual_management", "staff_assignee_directory", "task_assignment_dm", "task_recipient_dm", "view_role_preview", "punishment_appeals", "appeal_discord_evidence", "appeal_portal_messages", "appeal_unban_outbox", "creator_points_manual_override", "privileged_appeal_solo_decision", "pps_component_explanations", "community_level_feedback", "feedback_submission_policy", "public_staff_profiles"],
 };
 const queue = [
   { id: 1, rank: 1, level_id: "101935961", level_name: "Synergy", creator: "CreatorName", tier: "mythic", cp: 6, creator_points_source: "gdbrowser_api", waiting_cycles: 2, components: { f: 8.062998208338442, g: 0, h: 4.2426406871, p: 12.3056388954, complete: true }, component_details: { f: { recommendation_type: "mythic", recommendation_label: "Mythic", prestige_t: 5, base: 1.8 }, g: { creator_points: 6, zero_from_cp: 4, source: "gdbrowser_api", confidence: "verified_single_source" }, h: { waiting_cycles: 2, scored_cycles: 2, cap_cycles: 4, multiplier: 1.5, exponent: 1.5 }, p: { formula: "F + G + H", model_version: "pps_v1" } }, state: "queued", claim: null },
@@ -52,6 +52,30 @@ const publicLevels = queue.filter((item) => item.state !== "hidden").map((item) 
   public_priority_band: item.rank === 1 ? "top_priority" : "high_priority",
 }));
 const feedbackRequests = [];
+
+function feedbackEligibility() {
+  const active = feedbackRequests.find((item) => ["queued", "claimed"].includes(item.status));
+  const completed = feedbackRequests
+    .filter((item) => item.status === "completed" && item.responded_ts)
+    .sort((left, right) => right.responded_ts - left.responded_ts)[0];
+  const cooldownUntil = completed ? completed.responded_ts + 48 * 60 * 60 : 0;
+  const remaining = Math.max(0, cooldownUntil - Math.floor(Date.now() / 1000));
+  return {
+    can_submit: !active && !remaining,
+    reason: active ? "active_request" : remaining ? "cooldown" : "",
+    max_active: 1,
+    cooldown_seconds: 48 * 60 * 60,
+    cooldown_until_ts: remaining ? cooldownUntil : null,
+    remaining_seconds: remaining,
+    active_request: active ? {
+      id: active.id,
+      level_id: active.level_id,
+      level_name: active.level_name,
+      status: active.status,
+      created_ts: active.created_ts,
+    } : null,
+  };
+}
 
 const payloads = {
   "/api/bot": { schema_version: 4, service: "Avenue Guard", bot_name: "Avenue Guard", avatar_url: user.avatar_url, state: "online", status: "Operational", online: true, ready: true, responsive: true, version: "3.24.0", service_started_ts: now - 86400 * 5, service_uptime_seconds: 86400 * 5, latency_ms: 46, guild_count: 1, member_count: 2431, uptime_percentage: 99.94, uptime_tracking_since_ts: now - 86400 * 30, updated_ts: now - 240, systems: [{ name: "Discord gateway", status: "operational", detail: "Connected and responsive" }, { name: "Database", status: "operational", detail: "Connected" }, { name: "Background services", status: "operational", detail: "Core tasks running" }, { name: "GD validation providers", status: "degraded", detail: "2 of 3 available" }], health_history: Array.from({ length: 48 }, (_value, index) => ({ sample_ts: now - (47 - index) * 1800, healthy: index !== 31, database_ok: true, gateway_latency_ms: 38 + Math.round(Math.sin(index / 5) * 12), database_latency_ms: 4 + index % 3, provider_available: index < 40 ? 3 : 2, provider_total: 3 })) },
@@ -131,8 +155,19 @@ http.createServer(async (request, response) => {
     return json(response, { schema_version: 2, count: members.length, members });
   }
   if (url.pathname === "/api/feedback/requests") {
-    if (request.method === "GET") return json(response, { items: feedbackRequests });
+    if (request.method === "GET") return json(response, { items: feedbackRequests, eligibility: feedbackEligibility() });
     if (request.method === "POST") {
+      const eligibility = feedbackEligibility();
+      if (!eligibility.can_submit) {
+        return json(response, {
+          error: {
+            code: eligibility.reason === "cooldown" ? "feedback_cooldown" : "feedback_active_limit",
+            message: eligibility.reason === "cooldown"
+              ? "The 48-hour feedback cooldown is still active."
+              : "You can only have one level feedback request in progress at a time.",
+          },
+        }, eligibility.reason === "cooldown" ? 429 : 409);
+      }
       const body = await requestBody(request);
       const item = {
         id: feedbackRequests.length + 1,
@@ -150,7 +185,7 @@ http.createServer(async (request, response) => {
         delivery_status: "pending",
       };
       feedbackRequests.unshift(item);
-      return json(response, { ok: true, request: item }, 201);
+      return json(response, { ok: true, request: item, eligibility: feedbackEligibility() }, 201);
     }
   }
   if (url.pathname === "/api/staff/session") {

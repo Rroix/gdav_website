@@ -7,7 +7,7 @@
   <meta name="theme-color" content="#07131b">
   <link rel="icon" href="favicon.ico">
   <link rel="stylesheet" href="styles.css">
-  <link rel="stylesheet" href="community.css?v=20261018-6">
+  <link rel="stylesheet" href="community.css?v=20261018-7">
   <title>Level Feedback | GD Avenue</title>
 </head>
 <body class="community-site feedback-page">
@@ -52,6 +52,7 @@
         <div class="feedback-layout">
           <form id="feedback-form" class="feedback-form">
             <div class="feedback-form__heading"><p class="community-kicker community-kicker--dark">New request</p><h2>What should the judge look at?</h2><p>One focused question usually gets a more useful response than a general “thoughts?”</p></div>
+            <p id="feedback-eligibility" class="feedback-eligibility" data-state="available" role="status">One review at a time. After a judge sends feedback, a 48-hour cooldown begins.</p>
             <label>Geometry Dash level ID <span aria-hidden="true">*</span>
               <input id="feedback-level-id" name="level_id" inputmode="numeric" pattern="[0-9]{7,10}" minlength="7" maxlength="10" required autocomplete="off" placeholder="148134343">
             </label>
@@ -104,6 +105,6 @@
     <div class="site-footer__base"><span>Geometry Dash Avenue &copy; <span data-current-year>2026</span></span><span>Not affiliated with RobTop Games.</span></div>
   </footer>
   <script src="site.js?v=20261018-4" defer></script>
-  <script src="feedback.js?v=20261018-1" defer></script>
+  <script src="feedback.js?v=20261018-2" defer></script>
 </body>
 </html>
