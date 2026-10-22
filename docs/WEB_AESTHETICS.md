@@ -166,6 +166,7 @@ Do not invent geometric backgrounds, repeated patterns, floating shapes, gradien
 - A help trigger in a browser top-layer dialog or popover renders the shared tooltip into a host inside that active top-layer context. Normal pages and non-top-layer drawers use the document overlay host. A body-level tooltip must never be used to fight a native dialog with a larger `z-index`.
 - Dialog and drawer scrolling belongs to an intentional inner scroll region. Overlay hosts sit outside that clipping region; do not solve tooltip clipping by making every form or table overflow-visible.
 - Application-type availability and cooldown are different states. A closed type is unavailable; a cooldown is per applicant and per application type.
+- Everyday outreach recording is contextual: the API supplies only eligible levels, including the queued set before an internal batch exists, and each level exposes one Record action. Reviewers choose a plain-language outcome, contact method, private contact, and optional note; internal queue/batch IDs, timestamps, lifecycle controls, and redundant confirmation controls stay out of the form. Avenue Guard starts and settles the internal batch automatically.
 
 ### Layering
 
@@ -270,6 +271,7 @@ Role-aware operational workspace with capability-gated navigation and server-enf
 - Overview opens with a personal greeting, role badge, attention count, current-week contribution, actionable attention list, and a Queued to Rated team pipeline.
 - My Work behaves like an inbox: Claimed, Assigned tasks, Follow-ups, and monthly contribution each expose the next useful action.
 - Queue uses quick filters, Tier and State controls, search, compact scan rows, and a right-side level inspector.
+- Outreach starts with recordable levels and one contextual action per level, followed by the shared contact history. It never presents an empty manual-start gate: the first record opens the internal batch and the eligible list refreshes automatically. Ineligible levels never expose a button that the API will reject.
 - Team uses a single contribution strip plus workload and human-identity rows. Resolved people are named first; exact Discord IDs remain secondary metadata.
 - Admin Operations opens on calm service health and keeps diagnostics behind disclosure.
 - Dev System begins with a high-level summary. Runtime, Database, Outbox, Workers, Providers, Requests/PPS, and Identity integrity details stay collapsed until requested.

@@ -32,8 +32,8 @@ const viewRoles = [
   ["dev", "Dev", user.capabilities],
 ];
 const api = {
-  version: legacyApi ? 0 : 16,
-  features: legacyApi ? [] : ["application_data_reset", "application_interviews", "application_type_availability", "application_review_embeds", "application_review_threads", "application_cooldown", "multi_type_applications", "hidden_queue_entries", "staff_manual_management", "staff_assignee_directory", "task_assignment_dm", "task_recipient_dm", "view_role_preview", "punishment_appeals", "appeal_discord_evidence", "appeal_portal_messages", "appeal_unban_outbox", "creator_points_manual_override", "privileged_appeal_solo_decision", "pps_component_explanations", "community_level_feedback", "feedback_submission_policy", "public_staff_profiles"],
+  version: legacyApi ? 0 : 18,
+  features: legacyApi ? [] : ["application_data_reset", "application_interviews", "application_type_availability", "application_review_embeds", "application_review_threads", "application_cooldown", "multi_type_applications", "hidden_queue_entries", "staff_manual_management", "staff_assignee_directory", "task_assignment_dm", "task_recipient_dm", "view_role_preview", "punishment_appeals", "appeal_discord_evidence", "appeal_portal_messages", "appeal_unban_outbox", "creator_points_manual_override", "privileged_appeal_solo_decision", "pps_component_explanations", "community_level_feedback", "feedback_submission_policy", "public_staff_profiles", "simplified_outreach_recording", "automatic_outreach_cycles"],
 };
 const queue = [
   { id: 1, rank: 1, level_id: "101935961", level_name: "Synergy", creator: "CreatorName", tier: "mythic", cp: 6, creator_points_source: "gdbrowser_api", waiting_cycles: 2, components: { f: 8.062998208338442, g: 0, h: 4.2426406871, p: 12.3056388954, complete: true }, component_details: { f: { recommendation_type: "mythic", recommendation_label: "Mythic", prestige_t: 5, base: 1.8 }, g: { creator_points: 6, zero_from_cp: 4, source: "gdbrowser_api", confidence: "verified_single_source" }, h: { waiting_cycles: 2, scored_cycles: 2, cap_cycles: 4, multiplier: 1.5, exponent: 1.5 }, p: { formula: "F + G + H", model_version: "pps_v1" } }, state: "queued", claim: null },
@@ -116,7 +116,7 @@ const payloads = {
     { key: "confirmation", label: "Confirm the appeal is accurate and submitted in good faith", type: "single_choice", required: true, section: "Confirmation", options: ["I confirm"] },
   ] },
   "/api/staff/overview": { user, summary: { active_claims: 2, stale_claims: 1, tasks_remaining: 3, tasks_due: 1, followups_due: 1 }, progress: { reviews_month: 24, tasks_done: 6, tasks_total: 8, outreach_attempts: 4, confirmed_submissions: 2, active_days: 12, milestones: [{ key: "reviews_25", label: "25 reviews" }] }, pipeline: { queued: 17, in_cycle: 4, awaiting_outcome: 6, rated: 9 }, pending_applications: 2, recent_activity: [{ event: "claim_created", entity_id: "queue:1", created_ts: now - 900 }] },
-  "/api/staff/outreach": { items: [{ queue_id: 2, current_level_name: "Chromatic Path", level_id: "123456789", status: "attempted", route_type: "network", private_target_label: "Private target", event_ts: now - 1800 }], pipeline: { active: 4, awaiting_outcome: 6, completed: 9 } },
+  "/api/staff/outreach": { items: [{ queue_id: 2, current_level_name: "Chromatic Path", level_id: "123456789", status: "attempted", route_type: "network", private_target_label: "Private target", event_ts: now - 1800 }], pipeline: { active: 4, awaiting_outcome: 6, completed: 9 }, recording: { active_cycle: false, automatic: true, policy: { reviewer_count: 5, coverage_percent: 50, contacts_per_reviewer: 2, candidate_count: 1, target: 1, progress: 0 }, items: [{ queue_id: 1, level_id: "101935961", level_name: "Synergy", creator: "CreatorName", tier: "mythic", state: "queued", last_event: null, last_route: "direct", last_target: "" }] } },
   "/api/staff/tasks": { items: [{ id: 1, title: "Check outcome window", status: "in_progress", priority: "high", due_ts: now + 3600, system_key: "outcome-window:2" }], progress: { done: 6, total: 8 } },
   "/api/staff/notes": { items: [{ id: 1, scope: "owners", body: "Confirm the next outreach cycle after the weekend event.", updated_ts: now - 600 }] },
   "/api/staff/team": { review_progress: { done: 34, total: 48 }, queue: { queued: 17 }, claims: { active: 6, stale: 1 }, outreach_week: { attempts: 8, submissions: 4 }, pending_applications: 3, workload: [{ user_id: user.id, identity: user, active_claims: 2 }, { user_id: "998877665544332211", identity: { id: "998877665544332211", display_name: "9guzzy" }, active_claims: 4 }] },
@@ -222,7 +222,8 @@ http.createServer(async (request, response) => {
   }
   if (/^\/api\/staff\/queue\/[123]$/.test(url.pathname)) {
     const item = queue.find((entry) => String(entry.id) === url.pathname.split("/").pop());
-    return json(response, { queue: item, outreach: payloads["/api/staff/outreach"].items, history: [{ event: "recommended", created_ts: now - 172800 }], notes: payloads["/api/staff/notes"].items });
+    const recordingItem = payloads["/api/staff/outreach"].recording.items.find((entry) => entry.queue_id === item.id) || null;
+    return json(response, { queue: item, outreach: payloads["/api/staff/outreach"].items, history: [{ event: "recommended", created_ts: now - 172800 }], notes: payloads["/api/staff/notes"].items, outreach_recording: { active_cycle: false, item: recordingItem } });
   }
   if (request.method !== "GET" && url.pathname.startsWith("/api/")) return json(response, { ok: true });
   if (payloads[url.pathname]) return json(response, payloads[url.pathname]);

@@ -227,6 +227,11 @@ progress::-moz-progress-bar { background: var(--accent); }
 .list-row:last-child { border-bottom: 0; }
 .list-row strong { display: block; }
 .list-row small { color: var(--muted); }
+.outreach-recorder { margin-bottom: 24px; }
+.outreach-ready-list { gap: 0; border-top: 1px solid var(--line); }
+.outreach-ready-row { padding: 13px 6px; }
+.outreach-ready-action { display: flex; align-items: center; justify-content: flex-end; gap: 10px; }
+.outreach-history { min-width: 0; }
 .row-button { width: 100%; color: var(--text); background: transparent; border: 0; border-bottom: 1px solid var(--line); text-align: left; cursor: pointer; }
 .row-button:hover, .row-button:focus-visible, .row-clickable:hover, .list-row:hover { background: var(--surface-1); }
 .row-button.is-selected, .row-clickable.is-selected, .record-row.is-selected, .data-table tr.is-selected { background: var(--surface-2); box-shadow: inset 2px 0 0 var(--accent); }
@@ -583,6 +588,8 @@ dialog form { display: grid; grid-template-rows: auto auto minmax(0, 1fr) auto a
   .progress-strip, .today-line, .system-status-line { grid-template-columns: 1fr 1fr; }
   .count-metric, .progress-unit { min-height: 80px; padding: 11px 12px; }
   .detail-grid { grid-template-columns: 1fr; }
+  .outreach-ready-row { grid-template-columns: 1fr; }
+  .outreach-ready-action { justify-content: space-between; }
   .section-nav { width: 100%; }
   .record-row { gap: 8px; padding: 13px 2px; }
   .record-row .pill { display: none; }

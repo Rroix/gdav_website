@@ -345,6 +345,23 @@ test("staff application review uses evidence rubrics, calibration, interviews, a
   assert.match(styles, /\.rubric-dimension/);
 });
 
+test("reviewers record outreach from eligible level context instead of internal IDs", () => {
+  assert.match(script, /const recording = data\.recording/);
+  assert.match(script, /Avenue Guard groups the work and refreshes the eligible list automatically/);
+  assert.match(script, /data-record-outreach/);
+  assert.match(script, /function outreachRecordButton/);
+  assert.match(script, /function outreachDialog\(item\)/);
+  assert.match(script, /Tried to contact a moderator/);
+  assert.match(script, /The level reached a moderator/);
+  assert.match(script, /confirmed: body\.event === "submitted_to_mod"/);
+  assert.doesNotMatch(script, /name: "queue_id", label: "Queue ID"/);
+  assert.doesNotMatch(script, /\["planned","attempted","failed","submitted_to_mod","follow_up"\]/);
+  assert.doesNotMatch(script, /\["start_cycle","Start cycle"\]/);
+  assert.doesNotMatch(script, /No active outreach cycle/);
+  assert.match(script, /Outreach batches start and close automatically/);
+  assert.match(styles, /\.outreach-ready-action/);
+});
+
 test("OAuth compatibility bridges are one-shot and clean callback parameters", () => {
   assert.match(script, /params\.delete\("code"\)/);
   assert.match(script, /params\.delete\("state"\)/);

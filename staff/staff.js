@@ -437,6 +437,7 @@ async function openQueue(id) {
   try {
     const data = await api(`/api/staff/queue/${id}`);
     const item = data.queue;
+    const outreachRecording = data.outreach_recording?.item || null;
     $("#detail-title").textContent = item.level_name;
     $("#drawer-content").innerHTML = `
       <section class="level-inspector-hero" data-tier="${esc(item.tier)}">${tierArtwork(item.tier, "large")}<div><span>${esc(titleCase(item.tier))} recommendation</span><strong>${item.components.complete && item.rank ? `#${item.rank} in queue` : item.components.complete ? "Outside the active ranked queue" : "Waiting for creator data"}</strong></div><div class="priority-total"><small>Priority</small><strong>${item.components.complete ? formatPps(item.components.p) : "Pending"}</strong></div></section>
@@ -449,7 +450,7 @@ async function openQueue(id) {
         ${item.state !== "hidden" && can("pps.override") && supports("creator_points_manual_override") ? `<button class="button secondary" data-queue-action="creator-points" data-id="${id}" data-current-cp="${item.cp ?? ""}">${item.cp == null ? "Set Creator Points" : "Update Creator Points"}</button>` : ""}
         ${item.state !== "hidden" && item.claim && (item.claim.user_id === state.user.id || can("queue.reassign")) ? `<button class="button secondary" data-queue-action="release" data-id="${id}">Release</button>` : ""}
         ${item.state !== "hidden" && item.claim && can("queue.reassign") ? `<button class="button secondary" data-queue-action="reassign" data-id="${id}">Reassign</button>` : ""}
-        ${item.state !== "hidden" && can("outreach.record") ? `<button class="button secondary" data-queue-action="outreach" data-id="${id}">Record outreach</button>` : ""}
+        ${outreachRecording && can("outreach.record") ? outreachRecordButton(outreachRecording, "button primary") : ""}
         ${item.state !== "hidden" && can("queue.manage_state") ? `<button class="button secondary" data-queue-action="state" data-id="${id}">Change state</button><button class="button secondary" data-queue-action="requeue" data-id="${id}">New episode</button>` : ""}
         ${item.state !== "hidden" && can("review.adjust_tier") ? `<button class="button secondary" data-queue-action="tier" data-id="${id}">Adjust tier</button>` : ""}
         ${item.state !== "hidden" && can("review.qa") ? `<button class="button secondary" data-queue-action="rereview" data-id="${id}">Request re-review</button>` : ""}
@@ -467,9 +468,15 @@ async function openQueue(id) {
 
 async function renderOutreach() {
   const data = await api("/api/staff/outreach");
+  const recording = data.recording || { active_cycle: false, items: [] };
+  const ready = Array.isArray(recording.items) ? recording.items : [];
+  const recordList = ready.length
+    ? `<div class="stack outreach-ready-list">${ready.map((item) => `<div class="list-row outreach-ready-row"><div><strong>${esc(item.level_name || item.level_id)}</strong><small>${esc(item.creator || "Unknown creator")} · ${esc(titleCase(item.tier))} · ${esc(item.level_id)}</small></div><div class="outreach-ready-action">${pill(item.state)}${outreachRecordButton(item)}</div></div>`).join("")}</div>`
+    : empty("No levels need an outreach record", "Avenue Guard will add eligible recommendations here automatically.");
   return `<div class="summary-band"><div><p class="eyebrow">Outreach pipeline</p><h2>Private operational record</h2><small>Targets and routes never appear publicly.</small></div>${["active","awaiting_outcome","completed"].map((key) => `<div><small>${esc(titleCase(key))}</small><strong>${data.pipeline[key] || 0}</strong></div>`).join("")}</div>
-    <div class="panel-head"><h2>Recent outreach</h2><button class="button primary" data-action="new-outreach">Record outreach</button></div>
-    ${data.items.length ? `<table class="data-table"><thead><tr><th>Level</th><th>Event</th><th>Route</th><th>Target</th><th>When</th></tr></thead><tbody>${data.items.map((item) => `<tr data-open-queue="${item.queue_id}" role="button" tabindex="0" aria-label="Open ${esc(item.current_level_name || item.level_id)}"><td class="level-cell"><strong>${esc(item.current_level_name || item.level_id)}</strong><small>${esc(item.level_id)}</small></td><td data-label="Event">${pill(item.status)}</td><td data-label="Route">${esc(titleCase(item.route_type))}</td><td data-label="Target">${esc(item.private_target_label || "-")}</td><td data-label="When">${ago(item.event_ts)}</td></tr>`).join("")}</tbody></table>` : empty("No outreach has been recorded")}`;
+    <section class="section-block outreach-recorder"><div class="panel-head"><div><p class="eyebrow">Ready now</p><h2>Record a moderator contact</h2><p class="muted">Choose a level and save what happened. Avenue Guard groups the work and refreshes the eligible list automatically.</p></div></div>${recordList}</section>
+    <section class="outreach-history"><div class="panel-head"><div><h2>Recent outreach</h2><p class="muted">The latest private contact history across the team.</p></div></div>
+    ${data.items.length ? `<div class="table-wrap"><table class="data-table"><thead><tr><th>Level</th><th>Outcome</th><th>Contact method</th><th>Private contact</th><th>Recorded</th></tr></thead><tbody>${data.items.map((item) => `<tr data-open-queue="${item.queue_id}" role="button" tabindex="0" aria-label="Open ${esc(item.current_level_name || item.level_id)}"><td class="level-cell"><strong>${esc(item.current_level_name || item.level_id)}</strong><small>${esc(item.level_id)}</small></td><td data-label="Outcome">${pill(item.status)}</td><td data-label="Contact method">${esc(outreachRouteLabel(item.route_type))}</td><td data-label="Private contact">${esc(item.private_target_label || "Not recorded")}</td><td data-label="Recorded">${ago(item.event_ts)}</td></tr>`).join("")}</tbody></table></div>` : empty("No outreach has been recorded")}</section>`;
 }
 
 async function renderTasks() {
@@ -792,7 +799,7 @@ async function renderPPS() {
   });
   const subgroupModels = models.filter((item) => item.subgroup_key !== "global");
   const posterior = (item) => `<div class="list-row model-row"><div><strong>${esc(titleCase(item.model_key.replace("_v1", "")))} ${item.subgroup_key === "global" ? "" : `· ${esc(titleCase(item.subgroup_key))}`}</strong><small>${item.capacity_summary ? esc(item.reason) : `${item.observations} eligible observations · ${item.successes} successes · ${esc(titleCase(item.evidence_strength))} evidence`}</small></div><div class="model-result">${pill(item.status, item.status === "active" ? "success" : item.status === "degraded" || item.status === "paused" ? "warning" : "")}${item.capacity_summary ? '<strong>Forecast</strong><small>K80 · K90 · K95</small>' : `<strong>${pct(item.posterior_mean)}</strong><small>90% ${pct(item.intervals?.["90"]?.[0])}–${pct(item.intervals?.["90"]?.[1])}</small>`}</div></div>`;
-  return `<div class="panel-head"><div><h2>${conceptLabel("Priority Point System", conceptHelp.pps)}</h2><p class="muted">Deterministic queue operations with a separate, non-ranking Statistics Lab.</p></div><div class="toolbar"><button class="button secondary" data-action="pps-recompute">Refresh models</button><button class="button primary" data-action="pps-cycle">Manage cycle</button></div></div>
+  return `<div class="panel-head"><div><h2>${conceptLabel("Priority Point System", conceptHelp.pps)}</h2><p class="muted">Deterministic queue operations with a separate, non-ranking Statistics Lab.</p></div><div class="toolbar"><button class="button secondary" data-action="pps-recompute">Refresh models</button><button class="button primary" data-action="pps-cycle">PPS maintenance</button></div></div>
     <div class="system-status-line">${countMetric("Queue entries", dashboard.active_queue || 0)}${countMetric("Complete scores", dashboard.scored || 0)}${countMetric("CP pending", dashboard.cp_pending || 0)}${countMetric("Outcome window", `${Math.round(data.outcome_window_seconds / 86400)} days`)}</div>
     <section class="section-block pps-lab"><div class="panel-head"><div><p class="eyebrow">PPS · Statistics Lab</p><h2>Evidence models</h2><p class="muted">Model outputs are observational. They never alter review decisions, queue scores, or outreach actions.</p></div></div>
       <div class="model-grid">${globalModels.map(posterior).join("") || '<p class="muted">The first model snapshot has not been generated yet.</p>'}</div>
@@ -994,7 +1001,6 @@ async function queueAction(action, id, context = {}) {
       return showNotice(error.message, true);
     }
   }
-  if (action === "outreach") return outreachDialog(id);
   if (action === "state") return actionDialog({ title: "Change queue state", description: "This transition is durable and audited.", fields: [{ name: "state", label: "New state", type: "select", options: (can("pps.override") ? ["queued","paused","withdrawn","invalid","in_cycle","awaiting_outcome","rated"] : ["queued","paused","withdrawn"]).map((value) => [value,titleCase(value)]) }, { name: "reason", label: "Reason", type: "textarea", required: true }, { name: "confirmed", label: "I confirm this queue state change", type: "checkbox" }], run: (body) => api(`/api/staff/queue/${id}/state`, { method: "POST", body }) });
   if (action === "requeue") return actionDialog({ title: "Start a new outreach episode", description: "Previous outreach history remains intact and W resets to zero.", fields: [{ name: "reason", label: "Reason", type: "textarea", required: true }, { name: "confirmed", label: "I confirm this new outreach episode", type: "checkbox" }], confirm: "Start episode", run: (body) => api(`/api/staff/queue/${id}/requeue`, { method: "POST", body }) });
   if (action === "rereview") return actionDialog({ title: "Request material-update re-review", description: "Marks the level for a fresh human review without resetting waiting history or changing its recommendation.", fields: [{ name: "reason", label: "What materially changed?", type: "textarea", required: true }, { name: "confirmed", label: "I confirm this re-review request", type: "checkbox", required: true }], confirm: "Request re-review", run: (body) => api(`/api/staff/queue/${id}/rereview`, { method: "POST", body }) });
@@ -1058,15 +1064,50 @@ async function newTaskDialog() {
   }
 }
 
-function outreachDialog(queueId = "") {
-  return actionDialog({ title: "Record outreach", description: "Targets and notes are private. Confirmed submission means the level actually reached a GD moderator.", fields: [
-    { name: "queue_id", label: "Queue ID", type: "number", value: queueId, min: 1, required: true, help: "The internal Avenue queue entry for this level." },
-    { name: "route", label: "Route", type: "select", help: "How you are trying to reach a Geometry Dash moderator.", options: ["direct","network","stream","event","other"].map((v) => [v,titleCase(v)]) },
-    { name: "event", label: "Event", type: "select", help: "What happened during this outreach step. A confirmed submission means the level actually reached a moderator.", options: ["planned","attempted","failed","submitted_to_mod","follow_up"].map((v) => [v,titleCase(v)]) },
-    { name: "target", label: "Private target", type: "text", help: "The moderator or contact you are trying to reach. This is never shown publicly." },
-    { name: "notes", label: "Private notes", type: "textarea" },
-    { name: "confirmed", label: "I confirm that a submitted_to_mod event reached a moderator", type: "checkbox" },
-  ], run: (body) => api("/api/staff/outreach", { method: "POST", body: { ...body, queue_id: Number(body.queue_id), timestamp: Math.floor(Date.now() / 1000) } }) });
+function outreachRouteLabel(route) {
+  return ({ direct: "Discord DM", network: "Staff network", stream: "Livestream", event: "Community event", other: "Other" })[route] || titleCase(route);
+}
+
+function outreachRecordButton(item, className = "button secondary") {
+  const queueId = Number(item.queue_id || item.id || 0);
+  const followUp = item.state === "awaiting_outcome" && Boolean(item.last_target);
+  return `<button class="${esc(className)}" type="button" data-record-outreach="${queueId}" data-outreach-state="${esc(item.state || "in_cycle")}" data-level-name="${esc(item.level_name || item.level_id || "Level")}" data-level-id="${esc(item.level_id || "")}" data-last-route="${esc(item.last_route || "direct")}" data-last-target="${esc(item.last_target || "")}">${followUp ? "Follow up" : "Record"}</button>`;
+}
+
+function outreachDialog(item) {
+  const queueId = Number(item?.queue_id || item?.id || 0);
+  if (!queueId) return showNotice("Choose a level that is ready for outreach", true);
+  const awaitingOutcome = item.state === "awaiting_outcome";
+  const eventOptions = awaitingOutcome && item.last_target
+    ? [["follow_up", "Followed up with the same moderator"], ["submitted_to_mod", "Reached another moderator"]]
+    : awaitingOutcome
+      ? [["submitted_to_mod", "The level reached a moderator"]]
+      : [["attempted", "Tried to contact a moderator"], ["submitted_to_mod", "The level reached a moderator"], ["failed", "Could not make contact"]];
+  const levelName = item.level_name || item.level_id || "this level";
+  return actionDialog({
+    title: awaitingOutcome ? "Record a follow-up" : "Record outreach",
+    description: `Save what happened for ${levelName}. Contact details and notes stay private.`,
+    fields: [
+      { name: "level", label: "Level", type: "display", value: item.level_id ? `${levelName} · ${item.level_id}` : levelName },
+      { name: "event", label: "What happened?", type: "select", options: eventOptions },
+      { name: "route", label: "How did you contact them?", type: "select", value: item.last_route || "direct", options: ["direct","network","stream","event","other"].map((value) => [value, outreachRouteLabel(value)]) },
+      { name: "target", label: "Moderator or contact", type: "text", value: item.last_target || "", required: true, help: "This stays private and lets Avenue distinguish a follow-up from a new submission." },
+      { name: "notes", label: "Private note (optional)", type: "textarea" },
+    ],
+    confirm: "Save outreach",
+    run: (body) => api("/api/staff/outreach", {
+      method: "POST",
+      body: {
+        event: body.event,
+        route: body.route,
+        target: body.target,
+        notes: body.notes,
+        queue_id: queueId,
+        timestamp: Math.floor(Date.now() / 1000),
+        confirmed: body.event === "submitted_to_mod",
+      },
+    }),
+  });
 }
 
 function profileDialog(mode = "view") {
@@ -1263,6 +1304,15 @@ document.addEventListener("click", async (event) => {
   if (openQAButton) return openQAInspector(openQAButton.dataset.openQa);
   const openTaskButton = event.target.closest("[data-open-task]");
   if (openTaskButton && !event.target.closest("[data-complete-task]")) return openTaskInspector(openTaskButton.dataset.openTask);
+  const outreachButton = event.target.closest("[data-record-outreach]");
+  if (outreachButton) return outreachDialog({
+    queue_id: Number(outreachButton.dataset.recordOutreach),
+    state: outreachButton.dataset.outreachState,
+    level_name: outreachButton.dataset.levelName,
+    level_id: outreachButton.dataset.levelId,
+    last_route: outreachButton.dataset.lastRoute,
+    last_target: outreachButton.dataset.lastTarget,
+  });
   const queueButton = event.target.closest("[data-queue-action]");
   if (queueButton) return queueAction(queueButton.dataset.queueAction, queueButton.dataset.id, { currentCp: queueButton.dataset.currentCp });
   const action = event.target.closest("[data-action]")?.dataset.action;
@@ -1276,7 +1326,6 @@ document.addEventListener("click", async (event) => {
     state.applicationFilters = { type: $("#application-type-filter").value, status: $("#application-status-filter").value, claim: $("#application-claim-filter").value };
     loading(); try { $("#content").innerHTML = await renderApplications(); } catch (error) { errorState(error); } return;
   }
-  if (action === "new-outreach") return outreachDialog();
   if (action === "new-task") {
     if (!supports("task_recipient_dm")) return showNotice("Deploy the matching Avenue Guard API before creating tasks", true);
     return newTaskDialog();
@@ -1296,7 +1345,7 @@ document.addEventListener("click", async (event) => {
     const query = new URLSearchParams({ actor: $("#audit-actor").value, action: $("#audit-action").value, entity: $("#audit-entity").value });
     loading(); try { const data = await api(`/api/staff/audit?${query}`); $("#content").innerHTML = `<p class="muted">${data.items.length} matching events. Clear filters with Refresh.</p>` + data.items.map((item) => `<div class="list-row"><div><strong>${esc(titleCase(item.event))}</strong><small>${esc(item.entity_id)}</small></div><small>${fmtTime(item.created_ts)}</small></div>`).join(""); } catch (error) { errorState(error); } return;
   }
-  if (action === "pps-cycle") return actionDialog({ title: "Manage PPS", description: "This uses the same PPS service and durable state machine as /pps.", fields: [{ name: "action", label: "Action", type: "select", options: [["start_cycle","Start cycle"],["complete_cycle","Complete cycle"],["cancel_cycle","Cancel cycle"],["override_cp","Override Creator Points"]] }, { name: "cycle_id", label: "Cycle ID for complete/cancel", type: "number" }, { name: "queue_id", label: "Queue ID for CP override", type: "number" }, { name: "creator_points", label: "Creator Points for override", type: "number" }, { name: "reason", label: "Notes / reason", type: "textarea" }, { name: "confirmed", label: "I confirm this PPS action", type: "checkbox" }], run: (body) => api("/api/staff/pps", { method: "POST", body }) });
+  if (action === "pps-cycle") return actionDialog({ title: "PPS maintenance", description: "Outreach batches start and close automatically. These controls are only for recovery or a manual Creator Points correction.", fields: [{ name: "action", label: "Action", type: "select", options: [["override_cp","Override Creator Points"],["complete_cycle","Force-close successful batch"],["cancel_cycle","Cancel stuck batch"]] }, { name: "cycle_id", label: "Batch ID for recovery", type: "number" }, { name: "queue_id", label: "Queue ID for CP override", type: "number" }, { name: "creator_points", label: "Creator Points for override", type: "number" }, { name: "reason", label: "Notes / reason", type: "textarea" }, { name: "confirmed", label: "I confirm this PPS action", type: "checkbox" }], run: (body) => api("/api/staff/pps", { method: "POST", body }) });
   if (action === "pps-recompute") return api("/api/staff/pps", { method: "POST", body: { action: "recompute_models" } }).then(() => { showNotice("Model snapshots refreshed"); render(); }).catch((error) => showNotice(error.message, true));
   if (action === "pps-capacity") {
     const route_composition = Object.fromEntries(["direct","network","stream","event","other"].map((route) => [route, Number($(`#pps-capacity-${route}`)?.value || 0)]));
